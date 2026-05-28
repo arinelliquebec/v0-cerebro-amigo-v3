@@ -65,22 +65,37 @@ export function Sidebar() {
       </div>
 
       {/* Main Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-3 py-5 space-y-1 overflow-y-auto">
+        {!collapsed && (
+          <p className="px-3 pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Menu
+          </p>
+        )}
         {navigation.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/")
           return (
             <Link
               key={item.name}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200",
+                "focus-visible:ring-2 focus-visible:ring-[#0D9488]/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card",
                 isActive
-                  ? "bg-[#0D9488] text-white"
+                  ? "bg-[#0D9488] text-white shadow-sm shadow-[#0D9488]/25"
                   : "text-muted-foreground hover:bg-secondary hover:text-[#0D9488]",
                 collapsed && "justify-center px-2"
               )}
             >
-              <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-white")} />
+              {isActive && !collapsed && (
+                <span className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-white/80" />
+              )}
+              <item.icon
+                className={cn(
+                  "h-5 w-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
+                  isActive && "text-white"
+                )}
+              />
               {!collapsed && <span>{item.name}</span>}
             </Link>
           )
@@ -95,15 +110,22 @@ export function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
               className={cn(
-                "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200",
+                "focus-visible:ring-2 focus-visible:ring-[#0D9488]/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card",
                 isActive
-                  ? "bg-[#0D9488] text-white"
+                  ? "bg-[#0D9488] text-white shadow-sm shadow-[#0D9488]/25"
                   : "text-muted-foreground hover:bg-secondary hover:text-[#0D9488]",
                 collapsed && "justify-center px-2"
               )}
             >
-              <item.icon className={cn("h-5 w-5 flex-shrink-0", isActive && "text-white")} />
+              <item.icon
+                className={cn(
+                  "h-5 w-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110",
+                  isActive && "text-white"
+                )}
+              />
               {!collapsed && <span>{item.name}</span>}
             </Link>
           )
@@ -112,12 +134,13 @@ export function Sidebar() {
         {/* Logout */}
         <button
           className={cn(
-            "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors w-full",
+            "group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200",
             "text-muted-foreground hover:bg-red-50 hover:text-red-600",
+            "focus-visible:ring-2 focus-visible:ring-red-400/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card",
             collapsed && "justify-center px-2"
           )}
         >
-          <LogOut className="h-5 w-5 flex-shrink-0" />
+          <LogOut className="h-5 w-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
           {!collapsed && <span>Sair</span>}
         </button>
       </div>

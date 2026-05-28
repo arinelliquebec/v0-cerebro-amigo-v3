@@ -11,30 +11,30 @@ interface HeaderProps {
 
 export function Header({ title, subtitle }: HeaderProps) {
   return (
-    <header className="sticky top-0 z-30 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b border-border">
-      <div className="flex items-center justify-between h-16 px-6">
-        <div>
-          <h1 className="text-xl font-semibold text-[#0F2137]">{title}</h1>
+    <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-16 items-center justify-between px-6">
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-semibold tracking-tight text-[#0F2137]">{title}</h1>
           {subtitle && (
-            <p className="text-sm text-muted-foreground">{subtitle}</p>
+            <p className="truncate text-sm text-muted-foreground">{subtitle}</p>
           )}
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           {/* Search */}
           <div className="relative hidden md:block">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground transition-colors" />
             <Input
               type="search"
               placeholder="Buscar pacientes..."
-              className="w-64 pl-9 bg-muted/50 border-0 focus-visible:ring-[#0D9488]"
+              className="w-64 rounded-full border-border/60 bg-muted/40 pl-9 transition-all duration-200 focus-visible:w-72 focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-[#0D9488]/40"
             />
           </div>
 
           {/* Quick Add */}
           <Button
             size="sm"
-            className="bg-[#0D9488] hover:bg-[#0F766E] text-white gap-2"
+            className="gap-2 rounded-full bg-[#0D9488] text-white shadow-sm shadow-[#0D9488]/25 transition-all duration-200 hover:bg-[#0F766E] hover:shadow-md active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#0D9488]/40"
           >
             <Plus className="h-4 w-4" />
             <span className="hidden sm:inline">Novo Paciente</span>
@@ -44,10 +44,11 @@ export function Header({ title, subtitle }: HeaderProps) {
           <Button
             variant="ghost"
             size="icon"
-            className="relative text-muted-foreground hover:text-[#0D9488]"
+            aria-label="Notificações"
+            className="relative rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-[#0D9488] focus-visible:ring-2 focus-visible:ring-[#0D9488]/40"
           >
             <Bell className="h-5 w-5" />
-            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 bg-[#E57373] rounded-full text-[10px] text-white flex items-center justify-center font-medium">
+            <span className="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[#E57373] text-[10px] font-medium text-white ring-2 ring-background">
               3
             </span>
           </Button>

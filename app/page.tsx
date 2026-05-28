@@ -221,17 +221,7 @@ export default function HomePage() {
       <footer className="py-12 bg-[#0F2137] text-white">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="flex items-center gap-2">
-              <Logo showText={false} size="sm" />
-              <div className="flex items-baseline gap-1 text-lg">
-                <span className="font-serif italic font-semibold text-white">
-                  Cérebro
-                </span>
-                <span className="font-sans font-medium text-[#14B8A6]">
-                  Amigo
-                </span>
-              </div>
-            </div>
+            <Logo size="md" variant="light" />
             <p className="text-sm text-white/60">
               © 2026 Cérebro Amigo. Todos os direitos reservados.
             </p>

@@ -17,7 +17,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-[#0D9488]/20 to-transparent" />
         <div className="relative z-10 flex flex-col justify-center px-16 text-white">
           <div className="mb-12">
-            <Logo showText={false} size="lg" />
+            <Logo showText={false} size="lg" variant="light" />
           </div>
           
           <h1 className="text-4xl font-serif italic font-semibold mb-2">
