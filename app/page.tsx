@@ -81,7 +81,7 @@ export default function HomePage() {
                   <span className="block text-5xl lg:text-6xl font-serif italic font-semibold text-[#0F2137]">
                     Cérebro
                   </span>
-                  <span className="block text-5xl lg:text-6xl font-sans font-medium text-[#0D9488]">
+                  <span className="block text-5xl lg:text-6xl font-sans font-semibold text-[#0D9488]">
                     Amigo
                   </span>
                 </h1>
@@ -197,7 +197,7 @@ export default function HomePage() {
                   Lembretes Automáticos
                 </h3>
                 <p className="text-muted-foreground leading-relaxed">
-                  Configure lembretes personalizados para medicações, retornos e consultas de acompanhamento.
+                  Configure lembretes personalizados para medicações, tarefas terapêuticas e muito mais.
                 </p>
               </CardContent>
             </Card>
