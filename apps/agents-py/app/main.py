@@ -1,0 +1,183 @@
+"""FastAPI entrypoint do agents-py."""
+
+from __future__ import annotations
+
+import logging
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
+from uuid import UUID
+
+import structlog
+from fastapi import Depends, FastAPI, Header, HTTPException
+from pydantic import BaseModel
+
+from app.agents import AGENT_REGISTRY, AgentPayload
+from app.agents.resumidor import ResumidorAgent
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
+from app.core.config import get_settings
+from app.core.db import acquire, close_pool, init_pool
+from app.core.observability import configure_observability
+from app.scheduler import (
+    run_for_patient,
+    run_once,
+    shutdown_scheduler,
+    start_scheduler,
+)
+
+
+def _configure_logging() -> None:
+    settings = get_settings()
+    logging.basicConfig(level=settings.log_level)
+    structlog.configure(
+        processors=[
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            structlog.processors.dict_tracebacks,
+            structlog.processors.JSONRenderer(),
+        ],
+        wrapper_class=structlog.make_filtering_bound_logger(
+            logging.getLevelName(settings.log_level)
+        ),
+        cache_logger_on_first_use=True,
+    )
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    _configure_logging()
+    log = structlog.get_logger(__name__)
+    settings = get_settings()
+    log.info("app.startup.begin", env=settings.app_env, mode=settings.agents_mode)
+
+    configure_observability()
+    await init_pool()
+
+    if settings.agents_mode == "scheduled":
+        start_scheduler()
+        log.info("scheduler.started")
+    else:
+        log.info("scheduler.disabled.manual_mode")
+
+    log.info("app.startup.done")
+    try:
+        yield
+    finally:
+        log.info("app.shutdown.begin")
+        shutdown_scheduler()
+        await close_pool()
+        log.info("app.shutdown.done")
+
+
+app = FastAPI(
+    title="Cérebro Amigo · Agents (Python)",
+    version="0.1.0",
+    lifespan=lifespan,
+)
+
+
+# ─── Health checks ─────────────────────────────────────────────────────────
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/ready")
+async def ready() -> dict[str, str]:
+    async with acquire() as conn:
+        await conn.execute("SELECT 1")
+    return {"status": "ready"}
+
+
+# ─── Endpoints manuais ─────────────────────────────────────────────────────
+
+
+def _check_internal_token(authorization: str | None = Header(None)) -> None:
+    settings = get_settings()
+    expected = f"Bearer {settings.internal_api_token.get_secret_value()}"
+    if authorization != expected:
+        raise HTTPException(status_code=401, detail="invalid internal token")
+
+
+@app.get("/internal/agents", dependencies=[Depends(_check_internal_token)])
+async def list_agents() -> dict[str, list[str]]:
+    return {"agents": sorted(AGENT_REGISTRY.keys())}
+
+
+@app.post(
+    "/internal/agents/{name}/run",
+    dependencies=[Depends(_check_internal_token)],
+)
+async def run_agent_now(name: str) -> dict:
+    """Dispara um ciclo do agente agora (varre find_pending, executa,
+    respeita dedup window). Útil para forçar processamento sem esperar
+    o scheduler."""
+    if name not in AGENT_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"agente '{name}' desconhecido")
+    return await run_once(name)
+
+
+class RunForPatientRequest(BaseModel):
+    paciente_id: UUID
+
+
+@app.post(
+    "/internal/agents/{name}/run-for-patient",
+    dependencies=[Depends(_check_internal_token)],
+)
+async def run_agent_for_patient(name: str, req: RunForPatientRequest) -> dict:
+    """Força execução de um agente para um paciente específico, IGNORANDO
+    dedup window. Usado quando médico clica 'regenerar' no dashboard.
+
+    Se o agente não considera o paciente elegível agora (sem consulta
+    agendada para resumidor, triggers não atingidos para adesão, etc.),
+    retorna 200 com `insight_id=null` e mensagem explicativa.
+    """
+    if name not in AGENT_REGISTRY:
+        raise HTTPException(status_code=404, detail=f"agente '{name}' desconhecido")
+    return await run_for_patient(name, req.paciente_id)
+
+
+@app.post(
+    "/internal/agents/resumo_pre_consulta/run-on-demand",
+    dependencies=[Depends(_check_internal_token)],
+)
+async def run_resumo_on_demand(req: RunForPatientRequest) -> dict:
+    """Forca execucao do ResumidorAgent pra UM paciente, IGNORANDO find_pending.
+
+    Diferente de /run-for-patient (que iteraria find_pending e desistiria se o
+    paciente nao tem consulta agendada), este endpoint constroi um payload
+    sintetico e dispara `_run_for_payload` direto. Usado pelo botao 'Gerar
+    resumo' no dashboard medico, onde o medico decide quando quer o briefing
+    independente de elegibilidade.
+    """
+    agent = ResumidorAgent()
+
+    async with acquire() as conn:
+        medico_id = await conn.fetchval(
+            "SELECT medico_responsavel_id FROM pacientes WHERE cliente_id = $1",
+            req.paciente_id,
+        )
+    if medico_id is None:
+        raise HTTPException(
+            status_code=404,
+            detail="paciente sem medico_responsavel_id",
+        )
+
+    payload = AgentPayload(
+        paciente_id=req.paciente_id,
+        medico_id=medico_id,
+        extra={
+            "consulta_id": str(uuid4()),
+            "consulta_inicia_em": (datetime.now(UTC) + timedelta(hours=24)).isoformat(),
+            "consulta_modalidade": "on_demand",
+        },
+    )
+
+    insight_id = await agent._run_for_payload(payload)  # noqa: SLF001
+    return {
+        "insight_id": str(insight_id) if insight_id else None,
+        "on_demand": True,
+    }
