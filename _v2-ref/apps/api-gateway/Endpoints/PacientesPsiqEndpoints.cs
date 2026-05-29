@@ -1,0 +1,546 @@
+using ApiGateway.Auth;
+using ApiGateway.Data;
+using ApiGateway.Services;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+
+namespace ApiGateway.Endpoints;
+
+/// <summary>
+/// Endpoints específicos do dashboard psiquiátrico.
+/// Tudo escoado pelo médico logado — vê apenas seus pacientes.
+/// </summary>
+public static class PacientesPsiqEndpoints
+{
+    public static void Map(WebApplication app)
+    {
+        var g = app.MapGroup("/api/v1/pacientes")
+            .WithTags("pacientes-psiquiatria")
+            .RequireAuthorization();
+
+        // Lista pacientes do médico logado
+        g.MapGet("/", async (AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            // `numero` é o número de cadastro DAQUELE médico — estável (não muda
+            // quando a lista reordena por atividade) e específico (cada médico
+            // tem sua própria sequência 1..N). Útil para conversa clínica
+            // anônima ("paciente 03") e para identificação visual rápida.
+            var sql = @"
+                WITH numerados AS (
+                    SELECT cliente_id,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY medico_responsavel_id
+                               ORDER BY criado_em ASC, cliente_id
+                           ) AS numero
+                    FROM pacientes
+                    WHERE medico_responsavel_id = {0}
+                )
+                SELECT n.numero, c.id, c.wa_id, c.nome, c.email,
+                       p.cpf, p.data_nascimento, p.consentimento_lgpd_em,
+                       (SELECT COUNT(*) FROM prescricoes pr WHERE pr.paciente_id = c.id AND pr.ativa) AS prescricoes_ativas,
+                       (SELECT MAX(m.criada_em) FROM mensagens m
+                        JOIN conversas conv ON conv.id = m.conversa_id
+                        WHERE conv.cliente_id = c.id) AS ultima_msg
+                FROM clientes c
+                JOIN pacientes p ON p.cliente_id = c.id
+                JOIN numerados n ON n.cliente_id = c.id
+                WHERE p.medico_responsavel_id = {0}
+                ORDER BY ultima_msg DESC NULLS LAST";
+
+            var rows = await db.Database.SqlQueryRaw<PacienteListItem>(sql, medicoId).ToListAsync();
+            return Results.Ok(rows);
+        });
+
+        // Timeline unificada do paciente
+        g.MapGet("/{id:guid}/timeline", async (
+            Guid id, AppDbContext db, ClaimsPrincipal user,
+            [FromQuery] int dias = 30) =>
+        {
+            if (!await PacienteEhDoMedico(db, id, user)) return Results.Forbid();
+
+            var inicio = DateTime.UtcNow.AddDays(-dias);
+
+            // Une eventos diversos numa só timeline
+            var timeline = new List<TimelineItem>();
+
+            var mensagens = await db.Mensagens
+                .Where(m => db.Conversas.Any(c => c.Id == m.ConversaId && c.ClienteId == id)
+                            && m.CriadaEm >= inicio)
+                .OrderByDescending(m => m.CriadaEm).Take(200)
+                .Select(m => new TimelineItem(
+                    "mensagem", m.CriadaEm,
+                    m.Papel == "user" ? "Mensagem do paciente" : "Resposta",
+                    m.Conteudo, null, m.Papel == "user" ? "patient" : "system"))
+                .ToListAsync();
+            timeline.AddRange(mensagens);
+
+            // Sintomas, eventos, tomadas, crises (queries SQL separadas)
+            var sintomas = await db.Database.SqlQueryRaw<TimelineItem>(@"
+                SELECT 'sintoma' AS tipo, registrado_em AS quando,
+                       'Sintomas registrados' AS titulo,
+                       CONCAT('Humor: ', COALESCE(humor::text, '-'),
+                              ' | Ansiedade: ', COALESCE(ansiedade::text, '-'),
+                              ' | Sono: ', COALESCE(sono_horas::text, '-'), 'h') AS descricao,
+                       NULL::int AS intensidade,
+                       'system' AS origem
+                FROM sintomas WHERE paciente_id = {0} AND registrado_em >= {1}
+                ORDER BY registrado_em DESC", id, inicio).ToListAsync();
+            timeline.AddRange(sintomas);
+
+            var eventos = await db.Database.SqlQueryRaw<TimelineItem>(@"
+                SELECT 'evento' AS tipo, criado_em AS quando,
+                       titulo, COALESCE(descricao, '') AS descricao,
+                       intensidade, 'system' AS origem
+                FROM eventos WHERE paciente_id = {0} AND criado_em >= {1}
+                ORDER BY criado_em DESC", id, inicio).ToListAsync();
+            timeline.AddRange(eventos);
+
+            var crises = await db.Database.SqlQueryRaw<TimelineItem>(@"
+                SELECT 'crise' AS tipo, criado_em AS quando,
+                       'PROTOCOLO DE CRISE ACIONADO' AS titulo,
+                       CONCAT('Gatilho: ', gatilho, ' | Confiança: ',
+                              ROUND((confianca * 100)::numeric, 0), '%') AS descricao,
+                       NULL::int AS intensidade, 'critical' AS origem
+                FROM protocolos_crise_acionados WHERE paciente_id = {0} AND criado_em >= {1}
+                ORDER BY criado_em DESC", id, inicio).ToListAsync();
+            timeline.AddRange(crises);
+
+            return Results.Ok(timeline.OrderByDescending(t => t.Quando).Take(150));
+        });
+
+        // Gráfico de humor (últimos 30/60/90 dias)
+        g.MapGet("/{id:guid}/humor", async (
+            Guid id, AppDbContext db, ClaimsPrincipal user,
+            [FromQuery] int dias = 30) =>
+        {
+            if (!await PacienteEhDoMedico(db, id, user)) return Results.Forbid();
+
+            var inicio = DateTime.UtcNow.AddDays(-dias);
+            var dados = await db.Database.SqlQueryRaw<PontoHumor>(@"
+                SELECT DATE(registrado_em) AS data,
+                       AVG(humor)::float AS humor,
+                       AVG(ansiedade)::float AS ansiedade
+                FROM sintomas
+                WHERE paciente_id = {0} AND registrado_em >= {1}
+                GROUP BY DATE(registrado_em)
+                ORDER BY data", id, inicio).ToListAsync();
+            return Results.Ok(dados);
+        });
+
+        // Adesão a medicação (últimos 30 dias)
+        g.MapGet("/{id:guid}/adesao", async (
+            Guid id, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            if (!await PacienteEhDoMedico(db, id, user)) return Results.Forbid();
+
+            var dados = await db.Database.SqlQueryRaw<AdesaoMedicacao>(@"
+                SELECT pr.medicamento,
+                       COUNT(*) FILTER (WHERE t.status = 'tomada') AS tomadas,
+                       COUNT(*) FILTER (WHERE t.status IN ('esquecida','pulou')) AS faltas,
+                       COUNT(*) AS total,
+                       ROUND(
+                         COUNT(*) FILTER (WHERE t.status = 'tomada')::numeric /
+                         NULLIF(COUNT(*) FILTER (WHERE t.status != 'pendente'), 0) * 100,
+                         1
+                       ) AS percentual_adesao
+                FROM tomadas_medicacao t
+                JOIN prescricoes pr ON pr.id = t.prescricao_id
+                WHERE t.paciente_id = {0}
+                  AND t.horario_previsto >= NOW() - INTERVAL '30 days'
+                GROUP BY pr.medicamento", id).ToListAsync();
+            return Results.Ok(dados);
+        });
+
+        // Resumo pré-consulta — GET retorna o último insight cacheado (se houver)
+        g.MapGet("/{id:guid}/resumo-pre-consulta", async (
+            Guid id, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            if (!await PacienteEhDoMedico(db, id, user)) return Results.Forbid();
+
+            var sql = @"
+                SELECT id, titulo, conteudo, severidade, criado_em, valido_ate,
+                       COALESCE(metadata->>'qualidade_dados', 'completa') AS qualidade_dados,
+                       (metadata->>'periodo_dias')::int AS periodo_dias
+                FROM insights
+                WHERE paciente_id = {0}
+                  AND agente = 'resumo_pre_consulta'
+                  AND descartado_em IS NULL
+                ORDER BY criado_em DESC
+                LIMIT 1";
+
+            var resultados = await db.Database
+                .SqlQueryRaw<ResumoPreConsultaDto>(sql, id)
+                .ToListAsync();
+            var ultimo = resultados.Count > 0 ? resultados[0] : null;
+
+            return Results.Ok(new { ultimo });
+        });
+
+        // Resumo pré-consulta — POST dispara geração on-demand via agents-py
+        g.MapPost("/{id:guid}/resumo-pre-consulta", async (
+            Guid id,
+            AppDbContext db,
+            ClaimsPrincipal user,
+            IHttpClientFactory httpFactory,
+            IConfiguration cfg) =>
+        {
+            if (!await PacienteEhDoMedico(db, id, user)) return Results.Forbid();
+
+            var internalToken = cfg["INTERNAL_API_TOKEN"]
+                ?? throw new InvalidOperationException("INTERNAL_API_TOKEN missing");
+
+            var http = httpFactory.CreateClient("agents-py");
+            using var msg = new HttpRequestMessage(
+                HttpMethod.Post,
+                "/internal/agents/resumo_pre_consulta/run-on-demand")
+            {
+                Content = JsonContent.Create(new { paciente_id = id }),
+            };
+            msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", internalToken);
+
+            using var resp = await http.SendAsync(msg);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                return Results.Problem(
+                    title: "Falha ao chamar agents-py",
+                    detail: body,
+                    statusCode: (int)resp.StatusCode);
+            }
+
+            // O agent persistiu o insight (ou pulou se elegibilidade falhou).
+            // Buscamos o mais recente pra devolver pro frontend.
+            var sql = @"
+                SELECT id, titulo, conteudo, severidade, criado_em, valido_ate,
+                       COALESCE(metadata->>'qualidade_dados', 'completa') AS qualidade_dados,
+                       (metadata->>'periodo_dias')::int AS periodo_dias
+                FROM insights
+                WHERE paciente_id = {0}
+                  AND agente = 'resumo_pre_consulta'
+                  AND descartado_em IS NULL
+                ORDER BY criado_em DESC
+                LIMIT 1";
+
+            var resultados = await db.Database
+                .SqlQueryRaw<ResumoPreConsultaDto>(sql, id)
+                .ToListAsync();
+            var resumo = resultados.Count > 0 ? resultados[0] : null;
+
+            if (resumo is null)
+            {
+                // Agent pulou (ex.: paciente não tem consulta agendada e o
+                // resumidor exige isso em find_pending). Retornamos 200 com
+                // null pro frontend mostrar mensagem explicativa.
+                return Results.Ok(new
+                {
+                    resumo = (object?)null,
+                    aviso = "Resumo não foi gerado. Possível causa: o agente requer dados que ainda não estão disponíveis pra este paciente.",
+                });
+            }
+
+            return Results.Ok(new { resumo });
+        });
+
+        // ================================================================
+        // CRIAR PACIENTE (médico cadastra novo paciente)
+        // ================================================================
+        // Dois fluxos suportados:
+        //
+        //  A) `senhaInicial` vazio → fluxo magic link:
+        //       1. Cria `clientes` + `pacientes`
+        //       2. Gera magic_link de 24h
+        //       3. Envia email com convite (Resend via orchestrator)
+        //
+        //  B) `senhaInicial` preenchido → fluxo "cadastro em consultório":
+        //       1. Cria `clientes` + `pacientes`
+        //       2. Hasheia a senha e grava em `pacientes_credenciais`
+        //          com `senha_temporaria=TRUE` (força troca no 1º acesso)
+        //       3. NÃO envia email, NÃO cria magic_link
+        //       4. Retorna a senha provisória pro médico anotar/entregar
+        //
+        // Em ambos: telefone (WhatsApp) é obrigatório, pra fallback de
+        // emergência fora do app.
+        g.MapPost("/", async (
+            [FromBody] CriarPacienteRequest req,
+            AppDbContext db, ClaimsPrincipal user,
+            IHttpClientFactory httpFactory, IConfiguration cfg,
+            IPasswordHasher hasher, ResendClient resend, ILogger<Program> logger) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Nome))
+                return Results.BadRequest(new { error = "email e nome são obrigatórios" });
+
+            // WhatsApp agora é obrigatório para fallback de emergência (decisão
+            // clínica, não técnica — paciente precisa ser alcançável fora do app).
+            var waId = string.IsNullOrWhiteSpace(req.WaId)
+                ? ""
+                : new string(req.WaId.Where(char.IsDigit).ToArray());
+
+            if (waId.Length < 10 || waId.Length > 15)
+                return Results.BadRequest(new {
+                    error = "telefone (WhatsApp) é obrigatório e precisa ter entre 10 e 15 dígitos"
+                });
+
+            var modoSenhaProvisoria = !string.IsNullOrWhiteSpace(req.SenhaInicial);
+            if (modoSenhaProvisoria && req.SenhaInicial!.Length < 6)
+                return Results.BadRequest(new { error = "senha provisória precisa ter pelo menos 6 caracteres" });
+
+            var emailNorm = req.Email.Trim().ToLowerInvariant();
+
+            // 1. Verifica se já existe cliente com esse email
+            var clienteId = await db.Database.ExecuteScalarAsync<Guid?>(
+                "SELECT id FROM clientes WHERE email = {0}", emailNorm);
+
+            if (clienteId is not null)
+            {
+                var medicoExistente = await db.Database.ExecuteScalarAsync<Guid?>(
+                    "SELECT medico_responsavel_id FROM pacientes WHERE cliente_id = {0}",
+                    clienteId);
+                if (medicoExistente is not null && medicoExistente != medicoId)
+                    return Results.Conflict(new { error = "Paciente já cadastrado com outro médico" });
+            }
+            else
+            {
+                // `clientes.wa_id` é UNIQUE. Antes de tentar inserir, valida pra devolver
+                // 409 com mensagem clínica em vez de deixar a constraint quebrar e cair
+                // no global exception handler como 500.
+                if (waId.Length > 0)
+                {
+                    var donoDoTel = await db.Database.ExecuteScalarAsync<string?>(
+                        "SELECT email FROM clientes WHERE wa_id = {0}", waId);
+                    if (donoDoTel is not null && donoDoTel != emailNorm)
+                        return Results.Conflict(new
+                        {
+                            error = "Esse WhatsApp já está cadastrado para outro paciente. " +
+                                    "Confirme o número (com DDD) antes de prosseguir."
+                        });
+                }
+
+                var newId = Guid.NewGuid();
+                try
+                {
+                    await db.Database.ExecuteSqlRawAsync(@"
+                        INSERT INTO clientes (id, wa_id, nome, email)
+                        VALUES ({0}, NULLIF({1}, ''), {2}, {3})",
+                        newId, waId, req.Nome, emailNorm);
+                }
+                catch (Npgsql.PostgresException pe) when (pe.SqlState == "23505")
+                {
+                    // Safety net pra race condition (validação prévia + INSERT não são
+                    // atômicos). `ConstraintName` diz qual coluna estourou.
+                    logger.LogWarning("Conflito UNIQUE ao criar cliente: {Constraint}", pe.ConstraintName);
+                    var msg = pe.ConstraintName switch
+                    {
+                        "clientes_wa_id_key" => "WhatsApp já cadastrado para outro paciente.",
+                        "clientes_email_key" => "E-mail já cadastrado.",
+                        _ => "Conflito ao cadastrar paciente (dado duplicado)."
+                    };
+                    return Results.Conflict(new { error = msg });
+                }
+                clienteId = newId;
+            }
+
+            // 2. Cria paciente (idempotente)
+            await db.Database.ExecuteSqlRawAsync(@"
+                INSERT INTO pacientes (cliente_id, medico_responsavel_id, cpf, data_nascimento)
+                VALUES ({0}, {1}, NULLIF({2}, ''), {3})
+                ON CONFLICT (cliente_id) DO UPDATE SET
+                  medico_responsavel_id = EXCLUDED.medico_responsavel_id",
+                clienteId, medicoId, req.Cpf ?? "", req.DataNascimento);
+
+            // ----------------------------------------------------------------
+            // Fluxo B — senha provisória definida pelo médico
+            // ----------------------------------------------------------------
+            if (modoSenhaProvisoria)
+            {
+                var senhaHash = hasher.Hash(req.SenhaInicial!);
+
+                await db.Database.ExecuteSqlRawAsync(@"
+                    INSERT INTO pacientes_credenciais
+                        (paciente_id, email, senha_hash, senha_definida_em, senha_temporaria)
+                    VALUES ({0}, {1}, {2}, NOW(), TRUE)
+                    ON CONFLICT (paciente_id) DO UPDATE SET
+                        email = EXCLUDED.email,
+                        senha_hash = EXCLUDED.senha_hash,
+                        senha_definida_em = NOW(),
+                        senha_temporaria = TRUE",
+                    clienteId, emailNorm, senhaHash);
+
+                return Results.Created($"/api/v1/pacientes/{clienteId}", new
+                {
+                    pacienteId = clienteId,
+                    modo = "senha_provisoria",
+                    emailEnviado = false,
+                    emailErro = (string?)null,
+                    magicLinkUrl = (string?)null,
+                    senhaProvisoria = req.SenhaInicial,
+                });
+            }
+
+            // ----------------------------------------------------------------
+            // Fluxo A — magic link por email
+            // ----------------------------------------------------------------
+            var tokenBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+            var token = Convert.ToBase64String(tokenBytes)
+                .Replace("+", "-").Replace("/", "_").Replace("=", "");
+            var hashToken = SHA256(token);
+
+            await db.Database.ExecuteSqlRawAsync(@"
+                INSERT INTO magic_links (paciente_id, token_hash, proposito, expira_em)
+                VALUES ({0}, {1}, 'primeiro_acesso', NOW() + INTERVAL '24 hours')",
+                clienteId, hashToken);
+
+            var portalBase = cfg["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
+            var url = $"{portalBase}/p/entrar?token={token}";
+
+            // 4. Envia email diretamente via Resend (ResendClient .NET tipado)
+            var emailEnviado = false;
+            string? emailErro = null;
+            try
+            {
+                var medicoNome = await db.Database.ExecuteScalarAsync<string>(
+                    "SELECT nome FROM medicos WHERE id = {0}", medicoId)
+                    ?? "Seu/sua médico(a)";
+
+                var primeiroNome = req.Nome.Split(' ')[0];
+
+                var textBody = $"Olá {primeiroNome},\n\n" +
+                    $"{medicoNome} te convidou para o Cérebro Amigo — uma ferramenta de " +
+                    "cuidado contínuo entre as consultas.\n\n" +
+                    $"Para criar sua senha e começar:\n{url}\n\n" +
+                    "O link é válido por 24 horas e é só seu — não compartilhe.\n\n" +
+                    "Em momentos difíceis: CVV 188 (24h) · SAMU 192 · pronto-socorro mais próximo.\n\n" +
+                    "Cérebro Amigo";
+
+                var htmlBody = $@"<!DOCTYPE html>
+<html><head><meta charset=""utf-8""></head>
+<body style=""font-family:system-ui,sans-serif;background:#f5f3ff;padding:24px;color:#27272a"">
+  <div style=""max-width:520px;margin:0 auto;background:#fff;border-radius:16px;padding:32px"">
+    <div style=""text-align:center;margin-bottom:24px"">
+      <span style=""font-size:32px;color:#5b3a8e"">✦</span>
+      <h1 style=""font-size:18px;color:#5b3a8e;margin:8px 0 0"">Cérebro Amigo</h1>
+    </div>
+    <p>Olá <strong>{primeiroNome}</strong>,</p>
+    <p><strong>{medicoNome}</strong> te convidou para o Cérebro Amigo —
+       uma ferramenta de cuidado contínuo entre as consultas.</p>
+    <p>Para criar sua senha e começar:</p>
+    <p style=""text-align:center;margin:32px 0"">
+      <a href=""{url}""
+         style=""display:inline-block;background:#5b3a8e;color:#fff;padding:14px 28px;
+                border-radius:10px;text-decoration:none;font-weight:600"">
+        Criar minha senha
+      </a>
+    </p>
+    <p style=""font-size:13px;color:#71717a"">
+      O link é válido por 24 horas e é só seu — não compartilhe.<br/>
+      Se você não esperava este convite, pode ignorar este email.
+    </p>
+    <hr style=""border:none;border-top:1px solid #e4e4e7;margin:24px 0""/>
+    <p style=""font-size:12px;color:#71717a"">
+      Em momentos difíceis: CVV 188 (24h) · SAMU 192 · pronto-socorro mais próximo.
+    </p>
+  </div>
+</body></html>";
+
+                var result = await resend.SendAsync(
+                    to: emailNorm,
+                    subject: $"Bem-vindo(a) ao Cérebro Amigo — convite de {medicoNome}",
+                    htmlBody: htmlBody,
+                    textBody: textBody);
+
+                emailEnviado = result.Success;
+                emailErro = result.Error;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "falha ao enviar magic link via email");
+                emailErro = ex.Message;
+            }
+
+            return Results.Created($"/api/v1/pacientes/{clienteId}", new
+            {
+                pacienteId = clienteId,
+                modo = "magic_link",
+                emailEnviado,
+                emailErro,
+                magicLinkUrl = emailEnviado ? null : url, // fallback se falhou
+                senhaProvisoria = (string?)null,
+            });
+        });
+    }
+
+    private static string SHA256(string s)
+    {
+        using var sha = System.Security.Cryptography.SHA256.Create();
+        return Convert.ToBase64String(sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(s)));
+    }
+
+    private static async Task<Guid?> GetMedicoIdAsync(AppDbContext db, ClaimsPrincipal user)
+    {
+        var sub = user.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(sub, out var userId)) return null;
+
+        return await db.Database.ExecuteScalarAsync<Guid?>(
+            "SELECT id FROM medicos WHERE usuario_id = {0}", userId);
+    }
+
+    private static async Task<bool> PacienteEhDoMedico(AppDbContext db, Guid pacienteId, ClaimsPrincipal user)
+    {
+        var medicoId = await GetMedicoIdAsync(db, user);
+        if (medicoId is null) return false;
+
+        return await db.Database.ExistsAsync(
+            "SELECT 1 FROM pacientes WHERE cliente_id = {0} AND medico_responsavel_id = {1}",
+            pacienteId, medicoId.Value);
+    }
+}
+
+// DTOs (records)
+// `WaId` é nullable porque, após a migração para identificação por email +
+// magic link, pacientes podem ser cadastrados sem telefone. Manter `string`
+// não-nullable aqui faz o EF Core / Npgsql lançar quando o valor vem NULL
+// do banco, devolvendo 500 silencioso na listagem.
+public record PacienteListItem(
+    long Numero,
+    Guid Id, string? WaId, string? Nome, string? Email,
+    string? Cpf, DateOnly? DataNascimento, DateTime? ConsentimentoLgpdEm,
+    int PrescricoesAtivas, DateTime? UltimaMsg);
+
+public record TimelineItem(
+    string Tipo, DateTime Quando, string Titulo, string Descricao,
+    int? Intensidade, string Origem);
+
+public record PontoHumor(DateTime Data, double? Humor, double? Ansiedade);
+
+public record AdesaoMedicacao(
+    string Medicamento, int Tomadas, int Faltas, int Total, decimal? PercentualAdesao);
+
+public record CriarPacienteRequest(
+    string Email,
+    string Nome,
+    string? WaId,        // obrigatório agora (WhatsApp pra fallback de emergência)
+    string? Cpf,
+    // `DateOnly?` em vez de `DateTime?` porque a coluna do banco é `date`.
+    // Com `DateTime` o Npgsql infere `timestamp with time zone` por default
+    // e explode com `Cannot write DateTime with Kind=Unspecified` quando
+    // o frontend manda `"2000-01-15"` (sem timezone).
+    DateOnly? DataNascimento,
+    string? SenhaInicial); // preenchido = fluxo "senha provisória" (sem email)
+
+public sealed record ResumoPreConsultaDto(
+    Guid Id,
+    string Titulo,
+    string Conteudo,
+    string Severidade,
+    DateTime CriadoEm,
+    DateTime? ValidoAte,
+    string QualidadeDados,
+    int? PeriodoDias);

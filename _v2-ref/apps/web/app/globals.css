@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   Cérebro Amigo — Tema dark com acento ciano (#00D9C0)
+   Tokens base: void · neural · plasma. Alias brand -> plasma.
+   ============================================================================= */
+
+@theme {
+  /* ---------- Void — Fundo escuro profundo ---------- */
+  --color-void:        oklch(0.08 0.015 250);
+  --color-void-soft:   oklch(0.12 0.020 250);
+  --color-void-mute:   oklch(0.18 0.025 250);
+  --color-void-glass:  oklch(0.14 0.020 250 / 0.7);
+
+  /* ---------- Neural — Cinzas azulados ---------- */
+  --color-neural-50:   oklch(0.98 0.005 250);
+  --color-neural-100:  oklch(0.92 0.010 250);
+  --color-neural-200:  oklch(0.82 0.015 250);
+  --color-neural-300:  oklch(0.70 0.020 250);
+  --color-neural-400:  oklch(0.55 0.025 250);
+  --color-neural-500:  oklch(0.42 0.025 250);
+  --color-neural-600:  oklch(0.32 0.020 250);
+  --color-neural-700:  oklch(0.24 0.018 250);
+  --color-neural-800:  oklch(0.18 0.015 250);
+  --color-neural-900:  oklch(0.12 0.012 250);
+
+  /* ---------- Plasma — Ciano elétrico (cor principal) ---------- */
+  --color-plasma-50:   oklch(0.97 0.04 195);
+  --color-plasma-100:  oklch(0.93 0.08 195);
+  --color-plasma-200:  oklch(0.86 0.14 195);
+  --color-plasma-300:  oklch(0.78 0.18 195);
+  --color-plasma-400:  oklch(0.70 0.20 195);
+  --color-plasma-500:  oklch(0.65 0.22 195);
+  --color-plasma-600:  oklch(0.55 0.20 195);
+  --color-plasma-700:  oklch(0.45 0.18 195);
+  --color-plasma-800:  oklch(0.35 0.14 195);
+  --color-plasma-900:  oklch(0.25 0.10 195);
+  --color-plasma-glow: oklch(0.75 0.25 195);
+
+  /* Alias brand -> plasma (ainda em uso) */
+  --color-brand-50:  var(--color-plasma-50);
+  --color-brand-100: var(--color-plasma-100);
+  --color-brand-200: var(--color-plasma-200);
+  --color-brand-300: var(--color-plasma-300);
+  --color-brand-400: var(--color-plasma-400);
+  --color-brand-500: var(--color-plasma-500);
+  --color-brand-600: var(--color-plasma-600);
+  --color-brand-700: var(--color-plasma-700);
+  --color-brand-800: var(--color-plasma-800);
+  --color-brand-900: var(--color-plasma-900);
+
+  /* ---------- Fontes ---------- */
+  --font-sans:    var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    var(--font-jetbrains), ui-monospace, "JetBrains Mono", monospace;
+
+  /* ---------- Sombras ---------- */
+  --shadow-glow:   0 0 20px oklch(0.65 0.22 195 / 0.4),
+                   0 0 60px oklch(0.65 0.22 195 / 0.2);
+  --shadow-card:   0 4px 24px -4px oklch(0 0 0 / 0.5),
+                   0 0 1px oklch(0.65 0.22 195 / 0.3);
+
+  /* ---------- Easing ---------- */
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-bounce:    cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* =============================================================================
+   Base
+   ============================================================================= */
+@layer base {
+  html {
+    background: var(--color-void);
+    color: var(--color-neural-50);
+    font-feature-settings: "ss01", "ss02", "cv01";
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(ellipse 1200px 800px at 20% -20%, oklch(0.65 0.22 195 / 0.08), transparent 60%),
+      radial-gradient(ellipse 800px 600px at 90% 110%, oklch(0.60 0.24 320 / 0.06), transparent 50%),
+      linear-gradient(180deg, var(--color-void) 0%, oklch(0.06 0.01 250) 100%);
+    min-height: 100vh;
+  }
+
+  /* Grid pattern sutil */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.03;
+    background-image:
+      linear-gradient(oklch(0.65 0.22 195 / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.65 0.22 195 / 0.5) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 80% 60% at 50% 50%, black, transparent);
+  }
+
+  .num,
+  table,
+  [data-num] {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+  }
+
+  ::selection {
+    background: var(--color-plasma-500);
+    color: var(--color-void);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-void-soft);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-plasma-600);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-plasma-500);
+  }
+}
+
+/* =============================================================================
+   Utilitários
+   ============================================================================= */
+
+/* Glass effect - Glassmorphism */
+@utility glass {
+  background: oklch(0.14 0.020 250 / 0.6);
+  backdrop-filter: blur(20px) saturate(1.2);
+  border: 1px solid oklch(0.65 0.22 195 / 0.15);
+}
+
+/* =============================================================================
+   Animações
+   ============================================================================= */
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(14px); filter: blur(6px); }
+  to   { opacity: 1; transform: translateY(0);    filter: blur(0); }
+}
+@keyframes slide-x {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(-50% - 0.5rem)); }
+}
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px oklch(0.65 0.22 195 / 0.4);
+    border-color: oklch(0.65 0.22 195 / 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px oklch(0.65 0.22 195 / 0.6);
+    border-color: oklch(0.65 0.22 195 / 0.5);
+  }
+}
+
+@utility animate-rise       { animation: rise 0.9s var(--ease-editorial) both; }
+@utility animate-marquee    { animation: slide-x 38s linear infinite; }
+@utility animate-pulse-glow { animation: pulse-glow 3s ease-in-out infinite; }
+
+/* =============================================================================
+   View transitions + PWA
+   ============================================================================= */
+@view-transition {
+  navigation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 0.35s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (display-mode: standalone) {
+  body {
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior-y: contain;
+  }
+  input, textarea {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
