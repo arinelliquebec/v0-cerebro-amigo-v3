@@ -31,7 +31,7 @@ services:
       - "5050:5000"
     env_file: .env
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      test: ["CMD", "curl", "-sf", "http://localhost:5000/health"]
       interval: 10s
       timeout: 5s
       retries: 5
