@@ -39,7 +39,7 @@ export function Logo({ className, showText = true, size = "md", variant = "defau
           <span className={cn("font-serif italic font-semibold", variant === "light" ? "text-white" : "text-[#0F2137]")}>
             Cérebro
           </span>
-          <span className={cn("font-sans font-medium", variant === "light" ? "text-[#14B8A6]" : "text-[#0D9488]")}>
+          <span className={cn("font-serif font-semibold not-italic", variant === "light" ? "text-[#14B8A6]" : "text-[#0D9488]")}>
             Amigo
           </span>
         </div>

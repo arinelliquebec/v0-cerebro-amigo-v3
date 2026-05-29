@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
@@ -141,7 +142,7 @@ export default function HomePage() {
                   <span className="block text-5xl lg:text-7xl font-serif italic font-semibold text-[#0F2137] tracking-tight leading-none">
                     Cérebro
                   </span>
-                  <span className="block text-5xl lg:text-7xl font-sans font-bold text-[#0D9488] tracking-tight leading-none mt-1">
+                  <span className="block text-5xl lg:text-7xl font-serif font-bold text-[#0D9488] tracking-tight leading-none mt-1">
                     Amigo
                   </span>
                 </h1>
@@ -177,11 +178,14 @@ export default function HomePage() {
             {/* Hero Image / Dashboard Preview */}
             <div className="relative lg:pl-8">
               <div className="relative z-10">
-                <img
+                <Image
                   src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ChatGPT%20Image%2028%20de%20mai.%20de%202025%2C%2013_50_06-CKGJmYNSj9QuNoePU4CaJqqpOcf5q7.png"
                   alt="Cérebro Amigo Dashboard"
-                  className="rounded-2xl shadow-2xl w-full"
-                  crossOrigin="anonymous"
+                  width={720}
+                  height={540}
+                  priority
+                  unoptimized
+                  className="rounded-2xl shadow-2xl w-full h-auto"
                 />
               </div>
               {/* Decorative blur elements matching the image */}
@@ -221,11 +225,13 @@ export default function HomePage() {
             <div className="relative order-2 lg:order-1">
               <div className="relative z-10 bg-white rounded-2xl p-6 shadow-xl border border-[#E2E8F0]">
                 <div className="aspect-[4/3] bg-gradient-to-br from-[#F0F9F8] to-[#E0F2F1] rounded-xl flex items-center justify-center overflow-hidden">
-                  <img
+                  <Image
                     src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/ChatGPT%20Image%2028%20de%20mai.%20de%202025%2C%2013_50_06-CKGJmYNSj9QuNoePU4CaJqqpOcf5q7.png"
                     alt="Acompanhamento entre consultas"
+                    width={640}
+                    height={480}
+                    unoptimized
                     className="w-full h-full object-cover rounded-xl opacity-90"
-                    crossOrigin="anonymous"
                   />
                 </div>
                 {/* Floating stats cards */}
