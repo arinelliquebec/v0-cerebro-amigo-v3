@@ -235,14 +235,17 @@ CREATE INDEX notificacoes_medico_idx ON notificacoes_medico(medico_id, lida, cri
 
 -- Registro de execuções dos agentes analíticos — append-only.
 CREATE TABLE agente_execucoes (
-    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    paciente_id  UUID REFERENCES clientes(id),
-    agente       TEXT NOT NULL,
-    status       TEXT NOT NULL DEFAULT 'ok', -- ok | erro | pulado
-    resultado    JSONB,
-    criado_em    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    paciente_id   UUID REFERENCES clientes(id),
+    agente        TEXT NOT NULL,
+    iniciado_em   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    concluido_em  TIMESTAMPTZ,
+    sucesso       BOOL,
+    erro          TEXT,
+    metadata      JSONB
 );
-CREATE INDEX agente_execucoes_paciente_idx ON agente_execucoes(paciente_id, criado_em);
+CREATE INDEX agente_execucoes_paciente_idx ON agente_execucoes(paciente_id, iniciado_em);
+CREATE INDEX agente_execucoes_agente_sucesso_idx ON agente_execucoes(agente, sucesso, iniciado_em);
 
 -- =============================================================================
 -- PORTAL DO PACIENTE
