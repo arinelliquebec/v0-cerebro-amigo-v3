@@ -238,6 +238,8 @@ public class DiarioEntradaEntity
     public bool CompartilhadaComMedico { get; set; }
     public DateTime CriadaEm { get; set; }
     public DateTime AtualizadaEm { get; set; }
+    public string Tipo { get; set; } = "texto";        // texto | audio
+    public string? Transcricao { get; set; }           // transcrição Amazon Transcribe
 }
 
 public class AcessoPaciente

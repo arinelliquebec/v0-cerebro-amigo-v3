@@ -1,7 +1,9 @@
 using ApiGateway.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Headers;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace ApiGateway.Endpoints;
 
@@ -91,7 +93,8 @@ public static class PortalPacienteEndpoints
                 SELECT id, titulo, conteudo,
                        humor, tags,
                        compartilhada_com_medico,
-                       criada_em, atualizada_em
+                       criada_em, atualizada_em,
+                       tipo, transcricao
                 FROM diario_entradas
                 WHERE paciente_id = {0}
                 ORDER BY criada_em DESC
@@ -110,7 +113,8 @@ public static class PortalPacienteEndpoints
                 SELECT id, titulo, conteudo,
                        humor, tags,
                        compartilhada_com_medico,
-                       criada_em, atualizada_em
+                       criada_em, atualizada_em,
+                       tipo, transcricao
                 FROM diario_entradas
                 WHERE id = {0} AND paciente_id = {1}",
                 id, pid.Value).FirstOrDefaultAsync();
@@ -128,10 +132,12 @@ public static class PortalPacienteEndpoints
             var id = Guid.NewGuid();
             await db.Database.ExecuteSqlRawAsync(@"
                 INSERT INTO diario_entradas
-                  (id, paciente_id, titulo, conteudo, humor, tags, compartilhada_com_medico)
-                VALUES ({0}, {1}, NULLIF({2}, ''), {3}, {4}, {5}, {6})",
+                  (id, paciente_id, titulo, conteudo, humor, tags,
+                   compartilhada_com_medico, tipo, transcricao)
+                VALUES ({0}, {1}, NULLIF({2}, ''), {3}, {4}, {5}, {6}, {7}, {8})",
                 id, pid.Value, req.Titulo ?? "", req.Conteudo,
-                req.Humor, req.Tags ?? Array.Empty<string>(), req.CompartilharComMedico);
+                req.Humor, req.Tags ?? Array.Empty<string>(), req.CompartilharComMedico,
+                req.Tipo ?? "texto", req.Transcricao);
 
             return Results.Created($"/api/v1/portal/paciente/diario/{id}", new { id });
         });
@@ -167,6 +173,71 @@ public static class PortalPacienteEndpoints
                 "DELETE FROM diario_entradas WHERE id = {0} AND paciente_id = {1}",
                 id, pid.Value);
             return Results.NoContent();
+        });
+
+        // ====================================================================
+        // DIÁRIO DE VOZ — transcrição on-demand
+        // ====================================================================
+        // Recebe áudio (multipart/form-data, campo "audio"), converte para base64,
+        // chama agents-py /internal/diario/transcrever, devolve análise ao cliente.
+        // O áudio NÃO é persistido — agents-py deleta do S3 após transcrição (LGPD).
+        // Paciente revisa a transcrição e confirma via POST /diario normal.
+        d.MapPost("/audio/transcrever", async (
+            HttpRequest httpRequest,
+            IHttpClientFactory httpFactory,
+            IConfiguration cfg,
+            ClaimsPrincipal user) =>
+        {
+            var pid = PacienteAuthEndpoints.GetPacienteId(user);
+            if (pid is null) return Results.Unauthorized();
+
+            if (!httpRequest.HasFormContentType)
+                return Results.BadRequest(new { erro = "Esperado multipart/form-data com campo 'audio'" });
+
+            var form = await httpRequest.ReadFormAsync();
+            var audioFile = form.Files.GetFile("audio");
+            if (audioFile is null || audioFile.Length == 0)
+                return Results.BadRequest(new { erro = "Campo 'audio' obrigatório e não pode ser vazio" });
+
+            const long MaxBytes = 10 * 1024 * 1024; // 10 MB
+            if (audioFile.Length > MaxBytes)
+                return Results.BadRequest(new { erro = "Áudio muito grande (máximo 10 MB)" });
+
+            // Lê bytes e codifica em base64 para enviar via JSON ao agents-py
+            using var ms = new MemoryStream();
+            await audioFile.CopyToAsync(ms);
+            var audioBase64 = Convert.ToBase64String(ms.ToArray());
+            var contentType = audioFile.ContentType is { Length: > 0 } ct ? ct : "audio/webm";
+
+            var internalToken = cfg["INTERNAL_API_TOKEN"]
+                ?? throw new InvalidOperationException("INTERNAL_API_TOKEN missing");
+
+            var http = httpFactory.CreateClient("agents-py");
+            var payload = JsonSerializer.Serialize(new
+            {
+                audio_base64 = audioBase64,
+                content_type = contentType,
+                paciente_id = pid.Value,
+            });
+
+            using var msg = new HttpRequestMessage(HttpMethod.Post, "/internal/diario/transcrever")
+            {
+                Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json"),
+            };
+            msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", internalToken);
+
+            using var resp = await http.SendAsync(msg);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                return Results.Problem(
+                    title: "Falha na transcrição de áudio",
+                    detail: body,
+                    statusCode: (int)resp.StatusCode);
+            }
+
+            var json = await resp.Content.ReadAsStringAsync();
+            return Results.Content(json, "application/json");
         });
 
         // ====================================================================
@@ -285,10 +356,12 @@ public record TomadaHoje(Guid Id, DateTime HorarioPrevisto, string Status,
 public record ProximaConsulta(DateTime IniciaEm, string Modalidade, string Status);
 
 public record DiarioEntrada(Guid Id, string? Titulo, string Conteudo, int? Humor,
-    string[] Tags, bool CompartilhadaComMedico, DateTime CriadaEm, DateTime AtualizadaEm);
+    string[] Tags, bool CompartilhadaComMedico, DateTime CriadaEm, DateTime AtualizadaEm,
+    string Tipo, string? Transcricao);
 
 public record CriarDiarioRequest(string? Titulo, string Conteudo, int? Humor,
-    string[]? Tags, bool CompartilharComMedico = false);
+    string[]? Tags, bool CompartilharComMedico = false,
+    string? Tipo = "texto", string? Transcricao = null);
 
 public record AtualizarDiarioRequest(string? Titulo, string? Conteudo, int? Humor,
     string[]? Tags, bool? CompartilharComMedico);

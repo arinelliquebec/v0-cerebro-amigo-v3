@@ -1,387 +1,639 @@
-# Documentação técnica do sistema Cérebro Amigo
+# Documentação técnica — Cérebro Amigo V3
 
-**Versão consolidada** · Última revisão: maio de 2026
-
-Documento de referência humana. Para sessões com assistentes de IA, use também [`CONTEXT.md`](../CONTEXT.md) (mais denso e atualizado por commit).
+**Última revisão:** maio de 2026  
+Referência humana completa. Para sessões de IA use também [`CONTEXT.md`](./CONTEXT.md) (mais denso).
 
 ---
 
-## 1. Visão geral
+## 1. O que é o sistema
 
-**Cérebro Amigo** é um sistema operacional para a prática psiquiátrica, focado em **continuidade de cuidado entre consultas**.
+**Cérebro Amigo** é um SaaS de psiquiatria focado em **continuidade de cuidado entre consultas**. Não é chatbot genérico: estrutura check-ins de medicação, registro de humor, protocolos de segurança e análise clínica automatizada, com separação rigorosa entre **coleta automatizada** e **decisão humana**.
 
 | Aspecto | Descrição |
-| --- | --- |
-| **Modelo comercial** | Multi-tenant: cada psiquiatra é um cliente; dados isolados por `medico_responsavel_id` |
-| **Paciente** | Portal **PWA** (`/p/*`): humor, diário, medicações, check-ins via push, conversa (backend pronto) |
-| **Médico** | **Dashboard** (`/dashboard/*`): pacientes, prescrições, timeline, insights, notificações |
-| **WhatsApp** | **Não ativo** no orchestrator atual; canal conversacional é o PWA |
-
-Não é um chatbot genérico: a plataforma estrutura check-ins de medicação, registro de humor, protocolos de segurança e agentes analíticos, com **audit trail** e separação clara entre **coleta automatizada** e **decisão clínica humana**.
-
----
-
-## 2. Princípios clínicos e de compliance
-
-1. **A IA não dá orientação clínica, diagnóstico nem ajuste de dose.** Automatiza lembretes, organização e rascunhos analíticos; a decisão é sempre do médico.
-2. **Protocolo de crise é fixo:** detecção de sinal grave → texto pré-aprovado → notificação ao médico → pausa da automação. Referência obrigatória: `apps/orchestrator-py/app/conversation/crisis_copy.py` (ADR-005).
-3. **LGPD categoria especial** (saúde mental): minimização, controle de acesso, redação de PII em traces LangSmith quando `PII_REDACTION_ENABLED=true`.
-4. **Médico no loop:** auditoria conversacional pode bloquear ou escalar (`audit_response` → `escalate_to_human`); fila em `notificacoes_medico`.
-5. **Trilhas de auditoria:** `protocolos_crise_acionados`, `notificacoes_medico`, `agente_execucoes` — não apagar silenciosamente.
+|---|---|
+| **Modelo comercial** | Multi-tenant: cada psiquiatra é um tenant; dados isolados por `medico_responsavel_id` |
+| **Público médico** | Dashboard web `/dashboard/*`: pacientes, prescrições, timeline, insights, notificações, agenda |
+| **Público paciente** | PWA `/p/*`: humor, diário, medicações, check-ins por push, conversa com IA |
+| **Canal conversacional** | PWA (Web Push + SSE). WhatsApp não está ativo no V3 |
+| **Privacidade** | Dado de saúde mental = LGPD categoria especial. Residência de dados: `sa-east-1` |
 
 ---
 
-## 3. Arquitetura lógica (estado atual)
+## 2. Princípios inegociáveis
+
+Estas regras precedem qualquer pedido de feature ou otimização.
+
+1. **A IA não pratica medicina.** Nunca gere diagnóstico, ajuste de dose ou orientação clínica — nem como "sugestão para o médico aprovar". A IA automatiza, organiza, resume *fatos relatados*. A decisão é sempre do médico.
+
+2. **Protocolo de crise é fixo e pré-aprovado.** Ao detectar ideação suicida ou autoagressão:
+   - Usar texto literal de `apps/orchestrator-py/app/conversation/crisis_copy.py` (ADR-005)
+   - Registrar em `protocolos_crise_acionados` (append-only)
+   - Notificar médico via `notificacoes_medico`
+   - Pausar automação: `UPDATE pacientes SET automacao_pausada = TRUE`
+   - **Nunca** gerar o texto de crise com o LLM. Nunca encurtar ou "humanizar".
+
+3. **Médico no loop.** Toda resposta ao paciente passa por `audit_response` e pode escalar para `escalate_to_human`. Não crie caminho que entregue texto da IA ao paciente sem essa etapa.
+
+4. **LGPD — dado de saúde mental.** Minimização de dados, controle de acesso por tenant, PII redatada em traces (`PII_REDACTION_ENABLED=true` no LangSmith). Nunca logar conteúdo clínico cru.
+
+5. **Trilhas de auditoria são imutáveis.** As tabelas `protocolos_crise_acionados`, `notificacoes_medico` e `agente_execucoes` são append-only. Nenhuma migration ou código deve fazer DELETE ou UPDATE de massa nelas.
+
+---
+
+## 3. Stack tecnológica
+
+### 3.1 Infraestrutura
+
+| Componente | Tecnologia | Observação |
+|---|---|---|
+| **Cloud** | AWS, `sa-east-1` | Residência de dados no Brasil. Decisão fechada. |
+| **Banco** | PostgreSQL (RDS) | pgvector + pgcrypto. Externo aos containers. |
+| **EC2** | Docker Compose | Todos os serviços em containers. |
+| **CI/CD** | GitHub Actions → SSH EC2 | Push em `master` → deploy automático. |
+| **Azure** | **REMOVIDO** | Key Vault, OpenAI, Document Intelligence e Blob saíram do V3. Não reintroduzir. |
+
+### 3.2 Serviços (monorepo `apps/`)
+
+| Serviço | Tecnologia | Responsabilidade |
+|---|---|---|
+| **web** | Next.js 16, React 19, TypeScript, Tailwind 4, shadcn/ui | Landing, dashboard médico, portal paciente, BFF |
+| **api-gateway** | ASP.NET Core / .NET 10, EF Core 10, Npgsql, JwtBearer | REST, JWT, e-mail (Resend), proxy SSE |
+| **orchestrator-py** | Python 3.12, FastAPI, LangGraph, asyncpg | IA conversacional, protocolo de crise |
+| **agents-py** | Python 3.12, FastAPI, APScheduler, scipy, asyncpg | 5 agentes analíticos agendados |
+| **notifier-py** | Python 3.12, FastAPI, pywebpush, asyncpg | Web Push de check-ins |
+
+### 3.3 LLM (Claude via AWS Bedrock)
+
+- **Provedor:** AWS Bedrock In-Region (`sa-east-1`)
+- **Auth:** IAM role da EC2 com `bedrock:InvokeModel`. Sem `ANTHROPIC_API_KEY`.
+- **Nunca** chamar LLM do gateway .NET ou do Next.js. Apenas Python.
+
+| Modelo | Variável | Uso |
+|---|---|---|
+| Claude Haiku | `BEDROCK_MODEL_HAIKU` | Detecção de crise, classificação, auditoria conversacional |
+| Claude Sonnet | `BEDROCK_MODEL_SONNET` | Extração de sintomas, resposta ao paciente, agentes analíticos |
+| Claude Opus 4.7 | `BEDROCK_MODEL_OPUS` | Análise de padrões densa (opcional) |
+
+### 3.4 Dependências-chave do api-gateway
 
 ```
-┌─────────────┐                    ┌─────────────┐
-│  Paciente   │                    │   Médico    │
-│  PWA /p/*   │                    │ Dashboard   │
-└──────┬──────┘                    └──────┬──────┘
-       │                                │
-       └────────────┬───────────────────┘
-                    ▼
-           ┌─────────────────┐
-           │  web (Next.js)  │  :3000
-           │  BFF + cookies  │  httpOnly auth_token / paciente_token
-           └────────┬────────┘
-                    ▼
-           ┌─────────────────┐
-           │  api-gateway    │  :5050 → :5000 (container)
-           │  .NET 10        │  JWT, CRUD, e-mail, proxy SSE
-           └────────┬────────┘
-                    │
-     ┌──────────────┼──────────────┬─────────────┐
-     ▼              ▼              ▼             ▼
-orchestrator-py  agents-py   notifier-py   PostgreSQL
-  :8081            :8082         :8083        (RDS / externo)
-LangGraph SSE    APScheduler   Web Push
-Anthropic        5 agentes     check-ins
+Microsoft.AspNetCore.OpenApi 10.0.0
+Microsoft.EntityFrameworkCore 10.0.1
+Npgsql.EntityFrameworkCore.PostgreSQL 10.0.0
+EFCore.NamingConventions 10.0.1          ← snake_case automático
+Microsoft.AspNetCore.Authentication.JwtBearer 10.0.0
+Microsoft.Extensions.Http.Resilience 10.0.0
 ```
 
-### Regras de integração
+---
 
-| Tipo | Onde roda |
-| --- | --- |
-| **LLM (Claude)** | Apenas em **Python** (`orchestrator-py`, `agents-py`) |
-| **REST transacional** | **api-gateway** (.NET) |
-| **BFF / cookies** | **web** (Next.js Route Handlers em `app/api/*`) |
-| **OCR / Document Intelligence** | Serviço Azure externo; chamada recomendada via **BFF** ou futuro client no **api-gateway** (não é LLM) |
+## 4. Topologia e fluxo de integração
 
-**Auth serviço-a-serviço:** `Authorization: Bearer ${INTERNAL_API_TOKEN}` entre .NET ↔ Python.
+```
+Paciente PWA /p/*          Médico /dashboard/*
+        └──────────────┬──────────────┘
+                       ▼
+              web (Next.js :3000)
+              BFF: app/api/* — cookies httpOnly
+              auth_token (médico) · paciente_token (paciente)
+                       ▼
+              api-gateway (.NET 10 :5050→:5000)
+              JWT · EF Core · Resend · proxy SSE
+                       │  Bearer ${INTERNAL_API_TOKEN}
+       ┌───────────────┼───────────────┬──────────────┐
+       ▼               ▼               ▼              ▼
+orchestrator-py    agents-py      notifier-py    PostgreSQL RDS
+  :8081              :8082           :8083          sa-east-1
+  LangGraph          APScheduler     Web Push       pgvector+pgcrypto
+  SSE conversa       5 agentes       check-ins
+       └──────────────┴───────────────┘
+                       ▼
+            AWS Bedrock In-Region sa-east-1
+            Haiku · Sonnet · Opus 4.7 (IAM role)
+```
 
-**Substituição concluída:** `apps/orchestrator/` e `apps/agents/` (Go) foram **removidos**; equivalentes em `orchestrator-py` e `agents-py`.
+### Regras de fronteira (não violar)
+
+| Responsabilidade | Serviço |
+|---|---|
+| Chamar LLM | **Apenas Python** (orchestrator-py, agents-py) via Bedrock |
+| REST transacional, JWT, e-mail, proxy SSE | **api-gateway** (.NET 10) |
+| Cookies, sessão, agregação de dados, render | **web / BFF** (`app/api/*`) |
+| Push de check-in | **notifier-py** |
+| Jobs analíticos agendados | **agents-py** |
+| Banco Postgres | **Nunca direto do front**. Gateway ou serviços Python. |
+
+### Auth serviço-a-serviço
+
+```
+Header: Authorization: Bearer ${INTERNAL_API_TOKEN}
+Direção: api-gateway → orchestrator-py, agents-py, notifier-py
+```
 
 ---
 
-## 4. Estrutura do repositório
+## 5. Banco de dados
 
-| Pasta | Responsabilidade | Tecnologia |
-| --- | --- | --- |
-| `apps/web/` | Landing, dashboard médico, portal paciente PWA, BFF | Next.js 16, React 19.2, TypeScript, Tailwind 4 |
-| `apps/api-gateway/` | REST, JWT, EF Core, Resend, proxy SSE para conversa | ASP.NET Core / .NET 10 |
-| `apps/orchestrator-py/` | IA conversacional (LangGraph), protocolo de crise | Python 3.12, FastAPI, LangGraph |
-| `apps/agents-py/` | Jobs analíticos agendados ou manuais | Python 3.12, FastAPI, APScheduler, scipy |
-| `apps/notifier-py/` | Disparo de Web Push para check-ins pendentes | Python 3.12, FastAPI, pywebpush |
-| `infra/migrations/` | DDL versionado Postgres | SQL |
-| `infra/aws/` | EC2, Lambdas, templates de produção | Shell, Python |
-| `infra/bicep/` | IaC Azure (legado; não é deploy primário) | Bicep |
-| `docs/adrs/` | Decisões arquiteturais 001–006 | Markdown |
-| `.github/workflows/` | CI/CD (build + deploy SSH EC2) | GitHub Actions |
+### 5.1 Grupos de tabelas
+
+| Grupo | Tabelas |
+|---|---|
+| Tenancy | `clientes`, `usuarios`, `medicos`, `pacientes` |
+| Conversação | `conversas`, `mensagens`, `conhecimento` (pgvector), `inbound_messages` |
+| Clínico | `prescricoes`, `prescricao_eventos`, `tomadas_medicacao`, `sintomas`, `eventos`, `consultas`, `questionarios`, `questionarios_respostas` |
+| Crise / auditoria | `protocolos_crise_acionados`, `notificacoes_medico`, `agente_execucoes` |
+| Portal paciente | `pacientes_credenciais`, `magic_links`, `diario_entradas`, `acessos_paciente` |
+| Check-ins / push | `checkins`, `push_subscriptions`, `notificacoes_enviadas` |
+| IA analítica | `insights` |
+| Catálogo | `agentes`, `medicamentos` |
+
+Migrations: `infra/migrations/` — **`0001_init.sql` é a fonte da verdade**.
+
+### 5.2 Modelo de entidade (leia antes de escrever queries)
+
+- **`clientes`** — Pessoa-paciente. PK `id` (UUID). Campos: `nome`, `email`, `wa_id`, `contexto` (JSONB). Não é "cliente comercial" — é a identidade base do usuário do portal.
+
+- **`usuarios`** — Login do médico. PK `id`. Campos: `email`, `senha_hash`, `nome`, `role`. Sem `cliente_id`.
+
+- **`medicos`** — Perfil clínico do médico. PK `id`. FK `usuario_id → usuarios`. **Sem `cliente_id`.** 1:1 com `usuarios`.
+
+- **`pacientes`** — Vínculo clínico médico↔paciente. **PK = `cliente_id REFERENCES clientes(id)`** (1:1 com `clientes`). Campos: `medico_responsavel_id`, `cpf`, `data_nascimento`, `consentimento_lgpd_em`, `config_lembretes`, `automacao_pausada`.
+
+- **Tabelas clínicas** (`prescricoes`, `tomadas_medicacao`, `sintomas`, `eventos`, `consultas`, `questionarios_respostas`, `checkins`, `diario_entradas`, `magic_links`, `acessos_paciente`, `pacientes_credenciais`, `prescricao_eventos`, `protocolos_crise_acionados`, `agente_execucoes`, `insights` por paciente): coluna **`paciente_id UUID REFERENCES clientes(id)`**. O nome é `paciente_id` mas a FK aponta para `clientes.id` — não para a tabela `pacientes`.
+
+- **`conversas`** — FK chama `cliente_id REFERENCES clientes(id)`.
+
+- **`notificacoes_medico`**, **`insights`** — Têm `medico_id REFERENCES medicos(id)` direto.
+
+### 5.3 Multi-tenant — padrão obrigatório
+
+**Tenant = `pacientes.medico_responsavel_id`**. Para escopar dado clínico por médico:
+
+```sql
+-- Tabelas clínicas (prescricoes, sintomas, eventos, checkins, diario_entradas, etc.)
+SELECT t.*
+FROM <tabela> t
+JOIN pacientes p ON p.cliente_id = t.paciente_id
+WHERE p.medico_responsavel_id = :medicoId;
+
+-- notificacoes_medico e insights (FK medico_id direta)
+SELECT * FROM notificacoes_medico WHERE medico_id = :medicoId;
+SELECT * FROM insights WHERE medico_id = :medicoId;
+```
+
+> **Armadilha frequente:** `WHERE paciente_id = :x` sem JOIN em `pacientes` filtra por paciente individual mas **não garante** que o médico autenticado tem acesso. O filtro de tenant é sempre via `medico_responsavel_id`.
+
+### 5.4 Tabelas append-only (nunca apagar)
+
+| Tabela | Quem escreve | Quem lê |
+|---|---|---|
+| `protocolos_crise_acionados` | orchestrator-py | api-gateway (timeline) |
+| `notificacoes_medico` | orchestrator-py, agents-py | api-gateway (lida/nao-lida é o único UPDATE permitido) |
+| `agente_execucoes` | agents-py | api-gateway, admins |
+
+### 5.5 Migrations aplicadas
+
+| Arquivo | Conteúdo |
+|---|---|
+| `0001_init.sql` | DDL completo — todas as tabelas, índices, seed de questionários |
+| `0002_fix_agente_execucoes.sql` | Alinha `agente_execucoes` ao código agents-py (drop status/resultado/criado_em, add iniciado_em/concluido_em/sucesso/erro/metadata) |
+| `0003_add_automacao_pausada.sql` | Adiciona `pacientes.automacao_pausada BOOL` — exigida pelo protocolo de crise (ADR-005) |
 
 ---
 
-## 5. Serviços e portas (desenvolvimento local)
+## 6. Fluxo de trabalho (dia a dia)
 
-| Serviço | Porta host | Health |
-| --- | --- | --- |
-| web | 3000 | — |
-| api-gateway | 5050 | `GET /health`, `GET /ready` |
-| orchestrator-py | 8081 | `GET /health`, `GET /ready` |
-| agents-py | 8082 | `GET /health`, `GET /ready` |
-| notifier-py | 8083 | `GET /health`, `GET /ready` |
-| PostgreSQL | externo | Via `POSTGRES_DSN` / `ConnectionStrings__Postgres` |
+### 6.1 Conversa do paciente (SSE)
 
-O `docker-compose.yml` **não** inclui container Postgres: o banco é externo (local ou RDS).
+```
+PWA /p/conversa
+  → POST /api/paciente/conversation (BFF, cookie paciente_token)
+    → POST /api/portal/conversation/message (api-gateway, JWT)
+      → POST /internal/portal/conversation/message (orchestrator-py, INTERNAL_API_TOKEN)
+        ← SSE stream: eventos {tipo, conteudo}
+      ← SSE proxy (api-gateway → BFF → PWA)
+```
 
-Comando típico: `docker compose up -d --build` na raiz, com `.env` preenchido a partir de `.env.example`.
-
----
-
-## 6. Funcionalidades por superfície
-
-### 6.1 Dashboard do médico (`/dashboard/*`)
-
-- Lista e cadastro de pacientes (magic link por e-mail ou senha provisória)
-- Ficha do paciente: abas resumo, acompanhamento, tratamento, eventos, notas (parcial)
-- Timeline, gráfico de humor, adesão à medicação
-- **Prescrições:** criação, histórico, desativação; catálogo de medicamentos psiquiátricos (`lib/catalogo-medicamentos.ts`)
-- **Insights** dos agentes analíticos (prioridade por severidade)
-- **Notificações** clínicas (marcar lida / não lida)
-- Resumo pré-consulta on-demand
-- Conversas e métricas operacionais (legado)
-- Edição de prompts na tabela `agentes` (`/dashboard/agentes`)
-
-Cookies: `auth_token` (httpOnly). Login: `POST /api/auth/login` → gateway `POST /api/v1/auth/login`.
-
-### 6.2 Portal do paciente (`/p/*`)
-
-- Home, humor, diário (compartilhamento opcional com médico)
-- Medicações e confirmação de tomadas
-- Perfil e troca de senha (`/p/trocar-senha`)
-- Check-ins estruturados (`/p/checkin/[id]`) vindos de push
-- **Web Push** (VAPID): subscribe via BFF
-- **Conversa:** backend SSE via `POST /api/paciente/conversation` → gateway → orchestrator-py (**UI de chat no PWA ainda pendente**)
-
-Cookies: `paciente_token`. Fluxos: magic link (`/p/entrar?token=`) ou senha inicial.
-
-### 6.3 IA conversacional (orchestrator-py)
-
-Grafo LangGraph (resumo):
+Grafo LangGraph:
 
 ```
 load_context → detect_crisis (Haiku)
-  → [crise] crisis_protocol (texto fixo) → END
-  → classify_medication → update_intake
-  → extract_symptoms (Sonnet) → generate_response (SSE)
-  → audit_response → finalize | reescrever | escalate
+  → [crise] crisis_protocol → registra protocolos_crise_acionados
+                             → notifica médico → pausa automação → END
+  → [normal] classify_medication (Haiku) → update_intake
+           → extract_symptoms (Sonnet) → generate_response (Sonnet, SSE)
+           → audit_response (Haiku) → finalize | reescrever | escalate_to_human
 ```
 
-| Etapa | Modelo típico |
-| --- | --- |
-| Detecção de crise | Haiku |
-| Classificar resposta sobre medicação | Haiku |
-| Extração de sintomas | Sonnet |
-| Resposta ao paciente | Sonnet |
-| Auditoria pré-envio | Haiku |
+Checkpointing: `AsyncPostgresSaver` LangGraph em tabelas `checkpoints*`.
 
-Modo sombra em dev: `SHADOW_MODE=true` (processa sem efeitos externos). ADR: `docs/adrs/002-ia-conversacional-python-langgraph.md`.
+### 6.2 Agentes analíticos (jobs)
 
-### 6.4 Agentes analíticos (agents-py)
+```
+APScheduler (agents-py, AGENTS_MODE=scheduled)
+  → a cada SCHEDULER_INTERVAL_SECONDS (padrão: 5 min)
+    → para cada paciente ativo:
+        adesao.run() → INSERT insights + agente_execucoes
+        risco_silencioso.run() → idem
+        padroes.run() (1×/dia) → idem
+        resumo_pre_consulta.run() (janela 30-120 min pré-consulta) → idem
+        diario.run() (pré-consulta, ≥ 2 entradas) → idem
+  → notifier-py (NOTIFIER_MODE=scheduled)
+      → varre checkins pendentes → Web Push (VAPID)
+```
 
-| Agente | Função | Cadência típica |
-| --- | --- | --- |
-| `resumo_pre_consulta` | Sumário antes da consulta | tick 5 min, janela 30–120 min |
-| `adesao` | Taxa de medicação + engajamento | tick 5 min, com thresholds |
-| `risco_silencioso` | Ausência atípica + sinais negativos | tick 5 min |
-| `padroes` | Tendências em sintomas (scipy) | 1×/dia/paciente |
-| `diario` | Síntese de entradas compartilhadas | pré-consulta, ≥2 entradas |
+`SHADOW_MODE=true` → calcula e loga sem efeitos externos (dev/staging).
 
-Resultados em `insights` e `agente_execucoes`. Modo: `AGENTS_MODE=scheduled|manual`. ADR: `docs/adrs/003-agentes-analiticos-python-vanilla.md`.
+### 6.3 Autenticação e sessão
 
-### 6.5 Notifier (notifier-py)
+| Público | Token | Cookie | Duração |
+|---|---|---|---|
+| Médico | JWT Bearer (`role=admin`) | `auth_token` (httpOnly) | 8h |
+| Paciente | JWT Bearer (`role=paciente`) | `paciente_token` (httpOnly) | 7d |
 
-- Varre `checkins` com `enviado_em IS NULL` e `agendado_para <= NOW()`
-- Envia Web Push (VAPID) para `push_subscriptions` ativas
-- **Não cria** check-ins de medicação automaticamente — apenas dispara os já existentes
+JWT: Issuer `cerebro-amigo`, audiences `dashboard` (médico) e `portal-paciente` (paciente). Claim `paciente_id` no token paciente; `sub` = `usuario_id` no token médico.
 
-### 6.6 Infraestrutura AWS (produção)
+Acesso paciente: magic link por e-mail (Resend) → primeira senha → login normal. Brute-force: `falhas_seguidas + bloqueado_ate` em `pacientes_credenciais`.
 
-| Componente | Função |
-| --- | --- |
-| **RDS** PostgreSQL (sa-east-1) | Banco principal |
-| **EC2** + Docker Compose | web, api-gateway, serviços Python |
-| **Lambda** `cleanup-magic-links` | Limpeza diária de magic links e subscriptions revogadas |
-| **Lambda** `resend-webhook` | Bounce/complaint/delivery → trilha |
+### 6.4 Deploy
 
-Deploy: `.github/workflows/deploy.yml` (push `master` → SSH → `git pull` → compose). Guia: `docs/setup-guide.md`.
+```
+git push origin master
+  → GitHub Actions (.github/workflows/deploy.yml)
+    → SSH EC2
+      → git pull origin master
+      → docker compose up -d --build
+```
 
----
+Migrations devem ser aplicadas manualmente antes do deploy quando há `infra/migrations/` novos:
 
-## 7. BFF Next.js (`apps/web/app/api/`)
-
-O browser **não** chama o gateway diretamente na maioria dos fluxos; usa Route Handlers que repassam cookies e token.
-
-| Rota BFF | Função |
-| --- | --- |
-| `POST /api/auth/login`, `logout` | Sessão médico |
-| `GET/POST /api/dashboard/pacientes`, `resumo-pre-consulta` | Pacientes |
-| `GET/POST /api/dashboard/prescricoes/*` | Prescrições |
-| `POST /api/notificacoes/[id]/marcar-lida\|nao-lida` | Notificações |
-| `GET /api/medicamentos` | Catálogo |
-| `POST /api/paciente/login`, `magic-validar`, `senha`, `logout` | Auth paciente |
-| `POST /api/paciente/conversation` | Proxy SSE conversa |
-| `GET/POST /api/paciente/diario`, `[id]` | Diário |
-| `POST /api/paciente/humor` | Humor |
-| `GET/POST /api/paciente/checkins/[id]`, `responder` | Check-ins |
-| `POST /api/paciente/push/subscribe` | Web Push |
-
-Helpers: `lib/api-gateway.ts` (`proxyFetch`, `getGatewayUrl`), `lib/api.ts` (`fetchApi` em Server Components).
-
-Variável: `API_GATEWAY_URL` — dev `http://localhost:5050`; em Docker `http://api-gateway:5000`.
+```bash
+psql $POSTGRES_DSN -f infra/migrations/0003_add_automacao_pausada.sql
+```
 
 ---
 
-## 8. API Gateway (.NET)
+## 7. Portas e health checks
 
-Base URL dev: `http://localhost:5050`  
-OpenAPI (desenvolvimento): `/openapi/v1.json`
+| Serviço | Porta host | Porta container | Health endpoints |
+|---|---|---|---|
+| web | 3000 | 3000 | — |
+| api-gateway | 5050 | 5000 | `GET /health` · `GET /ready` (checa Postgres) |
+| orchestrator-py | 8081 | 8081 | `GET /health` · `GET /ready` |
+| agents-py | 8082 | 8082 | `GET /health` · `GET /ready` |
+| notifier-py | 8083 | 8083 | `GET /health` · `GET /ready` |
+| PostgreSQL | externo (RDS) | — | Via `POSTGRES_DSN` |
 
-### Grupos REST principais
-
-| Prefixo | Função |
-| --- | --- |
-| `POST /api/v1/auth/login` | JWT médico |
-| `POST /api/v1/auth/paciente/*` | Magic link, login, senha |
-| `/api/v1/pacientes/*` | CRUD, timeline, humor, adesão, resumo |
-| `/api/v1/prescricoes/*` | Prescrições |
-| `/api/v1/notificacoes/*` | Notificações ao médico |
-| `/api/v1/insights/*` | Insights IA |
-| `/api/v1/portal/paciente/*` | Home, diário, humor, medicações, perfil, check-ins, push |
-| `POST /api/portal/conversation/message` | Proxy SSE → orchestrator-py |
-| `/api/v1/payments/*`, `/api/v1/notas-fiscais/*` | Legado Mercado Pago / NFE.io |
-| `POST /api/v1/seed/primeiro-medico` | Bootstrap único (409 se já existe) |
-
-Middleware global: JSON de erro com `trace_id`; detalhes de exceção só com `EXPOSE_ERROR_DETAILS=true`.
-
-### Endpoints internos Python (não expostos ao browser)
-
-| Serviço | Exemplos |
-| --- | --- |
-| orchestrator-py | `POST /internal/portal/conversation/message` |
-| agents-py | `POST /internal/agents/{name}/run`, resumo on-demand |
-| notifier-py | `POST /internal/checkins/dispatch` |
+Postgres **não** entra no docker-compose — é externo (RDS em produção, instância local em dev).
 
 ---
 
-## 9. Banco de dados (resumo de domínio)
+## 8. Variáveis de ambiente
 
-Migrations: `infra/migrations/`
+```bash
+# Banco
+POSTGRES_DSN                  # postgresql://user:pass@host:5432/db
 
-| Grupo | Tabelas (exemplos) |
-| --- | --- |
-| Tenancy | `clientes`, `usuarios`, `medicos`, `pacientes` |
-| Conversação | `conversas`, `mensagens`, `conhecimento` (pgvector), `inbound_messages` |
-| Clínico | `prescricoes`, `tomadas_medicacao`, `sintomas`, `eventos`, `consultas`, `questionarios` |
-| Crise / audit | `protocolos_crise_acionados`, `notificacoes_medico` |
-| Portal | `pacientes_credenciais`, `magic_links`, `diario_entradas` |
-| Check-ins / push | `checkins`, `push_subscriptions`, `notificacoes_enviadas` |
-| IA analítica | `insights`, `agente_execucoes` |
-| Legado | `pagamentos`, `notas_fiscais`, `agentes` |
+# Auth
+JWT_SECRET                    # médico e paciente
+INTERNAL_API_TOKEN            # serviço-a-serviço (.NET ↔ Python)
 
-PostgreSQL usa **pgvector** (RAG futuro em `conhecimento`) e **pgcrypto**.
+# E-mail (Resend)
+RESEND_API_KEY
+EMAIL_FROM                    # ex: noreply@cerebroamigo.com
 
----
+# Web Push (VAPID)
+VAPID_PRIVATE_KEY
+VAPID_PUBLIC_KEY
+NEXT_PUBLIC_VAPID_PUBLIC_KEY  # exposta ao browser
 
-## 10. Integrações Azure
+# URLs (dev local → Docker usa nomes de container)
+API_GATEWAY_URL               # http://localhost:5050 | http://api-gateway:5000
+ORCHESTRATOR_PY_URL           # http://localhost:8081 | http://orchestrator-py:8081
+AGENTS_PY_URL                 # http://localhost:8082 | http://agents-py:8082
+NOTIFIER_PY_URL               # http://localhost:8083 | http://notifier-py:8083
 
-| Recurso | Uso no projeto | Status no código |
-| --- | --- | --- |
-| **Azure Key Vault** | Secrets em produção no api-gateway (`DefaultAzureCredential`) | Implementado (condicional) |
-| **Application Insights** | Telemetria .NET | Opcional via connection string |
-| **Azure OpenAI** | Whisper (áudio), embeddings `text-embedding-3-large` | Variáveis em `.env.example`; **sem consumo ativo** |
-| **Azure Document Intelligence** | OCR de receitas e documentos (endpoint provisionado: `https://api-financeiro.cognitiveservices.azure.com/`) | **Provisionado no portal**; integração no app conforme evolução do produto |
-| **Blob Storage** | Imagens (`*.blob.core.windows.net` em `next.config.ts`) | Preparado; upload não implementado |
-| **Bicep** (`infra/bicep/`) | Container Apps, ACR, Postgres Flex | IaC legado; deploy primário é **AWS** |
+# Bedrock — sem ANTHROPIC_API_KEY; auth por IAM role
+AWS_REGION=sa-east-1
+BEDROCK_REGION=sa-east-1
+BEDROCK_MODEL_HAIKU           # ex: anthropic.claude-haiku-4-5-20251001-v1:0
+BEDROCK_MODEL_SONNET          # ex: anthropic.claude-sonnet-4-6-v1:0
+BEDROCK_MODEL_OPUS            # ex: anthropic.claude-opus-4-7-v1:0
+AWS_PROFILE                   # dev local; prod usa IAM role da EC2
 
-### Document Intelligence (OCR) — desenho recomendado
+# Observabilidade
+LANGSMITH_API_KEY
+LANGSMITH_PROJECT
+LANGSMITH_TRACING_V2=true
+PII_REDACTION_ENABLED=true
 
-1. Médico envia JPEG/PNG/PDF na tela de prescrição (ou futura aba “Documentos”).
-2. BFF `POST /api/documentos/analisar` (autenticado) envia o arquivo à API REST Document Intelligence (`api-version` 2024-11-30, modelos `prebuilt-read`, `prebuilt-layout`, `prebuilt-document`).
-3. Resposta: texto completo, linhas por página, pares chave-valor e tabelas — pré-preenchimento assistido de medicamento/posologia (médico revisa sempre).
-4. Variáveis sugeridas no `.env`:
-   - `AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT=https://api-financeiro.cognitiveservices.azure.com/`
-   - `AZURE_DOCUMENT_INTELLIGENCE_KEY=` (Key 1 no portal do recurso)
+# Modos operacionais
+SHADOW_MODE                   # orchestrator-py: processa sem efeitos externos
+AGENTS_MODE                   # scheduled | manual
+NOTIFIER_MODE                 # scheduled | manual
+SCHEDULER_INTERVAL_SECONDS    # padrão: 300
 
-Alternativa de médio prazo: client .NET em `apps/api-gateway/Services/` + persistência em migration `documentos_processados` (ver discussão em ADRs futuros).
+# Debug (nunca true em produção)
+EXPOSE_ERROR_DETAILS          # api-gateway: detalhes de exceção na resposta
+```
 
----
-
-## 11. Variáveis de ambiente críticas
-
-| Variável | Uso |
-| --- | --- |
-| `POSTGRES_DSN` / `POSTGRES_HOST`, `POSTGRES_PASSWORD`, … | Banco |
-| `ANTHROPIC_API_KEY`, `MODEL_HAIKU`, `MODEL_SONNET` | LLM |
-| `JWT_SECRET` | JWT médico e paciente |
-| `INTERNAL_API_TOKEN` | .NET ↔ Python |
-| `RESEND_API_KEY`, `EMAIL_FROM` | E-mail transacional |
-| `VAPID_*`, `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Web Push |
-| `API_GATEWAY_URL` | Next.js → gateway |
-| `ORCHESTRATOR_PY_URL` | Gateway → orchestrator-py |
-| `LANGSMITH_*`, `PII_REDACTION_ENABLED` | Observabilidade |
-| `SHADOW_MODE` | orchestrator-py |
-| `AGENTS_MODE`, `NOTIFIER_MODE`, `SCHEDULER_INTERVAL_SECONDS` | Schedulers |
-| `AZURE_OPENAI_*` | Opcional (Whisper/embeddings) |
-| `AZURE_DOCUMENT_INTELLIGENCE_*` | OCR (quando integrado) |
-
-Template: `.env.example` na raiz.
+**Não existem mais:** `ANTHROPIC_API_KEY`, `MODEL_HAIKU/SONNET` (Anthropic direto), qualquer `AZURE_*`.
 
 ---
 
-## 12. Operação local e produção
+## 9. Mapa de rotas
 
-### Local
+### 9.1 Web → BFF → Gateway
 
-1. Copiar `.env.example` → `.env` e preencher (mínimo: Postgres, Anthropic, JWT, Resend, VAPID, token interno).
-2. Aplicar migrations SQL no Postgres acessível.
-3. `docker compose up -d --build`.
-4. Seed: `POST /api/v1/seed/primeiro-medico` (ver `docs/setup-guide.md` ou seed SQL `006_seed_medico_arinpar.sql` em dev).
-5. Médico: http://localhost:3000/login · Paciente: http://localhost:3000/p/entrar
+| Rota web | BFF (`app/api/`) | Endpoint gateway |
+|---|---|---|
+| `/login` | `POST /api/auth/login` | `POST /api/v1/auth/login` |
+| `/dashboard/pacientes` | `GET /api/dashboard/pacientes` | `GET /api/v1/pacientes` |
+| `/dashboard/prontuarios/[id]` | `GET /api/dashboard/pacientes/[id]/*` | `GET /api/v1/pacientes/{id}/timeline\|humor\|adesao` |
+| `/dashboard/evolucao` | idem | `GET /api/v1/insights/*` |
+| `/dashboard/checkins` | `GET /api/dashboard/checkins` | `GET /api/v1/pacientes/{id}/checkins` |
+| `/dashboard/agentes` | `GET/PUT /api/agentes` | `GET/PUT /api/v1/agentes/*` |
+| `/dashboard/agenda` *(A FAZER)* | `GET/POST /api/agenda` | `GET/POST /api/v1/consultas/*` |
+| `/p/entrar` | `POST /api/paciente/login` · `POST /api/paciente/magic-validar` | `POST /api/v1/auth/paciente/*` |
+| `/p/conversa` | `POST /api/paciente/conversation` (SSE proxy) | `POST /api/portal/conversation/message` |
+| `/p/diario` | `GET/POST /api/paciente/diario` | `GET/POST /api/v1/portal/paciente/diario/*` |
+| `/p/humor` | `POST /api/paciente/humor` | `POST /api/v1/portal/paciente/humor` |
+| `/p/checkin/[id]` | `POST /api/paciente/checkins/[id]/responder` | `POST /api/v1/portal/paciente/checkins/{id}/responder` |
 
-**VAPID:** gerar uma vez; regerar invalida todas as subscriptions.
+### 9.2 Endpoints internos Python (não expostos ao browser)
 
-### Go-live (checklist)
-
-1. Revisão psiquiátrica do texto de crise (`crisis_copy.py`).
-2. Dados legais (CNPJ, DPO) em `/privacidade` e comunicações.
-3. HTTPS na frente do EC2 (Cloudflare/nginx).
-4. Domínio Resend com SPF/DKIM.
-5. Ensaio ponta a ponta do protocolo de crise.
-6. Teste de push PWA (iOS exige app na tela inicial).
-
----
-
-## 13. Lacunas conhecidas (MVP)
-
-| Item | Estado |
-| --- | --- |
-| UI de chat no PWA | Backend SSE pronto; frontend pendente |
-| Job de **criação** automática de check-ins de medicação | Notifier só dispara existentes |
-| Cadastro de 2º médico | Fora do MVP (seed único) |
-| WhatsApp Cloud API | Removido do fluxo atual |
-| PHQ-9 / GAD-7 via check-in agendado | Schema existe; fluxo incompleto |
-| Pagamentos / NF | Endpoints legados |
-| OCR Document Intelligence no app | Recurso Azure provisionado; wiring no repositório conforme prioridade |
-| `RUNNING.md` | Parcialmente desatualizado (cita Go e Postgres no compose) |
+| Serviço | Endpoint | Trigger |
+|---|---|---|
+| orchestrator-py | `POST /internal/portal/conversation/message` | Proxy SSE do gateway |
+| agents-py | `POST /internal/agents/{name}/run` | Sob demanda (resumo pré-consulta) |
+| notifier-py | `POST /internal/checkins/dispatch` | Agendado interno |
 
 ---
 
-## 14. Boas práticas de segurança
+## 10. Funcionalidades implementadas
 
-1. Não logar conteúdo bruto de mensagens de pacientes em produção.
-2. Não chamar Anthropic direto do .NET ou Next.js.
-3. Não usar `localStorage` para tokens de sessão.
-4. Preferir Postgres a estado em memória nos serviços.
-5. Nova automação com impacto clínico exige revisão médica documentada.
+### Dashboard médico (`/dashboard/*`)
+
+- CRUD de pacientes com magic link de cadastro por e-mail
+- Ficha do paciente: resumo, prescrições, histórico de tomadas, timeline de humor
+- Prescrições: criação, edição, desativação; catálogo de medicamentos psiquiátricos
+- Gráficos de humor e adesão à medicação por período
+- Insights analíticos priorizados por severidade (crítico → info)
+- Notificações clínicas: marcar lida / não lida
+- Resumo pré-consulta on-demand (chama agents-py via gateway)
+- Editor de prompts dos agentes (`/dashboard/agentes`)
+
+### Portal paciente (`/p/*`)
+
+- Home com resumo de medicações do dia
+- Registro de humor (1-10)
+- Diário de entradas (com opção de compartilhar com médico)
+- Confirmação de tomadas de medicação
+- Perfil e troca de senha
+- Check-ins estruturados por push (`/p/checkin/[id]`)
+- Conversa SSE (backend pronto; UI de chat pendente)
+
+### IA conversacional
+
+- Grafo LangGraph completo com detect_crisis, classify_medication, extract_symptoms, generate_response, audit_response
+- Protocolo de crise com texto literal pré-aprovado
+- Checkpointing de conversa no Postgres
+
+### Agentes analíticos (5)
+
+| Agente | Produto | Cadência |
+|---|---|---|
+| `resumo_pre_consulta` | Sumário estruturado pré-consulta | Janela 30-120 min antes da consulta |
+| `adesao` | Taxa de medicação e tendência de engajamento | Cada tick, com thresholds de alerta |
+| `risco_silencioso` | Ausência atípica + sinais negativos | Cada tick |
+| `padroes` | Tendências estatísticas de sintomas (scipy) | 1×/dia por paciente |
+| `diario` | Síntese de entradas compartilhadas com médico | Pré-consulta, mínimo 2 entradas |
+
+---
+
+## 11. Avaliação das responsabilidades futuras
+
+Esta seção descreve o trabalho não iniciado, com estimativa de complexidade e dependências. Organizado por prioridade e impacto clínico.
+
+### 11.1 BFF real + remoção de dados mock `[ALTA PRIORIDADE]`
+
+**Status:** Todo `/dashboard/*` consome dados mock de arquivos `.ts` em `lib/mock-*.ts`. O api-gateway está funcional e o seed de demonstração está aplicado no RDS.
+
+**O que fazer:**
+- Implementar todas as rotas BFF em `apps/web/app/api/` que hoje retornam dados estáticos
+- Conectar `proxyFetch` / `fetchApi` ao `API_GATEWAY_URL`
+- Remover todos os `import` de `lib/mock-*` das server components e page components
+- Garantir tratamento de erro (401 → redirect `/login`, 503 → estado de erro amigável)
+
+**Dependências:** api-gateway já expõe todos os endpoints necessários. Nenhuma migration adicional.
+
+**Complexidade:** Média. Trabalho sistemático mas sem decisão arquitetural nova.
+
+---
+
+### 11.2 Portal paciente `/p/*` completo `[ALTA PRIORIDADE]`
+
+**Status:** Rotas existem, autenticação funciona, BFF de humor/diário/checkins está esboçado. UI de conversa SSE não existe.
+
+**O que fazer:**
+
+1. **UI de conversa SSE** (`/p/conversa`) — componente de chat que consome o stream do BFF. Exige tratamento de eventos SSE, bolhas de mensagem, indicador de "digitando", scroll automático.
+
+2. **Web Push completo** — Service Worker já existe (`public/sw.js`). Falta: UI de opt-in de notificação, flow de permissão de push no browser, teste de entrega end-to-end.
+
+3. **Check-in flow** — Notificação push chega com `checkin_id` → abre `/p/checkin/[id]` com formulário contextual (humor, medicação, questionário PHQ-9/GAD-7). Falta a UI completa do check-in e a lógica de expiração.
+
+4. **PWA installability** — `manifest.json` e metatags para iOS/Android. iOS requer app na tela inicial para receber push.
+
+**Complexidade:** Alta. A conversa SSE tem estado assíncrono complexo (reconexão, buffer, parcial). Push em iOS tem restrições específicas.
+
+---
+
+### 11.3 Agenda `/dashboard/agenda` `[MÉDIA PRIORIDADE]`
+
+**Status:** Tabela `consultas` existe no schema com todos os campos necessários. Nenhum endpoint de agenda existe no gateway. Nenhuma UI.
+
+**O que fazer:**
+- Endpoints REST: `GET/POST /api/v1/consultas`, `PUT/DELETE /api/v1/consultas/{id}` no api-gateway
+- BFF: `GET/POST /api/agenda/*`
+- UI: calendário (semana/mês), modal de agendamento, confirmação por e-mail (Resend), status (agendada → confirmada → realizada → cancelada)
+- Notificação ao médico 24h antes (novo agente ou Lambda)
+
+**Dependências:** Definir se lembretes de consulta são enviados por notifier-py (Web Push) ou Resend (e-mail). Consultas também alimentarão `resumo_pre_consulta` (já usa `consultas` via query).
+
+**Complexidade:** Média-alta. O calendário tem UX complexa.
+
+---
+
+### 11.4 Job de criação de check-ins de medicação `[MÉDIA PRIORIDADE]`
+
+**Status crítico:** `notifier-py` **só dispara** check-ins já existentes na tabela `checkins`. Nenhum serviço *cria* os check-ins automaticamente. Isso significa que check-ins de medicação precisam ser inseridos manualmente ou via seed — não escala.
+
+**O que fazer:**
+- Novo job em `agents-py` ou `notifier-py`: para cada prescrição ativa com `horarios[]` definidos, criar check-in em `checkins` para o próximo horário ainda não coberto
+- Lógica de idempotência: não duplicar check-ins para o mesmo `prescricao_id` + `agendado_para`
+- Lógica de expiração: check-ins não respondidos em X horas marcam `expirado_em`
+
+**Dependências:** Não depende de nenhuma migration (schema já suporta). Depende de decisão de cadência (criar D-1 às meia-noite? H-2 antes do horário?).
+
+**Complexidade:** Média. A lógica de janela temporal e idempotência exige atenção.
+
+---
+
+### 11.5 PHQ-9 / GAD-7 via check-in agendado `[MÉDIA PRIORIDADE]`
+
+**Status:** Tabelas `questionarios` e `questionarios_respostas` existem e têm dados seed (PHQ-9 e GAD-7). `checkins` suporta `tipo = 'questionario_phq9' | 'questionario_gad7'`. Nenhum fluxo end-to-end implementado.
+
+**O que fazer:**
+- Job que cria check-in de questionário mensalmente por paciente (ou sob demanda do médico)
+- UI do check-in com as 9 ou 7 perguntas, escala Likert
+- Cálculo de score total + interpretação no BFF ou gateway
+- Registro em `questionarios_respostas` + geração de insight via agente `padroes`
+
+**Complexidade:** Média.
+
+---
+
+### 11.6 IAM role na EC2 com `bedrock:InvokeModel` `[ALTA — bloqueante para produção com IA]`
+
+**Status:** Config Python assume IAM role em produção (`AWS_PROFILE` só em dev local). Se a role não estiver criada e associada à EC2, todos os agentes e orchestrator falham ao chamar Bedrock.
+
+**O que fazer:**
+- Criar IAM role `cerebro-amigo-ec2` com policy `bedrock:InvokeModel` em `sa-east-1` para os modelos Haiku/Sonnet/Opus
+- Associar role à instância EC2 via Instance Profile
+- Remover `AWS_PROFILE` do `.env` de produção
+- Testar: `aws sts get-caller-identity` dentro do container Python deve retornar a role
+
+**Complexidade:** Baixa (AWS Console ou CLI). Altamente bloqueante para IA em produção.
+
+---
+
+### 11.7 Editor de prompts dos agentes `[BAIXA PRIORIDADE]`
+
+**Status:** Tabela `agentes` existe com `system_prompt`, `modelo_default`, `ativo`. Rota `/dashboard/agentes` existe na web. Endpoints no api-gateway (GET/PUT) existem. UI de edição está pendente.
+
+**O que fazer:**
+- Tela com lista dos 5 agentes, campo de texto para `system_prompt`, seletor de modelo, toggle `ativo`
+- Preview/diff do prompt anterior
+- Versionamento simples: salvar histórico de prompts editados em nova tabela `agentes_historico`
+
+**Complexidade:** Baixa.
+
+---
+
+### 11.8 RAG (Retrieval-Augmented Generation) `[LONGO PRAZO]`
+
+**Status:** Tabela `conhecimento` existe com `embedding vector(1536)` e pgvector habilitado. Nenhum pipeline de indexação ou busca implementado.
+
+**Potencial:** Indexar histórico clínico do paciente (sintomas, consultas, prescrições) para contexto rico nas respostas do orchestrator. Também possibilita busca semântica em entradas do diário.
+
+**Dependências:** Definir modelo de embedding (Bedrock tem Amazon Titan Embeddings). Definir janela de contexto e estratégia de chunking. Exige avaliação de custo x benefício clínico.
+
+**Complexidade:** Alta. Cuidado especial com LGPD — embedding de dado clínico é dado derivado sensível.
+
+---
+
+### 11.9 Multi-médico por clínica `[LONGO PRAZO]`
+
+**Status:** Schema suporta múltiplos médicos (cada um com `usuario_id` próprio). Endpoint seed só cria o primeiro. Não há UI de convite ou gestão de equipe.
+
+**O que fazer:**
+- Endpoint de convite de médico (e-mail Resend + magic link)
+- Conceito de "clínica" como agrupador de médicos (nova tabela `clinicas` + FK em `medicos`)
+- Regras de acesso: médico vê só seus pacientes; admin da clínica vê todos
+- Faturamento: multi-médico pode implicar em planos diferentes
+
+**Complexidade:** Alta. Mudança arquitetural no modelo de tenancy.
+
+---
+
+### 11.10 WhatsApp Cloud API `[FUTURO INDEFINIDO]`
+
+**Status:** Completamente removido do orchestrator V3. Tabela `inbound_messages` existe para mensagens brutas de webhook. Canal primário atual é o PWA.
+
+**Consideração:** Reintroduzir WhatsApp exige tratamento de webhook Meta, validação de assinatura, filas de processamento, e alinhamento regulatório (conversas de saúde pelo WhatsApp têm implicações LGPD adicionais).
+
+**Complexidade:** Alta. Decisão de produto antes de qualquer implementação.
+
+---
+
+## 12. Operação local
+
+```bash
+# 1. Clonar e instalar dependências web
+cd apps/web && pnpm install
+
+# 2. Configurar variáveis
+cp .env.example .env
+# editar .env com Postgres, JWT_SECRET, INTERNAL_API_TOKEN, RESEND_*, VAPID_*, Bedrock
+
+# 3. Aplicar migrations (banco deve estar acessível)
+psql $POSTGRES_DSN -f infra/migrations/0001_init.sql
+psql $POSTGRES_DSN -f infra/migrations/0002_fix_agente_execucoes.sql
+psql $POSTGRES_DSN -f infra/migrations/0003_add_automacao_pausada.sql
+
+# 4. Subir containers
+docker compose up -d --build
+
+# 5. Seed de demonstração
+bash infra/seed/run_demo.sh
+# ou manualmente:
+# POST http://localhost:5050/api/v1/seed/primeiro-medico (body: email/senha/nome/crm)
+# psql $POSTGRES_DSN -f infra/seed/demo.sql
+
+# 6. Acesso
+# Médico:   http://localhost:3000/login   (demo@cerebroamigo.com / Demo@2026!)
+# Paciente: http://localhost:3000/p/entrar
+```
+
+---
+
+## 13. Checklist de go-live
+
+1. IAM role EC2 com `bedrock:InvokeModel` criada e associada
+2. Revisão médica/jurídica do texto de crise (`crisis_copy.py`)
+3. Dados legais: CNPJ, DPO, endereço em `/privacidade` e e-mails transacionais
+4. HTTPS na frente do EC2 (Cloudflare/nginx + certificado)
+5. Domínio Resend com SPF/DKIM configurado
+6. VAPID keys geradas em produção (regelar invalida todas as subscriptions)
+7. Ensaio ponta a ponta do protocolo de crise (ideação → notificação → pausa)
+8. Teste de push PWA (iOS: app precisa estar na tela inicial)
+9. `PII_REDACTION_ENABLED=true` e `SHADOW_MODE` removido do `.env` de produção
+10. Backup automático do RDS configurado
+
+---
+
+## 14. ADRs (decisões arquiteturais)
+
+| # | Decisão | Status |
+|---|---|---|
+| [001](adrs/001-backend-transacional-net.md) | Backend transacional em .NET (não Go) | Accepted |
+| [002](adrs/002-ia-conversacional-python-langgraph.md) | IA conversacional Python + LangGraph | Accepted |
+| [003](adrs/003-agentes-analiticos-python-vanilla.md) | Agentes analíticos Python sem LangGraph | Accepted |
+| [004](adrs/004-lgpd-traces-langsmith.md) | LGPD em traces LangSmith + redação de PII | Accepted |
+| [005](adrs/005-versionamento-texto-crise.md) | Texto de crise versionado em código, não no banco | Accepted |
+| [006](adrs/006-fail-safe-classificador-crise.md) | Fail-safe conservador no classificador de crise | Accepted |
+| [007](adrs/007-gateway-net-nao-go.md) | Gateway .NET 10, não Go — razões V3 | Accepted |
+| [008](adrs/008-llm-bedrock-nao-anthropic-api.md) | LLM via Bedrock In-Region, não ANTHROPIC_API_KEY | Accepted |
 
 ---
 
 ## 15. Glossário
 
 | Termo | Significado |
-| --- | --- |
-| BFF | Backend-for-Frontend — rotas `app/api/*` no Next.js |
-| Gateway | api-gateway .NET — REST e proxy SSE |
-| orchestrator-py | Serviço de conversação LangGraph |
-| agents-py | Jobs analíticos (insights) |
-| notifier-py | Disparo de push para check-ins |
-| Insight | Artefato gerado por agente analítico |
-| Check-in estruturado | Pergunta com respostas pré-codificadas (ex.: tomou medicação?) |
-| PWA | Portal paciente instalável (`public/sw.js`) |
+|---|---|
+| **BFF** | Backend-for-Frontend — Route Handlers em `app/api/*` no Next.js |
+| **Gateway** | `apps/api-gateway` .NET — REST, JWT, proxy SSE |
+| **orchestrator-py** | Serviço de conversação LangGraph (grafo de IA) |
+| **agents-py** | Jobs analíticos (geram insights) |
+| **notifier-py** | Dispara Web Push para check-ins pendentes |
+| **Insight** | Artefato analítico gerado por agente; lido pelo médico no dashboard |
+| **Check-in** | Pergunta estruturada enviada ao paciente via push (medicação, humor, questionário) |
+| **PWA** | Portal paciente instalável — Next.js com Service Worker |
+| **Tenant** | Psiquiatra (médico). Dados isolados por `medico_responsavel_id` |
+| **SHADOW_MODE** | Agentes calculam mas não salvam resultados nem disparam push (dev/staging) |
+| **INTERNAL_API_TOKEN** | Token Bearer para autenticação serviço-a-serviço (.NET ↔ Python) |
 
 ---
 
-## 16. Referências no repositório
-
-| Arquivo | Conteúdo |
-| --- | --- |
-| [`README.md`](../README.md) | Visão do produto e diagrama |
-| [`CONTEXT.md`](../CONTEXT.md) | Referência técnica para IAs |
-| [`docs/setup-guide.md`](./setup-guide.md) | Deploy AWS |
-| [`docs/adrs/`](./adrs/) | ADRs 001–006 |
-| [`apps/orchestrator-py/README.md`](../apps/orchestrator-py/README.md) | Grafo conversacional |
-| [`apps/agents-py/README.md`](../apps/agents-py/README.md) | Agentes analíticos |
-| [`apps/notifier-py/README.md`](../apps/notifier-py/README.md) | Push de check-ins |
-
-**Responsável clínico final:** o médico titular da conta. O software é ferramenta de apoio, não substituto de julgamento clínico.
+**Responsável clínico final:** o médico titular da conta. O software é ferramenta de apoio operacional — não substitui julgamento clínico, diagnóstico ou conduta médica.

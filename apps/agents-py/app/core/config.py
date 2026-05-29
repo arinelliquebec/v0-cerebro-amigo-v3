@@ -111,6 +111,14 @@ class Settings(BaseSettings):
     diario_lead_min_min: int = 30   # mesma janela do resumidor
     diario_lead_min_max: int = 120
 
+    # ─── Diário de Voz (Amazon Transcribe + S3) ────────────────────────
+    # Bucket em sa-east-1 — deve existir antes de usar a feature.
+    # Áudio é deletado do S3 logo após transcrição (LGPD).
+    # Lifecycle rule de 24h no bucket como segurança extra.
+    s3_bucket_audio: str = "cerebro-amigo-audio-sa-east-1"
+    transcribe_poll_interval_s: float = 2.0
+    transcribe_timeout_s: float = 120.0
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -24,6 +24,7 @@ from app.scheduler import (
     shutdown_scheduler,
     start_scheduler,
 )
+from app.services.transcricao import transcrever_audio
 
 
 def _configure_logging() -> None:
@@ -138,6 +139,41 @@ async def run_agent_for_patient(name: str, req: RunForPatientRequest) -> dict:
     if name not in AGENT_REGISTRY:
         raise HTTPException(status_code=404, detail=f"agente '{name}' desconhecido")
     return await run_for_patient(name, req.paciente_id)
+
+
+# ─── Diário de Voz ────────────────────────────────────────────────────────
+
+
+class TranscreverAudioRequest(BaseModel):
+    audio_base64: str   # áudio codificado em base64 (WebM ou MP4, máx ~10MB)
+    content_type: str   # "audio/webm" | "audio/mp4"
+    paciente_id: UUID
+
+
+@app.post(
+    "/internal/diario/transcrever",
+    dependencies=[Depends(_check_internal_token)],
+)
+async def transcrever_diario(req: TranscreverAudioRequest) -> dict:
+    """Transcreve áudio de diário e retorna análise clínica estruturada.
+
+    Fluxo interno: S3 upload → Amazon Transcribe (pt-BR) → Claude Sonnet → resultado.
+    O áudio é deletado do S3 logo após a transcrição (LGPD).
+    """
+    import base64
+
+    audio_bytes = base64.b64decode(req.audio_base64)
+    if len(audio_bytes) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="áudio maior que 10 MB")
+
+    result = await transcrever_audio(audio_bytes, req.content_type, req.paciente_id)
+    return {
+        "transcricao": result.transcricao,
+        "humor_estimado": result.humor_estimado,
+        "emocao_predominante": result.emocao_predominante,
+        "tags_sugeridas": result.tags_sugeridas,
+        "sintomas_detectados": result.sintomas_detectados,
+    }
 
 
 @app.post(
