@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     pii_redaction_enabled: bool = True
 
     # ─── Postgres ─── URL format: postgresql://user:pass@host/db
-    postgres_dsn: SecretStr = Field(alias="POSTGRES_DSN_URL")
+    postgres_dsn: SecretStr = Field(validation_alias="POSTGRES_DSN_URL")
 
     # ─── Auth interna ───
     internal_api_token: SecretStr

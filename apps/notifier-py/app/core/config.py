@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     scheduler_interval_seconds: int = 60
 
     # DB — URL format para asyncpg
-    postgres_dsn: SecretStr = Field(alias="POSTGRES_DSN_URL")
+    postgres_dsn: SecretStr = Field(validation_alias="POSTGRES_DSN_URL")
 
     # Auth
     internal_api_token: SecretStr
