@@ -192,9 +192,11 @@ public class AgenteExecucao
     public Guid Id { get; set; }
     public Guid? PacienteId { get; set; }
     public string Agente { get; set; } = null!;
-    public string Status { get; set; } = "ok";
-    public JsonDocument? Resultado { get; set; }
-    public DateTime CriadoEm { get; set; }
+    public DateTime IniciadoEm { get; set; }
+    public DateTime? ConcluidoEm { get; set; }
+    public bool? Sucesso { get; set; }
+    public string? Erro { get; set; }
+    public JsonDocument? Metadata { get; set; }
 }
 
 // =============================================================================

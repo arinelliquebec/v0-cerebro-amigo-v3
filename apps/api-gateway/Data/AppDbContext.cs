@@ -159,7 +159,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options)
         {
             b.ToTable("agente_execucoes");
             b.HasKey(x => x.Id);
-            b.Property(x => x.Resultado).HasColumnType("jsonb");
+            b.Property(x => x.Metadata).HasColumnType("jsonb");
         });
 
         // ─── PORTAL DO PACIENTE ───────────────────────────────────────────────

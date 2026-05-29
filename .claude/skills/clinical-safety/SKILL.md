@@ -35,6 +35,26 @@ Plataforma de saúde mental. Erro aqui pode ferir paciente e violar LGPD categor
 
 Todo acesso a dado de paciente é escopado por tenant. Nunca escreva query que cruze tenants. Em endpoint novo, o filtro de tenant não é opcional — é a primeira cláusula.
 
+**Tenant = `pacientes.medico_responsavel_id`**, derivado do JWT do médico (`medico_id` claim). A coluna `paciente_id` (presente em tabelas clínicas) é FK para `clientes.id` — identifica o paciente-pessoa, mas **não escopa por médico**.
+
+Padrão correto para tabelas clínicas (`prescricoes`, `sintomas`, `eventos`, `consultas`, `checkins`, `tomadas_medicacao`, `diario_entradas`, `questionarios_respostas`, etc.):
+
+```sql
+SELECT t.*
+FROM <tabela> t
+JOIN pacientes p ON p.cliente_id = t.paciente_id
+WHERE p.medico_responsavel_id = :medicoId
+  AND ...
+```
+
+Para `notificacoes_medico` e `insights` (FK `medico_id` direto):
+
+```sql
+WHERE medico_id = :medicoId
+```
+
+> **Armadilha frequente**: `WHERE paciente_id = :x` **sem** JOIN em `pacientes` filtra por paciente individual mas não garante que o médico autenticado tem acesso. Sempre inclua a cláusula de tenant.
+
 ## SHADOW_MODE
 
 Antes de um agente ou automação agir em produção, ele roda em `SHADOW_MODE`: calcula e **loga o que faria**, sem enviar nada ao paciente nem disparar push. Só promova para ação real após validação clínica. Não remova o gate de SHADOW_MODE sem decisão explícita (e ADR).
