@@ -7,9 +7,23 @@ __v0_jsx-dev-runtime.ts
 .vercel/
 
 # Environment variables
+.env
 .env*.local
 
 # Common ignores
 node_modules
 .next/
 .DS_Store
+
+# .NET
+apps/api-gateway/bin/
+apps/api-gateway/obj/
+
+# Python
+**/__pycache__/
+**/*.pyc
+**/.venv/
+
+# pnpm workspace — web local env
+apps/web/.env
+apps/web/.env*.local

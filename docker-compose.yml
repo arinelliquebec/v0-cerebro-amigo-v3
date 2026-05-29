@@ -1,0 +1,71 @@
+# Postgres é externo (RDS sa-east-1) — não entra aqui.
+# Dockerfiles de cada serviço ainda não existem; criar ao implementar cada app.
+
+services:
+  web:
+    build:
+      context: ./apps/web
+    ports:
+      - "3000:3000"
+    env_file: .env
+    environment:
+      API_GATEWAY_URL: http://api-gateway:5000
+      ORCHESTRATOR_PY_URL: http://orchestrator-py:8081
+      AGENTS_PY_URL: http://agents-py:8082
+      NOTIFIER_PY_URL: http://notifier-py:8083
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api-gateway:
+    build:
+      context: ./apps/api-gateway
+    ports:
+      - "5050:5000"
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  orchestrator-py:
+    build:
+      context: ./apps/orchestrator-py
+    ports:
+      - "8081:8081"
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  agents-py:
+    build:
+      context: ./apps/agents-py
+    ports:
+      - "8082:8082"
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8082/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  notifier-py:
+    build:
+      context: ./apps/notifier-py
+    ports:
+      - "8083:8083"
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8083/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
