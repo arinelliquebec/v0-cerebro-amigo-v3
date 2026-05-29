@@ -1,0 +1,22 @@
+# Next.js — espelho do .gitignore raiz (útil ao abrir só apps/web no IDE)
+
+# Dependências e build
+node_modules/
+.next/
+.turbo/
+out/
+dist/
+.vercel/
+coverage/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Ambiente (segredos)
+.env
+.env.*
+!.env.example
+!.env*.example
