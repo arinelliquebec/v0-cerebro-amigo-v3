@@ -33,3 +33,6 @@ apps/web/.env*.local
 !.env.example
 _v2-ref/
 *.zip
+
+# Docker compose local override (creds AWS injetadas — nunca commitar)
+docker-compose.override.yml

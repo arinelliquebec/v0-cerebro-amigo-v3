@@ -24,9 +24,11 @@ class Settings(BaseSettings):
     # AWS Bedrock (sem ANTHROPIC_API_KEY — auth via IAM role)
     aws_region: str = "sa-east-1"
     bedrock_region: str = "sa-east-1"
-    bedrock_model_haiku: str = "anthropic.claude-haiku-4-5-20251001-v1:0"
-    bedrock_model_sonnet: str = "anthropic.claude-sonnet-4-6-20251001-v1:0"
-    bedrock_model_opus: str = "anthropic.claude-opus-4-8"
+    # IDs = inference profiles (prefixo global.). On-demand puro (anthropic.*)
+    # dá ValidationException "model identifier is invalid" no Converse sa-east-1.
+    bedrock_model_haiku: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
+    bedrock_model_sonnet: str = "global.anthropic.claude-sonnet-4-6"
+    bedrock_model_opus: str = "global.anthropic.claude-opus-4-8"
 
     # LangSmith
     langsmith_tracing: bool = True
