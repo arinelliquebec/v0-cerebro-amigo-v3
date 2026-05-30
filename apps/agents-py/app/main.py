@@ -24,6 +24,7 @@ from app.scheduler import (
     shutdown_scheduler,
     start_scheduler,
 )
+from app.services.crisis import acionar_protocolo_diario, detectar_crise
 from app.services.transcricao import transcrever_audio
 
 
@@ -173,7 +174,40 @@ async def transcrever_diario(req: TranscreverAudioRequest) -> dict:
         "emocao_predominante": result.emocao_predominante,
         "tags_sugeridas": result.tags_sugeridas,
         "sintomas_detectados": result.sintomas_detectados,
+        "crise": result.crise,
+        "crise_texto": result.crise_texto,
     }
+
+
+class TriarTextoRequest(BaseModel):
+    texto: str
+    paciente_id: UUID
+
+
+@app.post(
+    "/internal/diario/triar-texto",
+    dependencies=[Depends(_check_internal_token)],
+)
+async def triar_texto_diario(req: TriarTextoRequest) -> dict:
+    """Triagem de crise para entradas de diário DIGITADAS (texto).
+
+    O gateway chama isto ANTES de salvar a entrada de texto. Se houver crise,
+    aciona o protocolo (texto fixo de acolhimento, trilha, notifica médico,
+    pausa automação) e devolve crise=True — o gateway então NÃO salva a entrada
+    como nota comum e o front exibe o acolhimento.
+
+    Não faz análise (humor/tags) — só triagem de risco. Fail-safe: erro no
+    classificador → tratado como crise (regra #2 clinical-safety).
+    """
+    crise = await detectar_crise(req.texto)
+    if not crise.crise_detectada:
+        return {"crise": False, "crise_texto": None}
+
+    async with acquire() as conn:
+        texto = await acionar_protocolo_diario(
+            conn, req.paciente_id, crise, origem="diario_texto"
+        )
+    return {"crise": True, "crise_texto": texto}
 
 
 @app.post(

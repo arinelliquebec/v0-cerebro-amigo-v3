@@ -124,10 +124,38 @@ public static class PortalPacienteEndpoints
 
         d.MapPost("/", async (
             [FromBody] CriarDiarioRequest req,
-            AppDbContext db, ClaimsPrincipal user) =>
+            AppDbContext db, IHttpClientFactory httpFactory,
+            IConfiguration cfg, ClaimsPrincipal user) =>
         {
             var pid = PacienteAuthEndpoints.GetPacienteId(user);
             if (pid is null) return Results.Unauthorized();
+
+            // Triagem de crise ANTES de salvar (regra #2 clinical-safety).
+            // Áudio já foi triado na transcrição; aqui cobrimos texto digitado e
+            // transcrições editadas pelo paciente. agents-py decide: se crise,
+            // aciona protocolo (texto fixo, trilha, notifica médico, pausa) e a
+            // entrada NÃO é salva como nota comum — o front exibe o acolhimento.
+            var crise = await TriarCriseTexto(req.Conteudo, pid.Value, httpFactory, cfg);
+            if (crise is null)
+            {
+                // Triagem indisponível (agents-py fora/erro de transporte).
+                // Fail-closed (regra #2): não salvamos conteúdo não-triado e não
+                // inventamos texto de crise aqui (o gateway não chama LLM nem tem
+                // crisis_copy). Paciente tenta de novo.
+                return Results.Problem(
+                    title: "Não foi possível processar sua entrada agora",
+                    detail: "Tente novamente em instantes.",
+                    statusCode: StatusCodes.Status503ServiceUnavailable);
+            }
+            if (crise.Crise)
+            {
+                return Results.Ok(new
+                {
+                    crise = true,
+                    crise_texto = crise.CriseTexto,
+                    salvo = false,
+                });
+            }
 
             var id = Guid.NewGuid();
             await db.Database.ExecuteSqlRawAsync(@"
@@ -139,7 +167,8 @@ public static class PortalPacienteEndpoints
                 req.Humor, req.Tags ?? Array.Empty<string>(), req.CompartilharComMedico,
                 req.Tipo ?? "texto", req.Transcricao);
 
-            return Results.Created($"/api/v1/portal/paciente/diario/{id}", new { id });
+            return Results.Created($"/api/v1/portal/paciente/diario/{id}",
+                new { id, crise = false, salvo = true });
         });
 
         d.MapPatch("/{id:guid}", async (
@@ -344,11 +373,60 @@ public static class PortalPacienteEndpoints
             return Results.NoContent();
         });
     }
+
+    // ========================================================================
+    // Triagem de crise — chama agents-py /internal/diario/triar-texto.
+    // Retorna null se a triagem estiver indisponível (transporte/parse) — o
+    // chamador trata como fail-closed. NÃO gera texto de crise aqui: o texto
+    // fixo de acolhimento vem do agents-py (crisis_copy), nunca do gateway.
+    // ========================================================================
+    private static async Task<CriseTriagem?> TriarCriseTexto(
+        string conteudo, Guid pacienteId,
+        IHttpClientFactory httpFactory, IConfiguration cfg)
+    {
+        try
+        {
+            var internalToken = cfg["INTERNAL_API_TOKEN"]
+                ?? throw new InvalidOperationException("INTERNAL_API_TOKEN missing");
+
+            var http = httpFactory.CreateClient("agents-py");
+            var payload = JsonSerializer.Serialize(new
+            {
+                texto = conteudo,
+                paciente_id = pacienteId,
+            });
+
+            using var msg = new HttpRequestMessage(HttpMethod.Post, "/internal/diario/triar-texto")
+            {
+                Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json"),
+            };
+            msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", internalToken);
+
+            using var resp = await http.SendAsync(msg);
+            if (!resp.IsSuccessStatusCode) return null;
+
+            var json = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            var root = doc.RootElement;
+            var crise = root.TryGetProperty("crise", out var c) && c.GetBoolean();
+            string? texto = root.TryGetProperty("crise_texto", out var t)
+                && t.ValueKind == JsonValueKind.String
+                ? t.GetString()
+                : null;
+            return new CriseTriagem(crise, texto);
+        }
+        catch
+        {
+            return null;
+        }
+    }
 }
 
 // =============================================================================
 // DTOs
 // =============================================================================
+
+public record CriseTriagem(bool Crise, string? CriseTexto);
 
 public record PerfilHome(string Nome, string NomeMedico);
 public record TomadaHoje(Guid Id, DateTime HorarioPrevisto, string Status,
