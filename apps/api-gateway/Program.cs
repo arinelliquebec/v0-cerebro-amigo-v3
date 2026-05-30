@@ -140,7 +140,10 @@ builder.Services.AddHttpClient("agents-py", client =>
 {
     var url = builder.Configuration["AGENTS_PY_URL"] ?? "http://agents-py:8082";
     client.BaseAddress = new Uri(url);
-    client.Timeout = TimeSpan.FromSeconds(60);
+    // Diário de voz: agents-py faz polling do Transcribe até transcribe_timeout_s
+    // (120s) + chamada Claude. Gateway precisa esperar mais que isso, senão aborta
+    // a transcrição no meio. Margem para o Claude por cima dos 120s.
+    client.Timeout = TimeSpan.FromSeconds(150);
 });
 
 // -----------------------------------------------------------------------------

@@ -42,6 +42,7 @@ export function AudioDiario({ onTranscricao, onCancelar, className }: AudioDiari
   const chunksRef = useRef<Blob[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const analyserRef = useRef<AnalyserNode | null>(null)
+  const audioCtxRef = useRef<AudioContext | null>(null)
   const rafRef = useRef<number | null>(null)
 
   // ─── Limpeza ao desmontar ─────────────────────────────────────────────────
@@ -51,6 +52,8 @@ export function AudioDiario({ onTranscricao, onCancelar, className }: AudioDiari
       timerRef.current && clearInterval(timerRef.current)
       rafRef.current && cancelAnimationFrame(rafRef.current)
       recorderRef.current?.stream?.getTracks().forEach(t => t.stop())
+      audioCtxRef.current?.close()
+      audioCtxRef.current = null
     }
   }, [])
 
@@ -58,6 +61,7 @@ export function AudioDiario({ onTranscricao, onCancelar, className }: AudioDiari
 
   const iniciarVisualizacao = useCallback((stream: MediaStream) => {
     const ctx = new AudioContext()
+    audioCtxRef.current = ctx
     const analyser = ctx.createAnalyser()
     analyser.fftSize = 256
     analyserRef.current = analyser
@@ -102,6 +106,8 @@ export function AudioDiario({ onTranscricao, onCancelar, className }: AudioDiari
     recorder.onstop = () => {
       stream.getTracks().forEach(t => t.stop())
       rafRef.current && cancelAnimationFrame(rafRef.current)
+      audioCtxRef.current?.close()
+      audioCtxRef.current = null
       setNivelAudio(0)
       const blob = new Blob(chunksRef.current, { type: mimeType })
       enviar(blob, mimeType)
