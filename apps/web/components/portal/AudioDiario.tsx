@@ -13,6 +13,9 @@ export interface TranscricaoResult {
   emocao_predominante: string
   tags_sugeridas: string[]
   sintomas_detectados: string[]
+  // Triagem de crise (ADR-010): se crise=true, a UI mostra o acolhimento fixo.
+  crise?: boolean
+  crise_texto?: string | null
 }
 
 export interface AudioDiarioProps {

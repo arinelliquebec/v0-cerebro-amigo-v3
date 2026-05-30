@@ -22,7 +22,6 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
-from app.core.config import get_settings
 from app.core.llm import ainvoke_structured, haiku
 from app.services.crisis_copy import CRISIS_COPY, texto_protocolo
 
@@ -131,7 +130,6 @@ async def acionar_protocolo_diario(
     Tudo numa transação. Texto vem de crisis_copy — nunca gerado.
     `conn` é uma conexão asyncpg já adquirida pelo chamador.
     """
-    settings = get_settings()
     texto = texto_protocolo()
 
     medico_id = await conn.fetchval(
@@ -193,12 +191,14 @@ async def acionar_protocolo_diario(
             paciente_id,
         )
 
+    # Crise é sempre real-action (registro + notificação + pausa), independente
+    # de SHADOW_MODE — o gate de shadow vale para automação proativa, não para
+    # o protocolo de crise. Por isso não há flag de shadow aqui.
     logger.warning(
         "diario.crise.protocolo_executado",
         paciente_id=str(paciente_id),
         nivel=crise.nivel,
         origem=origem,
         copy_versao=CRISIS_COPY.versao,
-        shadow_mode=settings.shadow_mode,
     )
     return texto

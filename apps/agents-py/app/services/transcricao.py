@@ -25,7 +25,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field as PydanticField
 
 from app.core.config import get_settings
+from app.core.db import acquire
 from app.core.llm import ainvoke_structured, sonnet
+from app.services.crisis import acionar_protocolo_diario, detectar_crise
 
 logger = structlog.get_logger(__name__)
 
@@ -40,6 +42,10 @@ class TranscricaoResult:
     emocao_predominante: str            # "neutro" | "ansioso" | "triste" | etc.
     tags_sugeridas: list[str] = field(default_factory=list)
     sintomas_detectados: list[str] = field(default_factory=list)
+    # Triagem de crise (ADR-010). Se crise=True, a análise é pulada e o front
+    # exibe crise_texto (acolhimento fixo) em vez do formulário de revisão.
+    crise: bool = False
+    crise_texto: str | None = None
 
 
 # ─── Schema de saída do LLM ────────────────────────────────────────────────
@@ -112,6 +118,27 @@ async def transcrever_audio(
         # 3. Delete imediato do S3 (LGPD — áudio não persiste)
         await asyncio.to_thread(_delete_s3, s3_key, settings)
         log.info("transcricao.s3_deleted")
+
+    # 3.5. Triagem de crise ANTES da análise (ADR-010, regra #2 clinical-safety).
+    # Se houver crise: aciona protocolo (texto fixo, trilha, notifica médico,
+    # pausa automação) e PULA a análise — não geramos humor/tags sobre uma fala
+    # de crise; o paciente recebe o acolhimento.
+    crise = await detectar_crise(transcricao)
+    if crise.crise_detectada:
+        async with acquire() as conn:
+            texto_acolhimento = await acionar_protocolo_diario(
+                conn, paciente_id, crise, origem="diario_audio"
+            )
+        log.warning("transcricao.crise_detectada", nivel=crise.nivel)
+        return TranscricaoResult(
+            transcricao="",  # não propaga a fala de crise ao cliente (minimização)
+            humor_estimado=None,
+            emocao_predominante="neutro",
+            tags_sugeridas=[],
+            sintomas_detectados=[],
+            crise=True,
+            crise_texto=texto_acolhimento,
+        )
 
     # 4. Claude Sonnet: análise contextual
     call = await ainvoke_structured(
