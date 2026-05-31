@@ -43,64 +43,89 @@ export async function HowItWorks() {
   cacheLife('days')
 
   return (
-    <div className="relative">
-      {/* Vertical line */}
-      <div className="absolute left-[19px] sm:left-[111px] top-0 bottom-0 w-0.5 bg-border" />
+    <ol className="grid grid-cols-1 lg:grid-cols-4 gap-0 list-none m-0 p-0">
+      {steps.map((step, i) => {
+        const Icon = step.icon
+        const isFirst = i === 0
+        const isLast = i === steps.length - 1
 
-      <div className="space-y-10">
-        {steps.map((step, i) => {
-          const Icon = step.icon
-          const isLast = i === steps.length - 1
+        return (
+          <li
+            key={step.number}
+            className={`relative flex gap-4 lg:flex-col lg:gap-0 lg:items-center lg:text-center ${!isLast ? 'pb-10 lg:pb-0' : ''}`}
+          >
+            {/* Mobile: vertical connector line (absolute, behind content)
+                left-5 = center de um círculo w-10 (20 px).
+                top-10 = logo abaixo do círculo (40 px).
+                bottom-0 inclui o padding-bottom do <li>, conectando ao próximo passo. */}
+            {!isLast && (
+              <div className="lg:hidden absolute left-5 top-10 bottom-0 w-px bg-border z-0" />
+            )}
 
-          return (
-            <div key={step.number} className="relative flex gap-4 sm:gap-6">
-              {/* Left: label chip (desktop) */}
-              <div className="hidden sm:flex w-24 flex-shrink-0 pt-4 justify-end">
-                <span
-                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.68rem] font-semibold tracking-wide border h-6 ${
-                    step.highlight
-                      ? 'bg-primary text-white border-primary'
-                      : 'bg-secondary text-primary border-primary/20'
-                  }`}
-                >
-                  {step.label}
-                </span>
-              </div>
+            {/* ── Desktop: label chip ── */}
+            <div className="hidden lg:flex justify-center mb-3">
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.68rem] font-semibold tracking-wide border h-6 ${
+                  step.highlight
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-secondary text-secondary-foreground border-border'
+                }`}
+              >
+                {step.label}
+              </span>
+            </div>
 
-              {/* Center: dot */}
-              <div className="flex flex-col items-center flex-shrink-0 z-10">
-                <div
-                  className={`h-10 w-10 rounded-full flex items-center justify-center border-2 ${
-                    step.highlight
-                      ? 'bg-primary border-primary shadow-[0_0_0_4px_rgba(94,75,139,0.15)]'
-                      : 'bg-secondary border-border'
-                  }`}
-                >
-                  <Icon
-                    size={18}
-                    className={step.highlight ? 'text-white' : 'text-primary'}
-                  />
-                </div>
-                {!isLast && <div className="flex-1 w-0.5 bg-border mt-2" />}
-              </div>
-
-              {/* Right: content */}
-              <div className={`flex-1 pb-2 ${isLast ? '' : 'pb-6'}`}>
-                {/* Mobile label */}
-                <span className="sm:hidden text-[0.65rem] font-bold tracking-widest text-primary uppercase">
-                  {step.label}
-                </span>
-                <h3 className="text-base font-semibold text-navy leading-tight mt-0.5 sm:mt-1 mb-2">
-                  {step.title}
-                </h3>
-                <p className="text-sm text-muted-foreground leading-relaxed max-w-[480px]">
-                  {step.description}
-                </p>
+            {/* ── Desktop: metade-esquerda / círculo / metade-direita ──
+                Cada coluna contribui com sua metade do conector:
+                  • 1º passo: só metade direita (sem vazar à esquerda)
+                  • Último passo: só metade esquerda (sem vazar à direita)
+                  • Demais: ambas as metades
+                Juntas, formam uma linha contínua de círculo a círculo. */}
+            <div className="relative hidden lg:flex w-full items-center justify-center py-2 mb-5">
+              {!isFirst && (
+                <div className="absolute top-1/2 left-0 right-1/2 h-px bg-border -translate-y-1/2 z-0" />
+              )}
+              {!isLast && (
+                <div className="absolute top-1/2 left-1/2 right-0 h-px bg-border -translate-y-1/2 z-0" />
+              )}
+              <div
+                className={`relative z-10 h-11 w-11 rounded-full flex items-center justify-center shrink-0 border-2 ${
+                  step.highlight
+                    ? 'bg-primary border-primary ring-4 ring-primary/15'
+                    : 'bg-secondary border-border'
+                }`}
+              >
+                <Icon size={19} className={step.highlight ? 'text-primary-foreground' : 'text-primary'} />
               </div>
             </div>
-          )
-        })}
-      </div>
-    </div>
+
+            {/* ── Mobile: círculo (z-10 fica sobre o conector absoluto) ── */}
+            <div
+              className={`relative z-10 flex lg:hidden h-10 w-10 rounded-full items-center justify-center shrink-0 border-2 ${
+                step.highlight
+                  ? 'bg-primary border-primary ring-4 ring-primary/15'
+                  : 'bg-secondary border-border'
+              }`}
+            >
+              <Icon size={18} className={step.highlight ? 'text-primary-foreground' : 'text-primary'} />
+            </div>
+
+            {/* ── Conteúdo (desktop + mobile) ── */}
+            <div className="relative z-10 flex-1 min-w-0 lg:px-3">
+              {/* Label só no mobile (desktop usa o chip acima) */}
+              <span className="lg:hidden inline-flex mb-1 items-center px-2 py-0.5 rounded-full text-[0.65rem] font-bold tracking-widest uppercase bg-secondary text-secondary-foreground border border-border">
+                {step.label}
+              </span>
+              <h3 className="text-base font-semibold text-navy leading-tight mt-0.5 mb-1.5">
+                {step.title}
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {step.description}
+              </p>
+            </div>
+          </li>
+        )
+      })}
+    </ol>
   )
 }
