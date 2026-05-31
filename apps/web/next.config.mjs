@@ -1,6 +1,7 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: "standalone",
+  /* Standalone output só para Docker; Vercel ignora/usa seu próprio modelo */
+  output: process.env.VERCEL ? undefined : "standalone",
 
   /* React Compiler: memoização automática de componentes (React 19) */
   reactCompiler: true,
