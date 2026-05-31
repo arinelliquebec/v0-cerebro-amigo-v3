@@ -1,1 +1,4 @@
 .vercel
+out/
+coverage/
+*.tsbuildinfo

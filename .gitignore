@@ -8,12 +8,17 @@ __v0_jsx-dev-runtime.ts
 
 # Environment variables
 .env
+.env.*
 .env*.local
+!.env.example
 
 # Common ignores
-node_modules
+node_modules/
 .next/
 .DS_Store
+
+# TypeScript build info
+*.tsbuildinfo
 
 # .NET
 apps/api-gateway/bin/
@@ -23,14 +28,12 @@ apps/api-gateway/obj/
 **/__pycache__/
 **/*.pyc
 **/.venv/
+**/.pytest_cache/
+**/*.egg-info/
+**/htmlcov/
+**/.coverage
 
-# pnpm workspace — web local env
-apps/web/.env
-apps/web/.env*.local
 # V3 — segurança e auxiliares
-.env
-.env.*
-!.env.example
 _v2-ref/
 *.zip
 
