@@ -80,10 +80,10 @@ export function Sidebar() {
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200",
-                "focus-visible:ring-2 focus-visible:ring-[#14B8A6]/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card",
+                "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card",
                 isActive
-                  ? "bg-[#14B8A6] text-white shadow-sm shadow-[#14B8A6]/25"
-                  : "text-muted-foreground hover:bg-secondary hover:text-[#14B8A6]",
+                  ? "bg-primary text-white shadow-sm shadow-primary/25"
+                  : "text-muted-foreground hover:bg-secondary hover:text-primary",
                 collapsed && "justify-center px-2"
               )}
             >
@@ -113,10 +113,10 @@ export function Sidebar() {
               aria-current={isActive ? "page" : undefined}
               className={cn(
                 "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200",
-                "focus-visible:ring-2 focus-visible:ring-[#14B8A6]/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card",
+                "focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:ring-offset-1 focus-visible:ring-offset-card",
                 isActive
-                  ? "bg-[#14B8A6] text-white shadow-sm shadow-[#14B8A6]/25"
-                  : "text-muted-foreground hover:bg-secondary hover:text-[#14B8A6]",
+                  ? "bg-primary text-white shadow-sm shadow-primary/25"
+                  : "text-muted-foreground hover:bg-secondary hover:text-primary",
                 collapsed && "justify-center px-2"
               )}
             >
@@ -149,7 +149,7 @@ export function Sidebar() {
       {!collapsed && (
         <div className="px-3 py-4 border-t border-border">
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="h-9 w-9 rounded-full bg-[#14B8A6] flex items-center justify-center text-white font-medium text-sm">
+            <div className="h-9 w-9 rounded-full bg-primary flex items-center justify-center text-white font-medium text-sm">
               DR
             </div>
             <div className="flex-1 min-w-0">

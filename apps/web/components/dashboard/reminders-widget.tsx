@@ -1,13 +1,6 @@
 "use client"
 
-import { motion } from "framer-motion"
-import MuiCard from "@mui/material/Card"
-import MuiCardContent from "@mui/material/CardContent"
-import MuiCardHeader from "@mui/material/CardHeader"
-import MuiList from "@mui/material/List"
-import MuiListItem from "@mui/material/ListItem"
-import MuiListItemIcon from "@mui/material/ListItemIcon"
-import MuiListItemText from "@mui/material/ListItemText"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, Clock, AlertCircle } from "lucide-react"
 
@@ -43,75 +36,48 @@ const reminders = [
 ]
 
 const statusConfig = {
-  completed: { icon: CheckCircle2, color: "#10B981", bg: "rgba(16,185,129,0.07)" },
-  pending:   { icon: Clock,         color: "#F59E0B", bg: "rgba(245,158,11,0.07)" },
-  scheduled: { icon: Clock,         color: "#14B8A6", bg: "rgba(20,184,166,0.07)" },
-  overdue:   { icon: AlertCircle,   color: "#E57373", bg: "rgba(229,115,115,0.07)" },
+  completed: { icon: CheckCircle2, color: "text-success", bg: "bg-success/7" },
+  pending:   { icon: Clock,         color: "text-warning", bg: "bg-warning/7" },
+  scheduled: { icon: Clock,         color: "text-primary", bg: "bg-primary/7" },
+  overdue:   { icon: AlertCircle,   color: "text-coral", bg: "bg-coral/7" },
 }
+
+const delayClass = ["delay-100", "delay-200", "delay-300", "delay-400"]
 
 export function RemindersWidget() {
   return (
-    <MuiCard
-      elevation={0}
-      sx={{
-        border: "1px solid rgba(226,232,240,0.8)",
-        borderRadius: 3,
-        transition: "all 0.22s ease",
-        "&:hover": {
-          borderColor: "rgba(20,184,166,0.25)",
-          boxShadow: "0 4px 24px rgba(20,184,166,0.07)",
-        },
-      }}
-    >
-      <MuiCardHeader
-        title="Lembretes"
-        titleTypographyProps={{ fontSize: "0.9375rem", fontWeight: 600, color: "#0F2137" }}
-        sx={{ pb: 0.5, pt: 2, px: 2.5 }}
-      />
-      <MuiCardContent sx={{ px: 1.5, pt: 0.5, pb: "12px !important" }}>
-        <MuiList disablePadding>
+    <Card className="border-border/80 hover:border-primary/25 hover:shadow-[0_4px_24px_rgba(94,75,139,0.07)] transition-all duration-200">
+      <CardHeader className="pb-1 pt-5 px-5">
+        <CardTitle className="text-[0.9375rem] font-semibold text-navy">Lembretes</CardTitle>
+      </CardHeader>
+      <CardContent className="px-3 pt-1 pb-3">
+        <div className="space-y-1">
           {reminders.map((r, i) => {
             const cfg = statusConfig[r.status as keyof typeof statusConfig]
             const Icon = cfg.icon
             return (
-              <motion.div
+              <div
                 key={r.id}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.07, duration: 0.26, ease: "easeOut" }}
+                className={`flex items-start gap-3 px-3 py-2.5 rounded-xl ${cfg.bg} hover:brightness-[0.97] transition-all cursor-pointer animate-fade-left ${delayClass[i]}`}
               >
-                <MuiListItem
-                  sx={{
-                    px: 1.5,
-                    py: 1,
-                    mb: 0.5,
-                    borderRadius: 2.5,
-                    bgcolor: cfg.bg,
-                    alignItems: "flex-start",
-                    gap: 1,
-                    transition: "background 0.18s",
-                    "&:hover": { filter: "brightness(0.97)" },
-                  }}
-                >
-                  <MuiListItemIcon sx={{ minWidth: 32, mt: 0.25 }}>
-                    <Icon size={17} style={{ color: cfg.color }} />
-                  </MuiListItemIcon>
-                  <MuiListItemText
-                    primary={r.title}
-                    secondary={`${r.patient} · ${r.time}`}
-                  />
-                </MuiListItem>
-              </motion.div>
+                <div className="flex-shrink-0 mt-0.5">
+                  <Icon size={17} className={cfg.color} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">{r.title}</p>
+                  <p className="text-xs text-muted-foreground">{r.patient} · {r.time}</p>
+                </div>
+              </div>
             )
           })}
-        </MuiList>
+        </div>
         <Button
           variant="ghost"
-          className="w-full text-[#14B8A6] hover:text-[#0D9488] hover:bg-[#F0F9F8] mt-1 text-xs h-8"
+          className="w-full text-primary hover:text-purple-dark hover:bg-secondary mt-1 text-xs h-8"
         >
           Ver todos os lembretes
         </Button>
-      </MuiCardContent>
-    </MuiCard>
+      </CardContent>
+    </Card>
   )
 }

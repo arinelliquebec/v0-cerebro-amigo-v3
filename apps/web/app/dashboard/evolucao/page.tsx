@@ -1,24 +1,12 @@
 "use client"
 
+import dynamic from "next/dynamic"
 import { Header } from "@/components/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  AreaChart,
-  Area,
-  BarChart,
-  Bar,
-} from "recharts"
 import {
   TrendingUp,
   TrendingDown,
@@ -30,6 +18,20 @@ import {
   ArrowUpRight,
   ArrowDownRight,
 } from "lucide-react"
+
+const GrowthChart = dynamic(
+  () => import("@/components/dashboard/growth-chart").then((m) => m.GrowthChart),
+  { loading: () => <ChartSkeleton /> }
+)
+
+const MoodChart = dynamic(
+  () => import("@/components/dashboard/mood-chart").then((m) => m.MoodChart),
+  { loading: () => <ChartSkeleton /> }
+)
+
+function ChartSkeleton() {
+  return <div className="h-[250px] animate-pulse bg-muted rounded-xl" />
+}
 
 const monthlyData = [
   { month: "Jan", pacientes: 180, checkins: 45, consultas: 120 },
@@ -132,11 +134,11 @@ export default function EvolucaoPage() {
             <Card key={stat.title} className="border-border/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="h-10 w-10 rounded-lg bg-[#F0F9F8] flex items-center justify-center">
-                    <stat.icon className="h-5 w-5 text-[#14B8A6]" />
+                  <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
+                    <stat.icon className="h-5 w-5 text-primary" />
                   </div>
                   <div className={`flex items-center gap-1 text-xs font-medium ${
-                    stat.trend === "up" ? "text-[#10B981]" : "text-[#E57373]"
+                    stat.trend === "up" ? "text-success" : "text-coral"
                   }`}>
                     {stat.trend === "up" ? (
                       <ArrowUpRight className="h-3 w-3" />
@@ -146,7 +148,7 @@ export default function EvolucaoPage() {
                     {stat.change}
                   </div>
                 </div>
-                <p className="text-2xl font-bold text-[#0F2137]">{stat.value}</p>
+                <p className="text-2xl font-bold text-navy">{stat.value}</p>
                 <p className="text-xs text-muted-foreground">{stat.title}</p>
               </CardContent>
             </Card>
@@ -158,7 +160,7 @@ export default function EvolucaoPage() {
           <Card className="border-border/50">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-[#0F2137]">
+                <CardTitle className="text-base font-semibold text-navy">
                   Crescimento Mensal
                 </CardTitle>
                 <Select defaultValue="6m">
@@ -175,40 +177,15 @@ export default function EvolucaoPage() {
             </CardHeader>
             <CardContent>
               <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="colorPacientes" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#14B8A6" stopOpacity={0} />
-                      </linearGradient>
-                      <linearGradient id="colorConsultas" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#14B8A6" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                    <XAxis dataKey="month" tick={{ fill: "#64748B", fontSize: 12 }} axisLine={{ stroke: "#E2E8F0" }} tickLine={false} />
-                    <YAxis tick={{ fill: "#64748B", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#FFFFFF",
-                        border: "1px solid #E2E8F0",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Area type="monotone" dataKey="pacientes" stroke="#14B8A6" strokeWidth={2} fill="url(#colorPacientes)" name="Pacientes" />
-                    <Area type="monotone" dataKey="consultas" stroke="#14B8A6" strokeWidth={2} fill="url(#colorConsultas)" name="Consultas" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <GrowthChart />
               </div>
               <div className="flex items-center justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-[#14B8A6]" />
+                  <span className="h-3 w-3 rounded-full bg-primary" />
                   <span className="text-xs text-muted-foreground">Pacientes</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-full bg-[#14B8A6]" />
+                  <span className="h-3 w-3 rounded-full bg-primary" />
                   <span className="text-xs text-muted-foreground">Consultas</span>
                 </div>
               </div>
@@ -218,46 +195,29 @@ export default function EvolucaoPage() {
           {/* Mood Distribution */}
           <Card className="border-border/50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base font-semibold text-[#0F2137]">
+              <CardTitle className="text-base font-semibold text-navy">
                 Distribuição de Humor (Semana)
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[250px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={weeklyMoodData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fill: "#64748B", fontSize: 12 }} axisLine={{ stroke: "#E2E8F0" }} tickLine={false} />
-                    <YAxis tick={{ fill: "#64748B", fontSize: 12 }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#FFFFFF",
-                        border: "1px solid #E2E8F0",
-                        borderRadius: "8px",
-                      }}
-                    />
-                    <Bar dataKey="muitoBem" stackId="a" fill="#10B981" name="Muito bem" radius={[0, 0, 0, 0]} />
-                    <Bar dataKey="bem" stackId="a" fill="#14B8A6" name="Bem" />
-                    <Bar dataKey="neutro" stackId="a" fill="#F59E0B" name="Neutro" />
-                    <Bar dataKey="mal" stackId="a" fill="#E57373" name="Mal" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <MoodChart />
               </div>
               <div className="flex items-center justify-center gap-4 mt-2 flex-wrap">
                 <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm bg-[#10B981]" />
+                  <span className="h-3 w-3 rounded-sm bg-success" />
                   <span className="text-xs text-muted-foreground">Muito bem</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm bg-[#14B8A6]" />
+                  <span className="h-3 w-3 rounded-sm bg-primary" />
                   <span className="text-xs text-muted-foreground">Bem</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm bg-[#F59E0B]" />
+                  <span className="h-3 w-3 rounded-sm bg-warning" />
                   <span className="text-xs text-muted-foreground">Neutro</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm bg-[#E57373]" />
+                  <span className="h-3 w-3 rounded-sm bg-coral" />
                   <span className="text-xs text-muted-foreground">Mal</span>
                 </div>
               </div>
@@ -269,10 +229,10 @@ export default function EvolucaoPage() {
         <Card className="border-border/50">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-[#0F2137]">
+              <CardTitle className="text-base font-semibold text-navy">
                 Progresso dos Pacientes
               </CardTitle>
-              <Button variant="ghost" className="text-[#14B8A6] hover:text-[#0D9488]">
+              <Button variant="ghost" className="text-primary hover:text-purple-dark">
                 Ver todos
               </Button>
             </div>
@@ -284,15 +244,15 @@ export default function EvolucaoPage() {
                   key={patient.id}
                   className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                 >
-                  <Avatar className="h-11 w-11 border-2 border-[#14B8A6]/20">
-                    <AvatarFallback className="bg-[#F0F9F8] text-[#14B8A6] font-medium">
+                  <Avatar className="h-11 w-11 border-2 border-primary/20">
+                    <AvatarFallback className="bg-secondary text-primary font-medium">
                       {patient.initials}
                     </AvatarFallback>
                   </Avatar>
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-[#0F2137]">{patient.name}</h4>
+                      <h4 className="font-medium text-navy">{patient.name}</h4>
                       <Badge variant="secondary" className="text-xs">
                         {patient.diagnosis}
                       </Badge>
@@ -305,8 +265,8 @@ export default function EvolucaoPage() {
                   <div className="flex items-center gap-3">
                     <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full ${
                       patient.trend === "up" 
-                        ? "bg-green-50 text-[#10B981]" 
-                        : "bg-red-50 text-[#E57373]"
+                        ? "bg-success/10 text-success" 
+                        : "bg-coral/10 text-coral"
                     }`}>
                       {patient.trend === "up" ? (
                         <TrendingUp className="h-4 w-4" />

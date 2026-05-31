@@ -18,6 +18,13 @@ import {
   Filter,
 } from "lucide-react"
 
+const moodClasses: Record<string, { text: string; bg: string; ring: string }> = {
+  "Muito bem": { text: "text-success", bg: "bg-success", ring: "ring-success/20" },
+  "Bem": { text: "text-primary", bg: "bg-primary", ring: "ring-primary/20" },
+  "Neutro": { text: "text-warning", bg: "bg-warning", ring: "ring-warning/20" },
+  "Mal": { text: "text-coral", bg: "bg-coral", ring: "ring-coral/20" },
+}
+
 const checkins = [
   {
     id: 1,
@@ -25,7 +32,6 @@ const checkins = [
     initials: "MS",
     mood: "Muito bem",
     moodIcon: Smile,
-    moodColor: "#10B981",
     time: "Há 30 min",
     date: "28/05/2026",
     trend: "up",
@@ -38,7 +44,6 @@ const checkins = [
     initials: "JS",
     mood: "Bem",
     moodIcon: Smile,
-    moodColor: "#14B8A6",
     time: "Há 2 horas",
     date: "28/05/2026",
     trend: "stable",
@@ -51,7 +56,6 @@ const checkins = [
     initials: "AC",
     mood: "Neutro",
     moodIcon: Meh,
-    moodColor: "#F59E0B",
     time: "Há 3 horas",
     date: "28/05/2026",
     trend: "down",
@@ -64,7 +68,6 @@ const checkins = [
     initials: "CO",
     mood: "Mal",
     moodIcon: Frown,
-    moodColor: "#E57373",
     time: "Há 5 horas",
     date: "28/05/2026",
     trend: "down",
@@ -77,7 +80,6 @@ const checkins = [
     initials: "LF",
     mood: "Muito bem",
     moodIcon: Smile,
-    moodColor: "#10B981",
     time: "Ontem",
     date: "27/05/2026",
     trend: "up",
@@ -87,27 +89,32 @@ const checkins = [
 ]
 
 const moodSummary = [
-  { label: "Muito bem", count: 12, color: "#10B981", icon: Smile },
-  { label: "Bem", count: 8, color: "#14B8A6", icon: Smile },
-  { label: "Neutro", count: 2, color: "#F59E0B", icon: Meh },
-  { label: "Mal", count: 1, color: "#E57373", icon: Frown },
+  { label: "Muito bem", count: 12, mood: "Muito bem", icon: Smile },
+  { label: "Bem", count: 8, mood: "Bem", icon: Smile },
+  { label: "Neutro", count: 2, mood: "Neutro", icon: Meh },
+  { label: "Mal", count: 1, mood: "Mal", icon: Frown },
 ]
 
 const getTrendIcon = (trend: string) => {
   switch (trend) {
     case "up":
-      return <TrendingUp className="h-4 w-4 text-[#10B981]" />
+      return <TrendingUp className="h-4 w-4 text-success" />
     case "down":
-      return <TrendingDown className="h-4 w-4 text-[#E57373]" />
+      return <TrendingDown className="h-4 w-4 text-coral" />
     default:
-      return <Minus className="h-4 w-4 text-[#F59E0B]" />
+      return <Minus className="h-4 w-4 text-warning" />
   }
 }
 
-const getMoodValue = (value: number) => {
-  const colors = ["#E57373", "#F59E0B", "#F59E0B", "#14B8A6", "#10B981"]
-  return colors[value - 1] || "#E2E8F0"
+const moodValueBg: Record<number, string> = {
+  1: "bg-coral",
+  2: "bg-warning",
+  3: "bg-warning",
+  4: "bg-primary",
+  5: "bg-success",
 }
+
+const getMoodBg = (value: number) => moodValueBg[value] ?? "bg-muted"
 
 export default function CheckinsPage() {
   return (
@@ -117,31 +124,33 @@ export default function CheckinsPage() {
       <div className="p-6 space-y-6">
         {/* Summary Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {moodSummary.map((mood) => (
-            <Card key={mood.label} className="border-border/50">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">{mood.label}</p>
-                    <p className="text-2xl font-bold" style={{ color: mood.color }}>
-                      {mood.count}
-                    </p>
+          {moodSummary.map((mood) => {
+            const cfg = moodClasses[mood.mood]
+            return (
+              <Card key={mood.label} className="border-border/50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">{mood.label}</p>
+                      <p className={`text-2xl font-bold ${cfg.text}`}>
+                        {mood.count}
+                      </p>
+                    </div>
+                    <div
+                      className={`h-12 w-12 rounded-xl flex items-center justify-center ${cfg.bg}/10`}
+                    >
+                      <mood.icon className={`h-6 w-6 ${cfg.text}`} />
+                    </div>
                   </div>
-                  <div
-                    className="h-12 w-12 rounded-xl flex items-center justify-center"
-                    style={{ backgroundColor: `${mood.color}15` }}
-                  >
-                    <mood.icon className="h-6 w-6" style={{ color: mood.color }} />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
 
         {/* Filters */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-[#0F2137]">Check-ins Recentes</h2>
+          <h2 className="text-lg font-semibold text-navy">Check-ins Recentes</h2>
           <Button variant="outline" className="gap-2">
             <Filter className="h-4 w-4" />
             Filtrar
@@ -150,76 +159,71 @@ export default function CheckinsPage() {
 
         {/* Check-ins List */}
         <div className="grid gap-4">
-          {checkins.map((checkin) => (
-            <Card key={checkin.id} className="border-border/50 hover:shadow-md transition-shadow">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  {/* Avatar and Basic Info */}
-                  <Avatar className="h-12 w-12 border-2 border-[#14B8A6]/20">
-                    <AvatarFallback className="bg-[#F0F9F8] text-[#14B8A6] font-medium">
-                      {checkin.initials}
-                    </AvatarFallback>
-                  </Avatar>
+          {checkins.map((checkin) => {
+            const cfg = moodClasses[checkin.mood]
+            return (
+              <Card key={checkin.id} className="border-border/50 hover:shadow-md transition-shadow">
+                <CardContent className="p-4">
+                  <div className="flex items-start gap-4">
+                    {/* Avatar and Basic Info */}
+                    <Avatar className="h-12 w-12 border-2 border-primary/20">
+                      <AvatarFallback className="bg-secondary text-primary font-medium">
+                        {checkin.initials}
+                      </AvatarFallback>
+                    </Avatar>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-medium text-[#0F2137]">{checkin.patient}</h3>
-                      {getTrendIcon(checkin.trend)}
-                    </div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <div
-                        className="h-8 w-8 rounded-full flex items-center justify-center"
-                        style={{ backgroundColor: `${checkin.moodColor}15` }}
-                      >
-                        <checkin.moodIcon
-                          className="h-4 w-4"
-                          style={{ color: checkin.moodColor }}
-                        />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="font-medium text-navy">{checkin.patient}</h3>
+                        {getTrendIcon(checkin.trend)}
                       </div>
-                      <Badge
-                        style={{
-                          backgroundColor: `${checkin.moodColor}15`,
-                          color: checkin.moodColor,
-                        }}
-                      >
-                        {checkin.mood}
-                      </Badge>
-                      <span className="text-xs text-muted-foreground">{checkin.time}</span>
-                    </div>
-                    {checkin.note && (
-                      <p className="text-sm text-muted-foreground italic mb-3">
-                        &quot;{checkin.note}&quot;
-                      </p>
-                    )}
-
-                    {/* Week Progress */}
-                    <div className="flex items-center gap-1">
-                      <span className="text-xs text-muted-foreground mr-2">Semana:</span>
-                      {checkin.weekProgress.map((value, i) => (
+                      <div className="flex items-center gap-2 mb-2">
                         <div
-                          key={i}
-                          className="h-6 w-6 rounded flex items-center justify-center text-xs font-medium text-white"
-                          style={{ backgroundColor: getMoodValue(value) }}
+                          className={`h-8 w-8 rounded-full flex items-center justify-center ${cfg.bg}/10`}
                         >
-                          {value}
+                          <checkin.moodIcon className={`h-4 w-4 ${cfg.text}`} />
                         </div>
-                      ))}
+                        <Badge
+                          className={`${cfg.bg}/10 ${cfg.text} border-0`}
+                        >
+                          {checkin.mood}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground">{checkin.time}</span>
+                      </div>
+                      {checkin.note && (
+                        <p className="text-sm text-muted-foreground italic mb-3">
+                          &quot;{checkin.note}&quot;
+                        </p>
+                      )}
+
+                      {/* Week Progress */}
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs text-muted-foreground mr-2">Semana:</span>
+                        {checkin.weekProgress.map((value, i) => (
+                          <div
+                            key={i}
+                            className={`h-6 w-6 rounded flex items-center justify-center text-xs font-medium text-white ${getMoodBg(value)}`}
+                          >
+                            {value}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                        <MessageSquare className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                        <Calendar className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-[#14B8A6]">
-                      <MessageSquare className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-[#14B8A6]">
-                      <Calendar className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                </CardContent>
+              </Card>
+            )
+          })}
         </div>
       </div>
     </div>

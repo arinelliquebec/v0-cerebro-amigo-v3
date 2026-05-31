@@ -1,5 +1,4 @@
 import type { ReactNode } from "react"
-import { PLAYFAIR_DISPLAY } from "@/lib/fonts"
 import { cn } from "@/lib/utils"
 
 type BrandWordmarkProps = {
@@ -17,11 +16,9 @@ const sizeMap = {
   hero: { cerebro: "text-5xl lg:text-6xl", amigo: "text-5xl lg:text-6xl" },
 } as const
 
-const playfairStyle = { fontFamily: PLAYFAIR_DISPLAY } as const
-
 function BrandWord({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <span className={cn("tracking-tight", className)} style={playfairStyle}>
+    <span className={cn("tracking-tight font-serif", className)}>
       {children}
     </span>
   )
@@ -34,14 +31,14 @@ export function BrandWordmark({
   className,
 }: BrandWordmarkProps) {
   const s = sizeMap[size]
-  const navy = variant === "light" ? "text-white" : "text-[#0F2137]"
-  const teal = variant === "light" ? "text-[#5EEAD4]" : "text-[#14B8A6]"
+  const navy = variant === "light" ? "text-white" : "text-navy"
+  const brand = variant === "light" ? "text-accent-on-dark" : "text-primary"
 
   if (layout === "inline") {
     return (
       <span className={cn("inline-flex items-baseline gap-1.5", className)}>
         <BrandWord className={cn(s.cerebro, navy, "font-normal")}>Cérebro</BrandWord>
-        <BrandWord className={cn(s.amigo, teal, "font-medium")}>Amigo</BrandWord>
+        <BrandWord className={cn(s.amigo, brand, "font-medium")}>Amigo</BrandWord>
       </span>
     )
   }
@@ -51,7 +48,7 @@ export function BrandWordmark({
       <BrandWord className={cn("block leading-[1.05]", s.cerebro, navy, "font-normal")}>
         Cérebro
       </BrandWord>
-      <BrandWord className={cn("block leading-[1.05]", s.amigo, teal, "font-medium")}>
+      <BrandWord className={cn("block leading-[1.05]", s.amigo, brand, "font-medium")}>
         Amigo
       </BrandWord>
     </span>

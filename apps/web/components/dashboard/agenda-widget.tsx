@@ -1,12 +1,8 @@
 "use client"
 
 import { useState } from "react"
-import { motion } from "framer-motion"
-import MuiCard from "@mui/material/Card"
-import MuiCardContent from "@mui/material/CardContent"
-import MuiCardHeader from "@mui/material/CardHeader"
-import MuiChip from "@mui/material/Chip"
-import MuiIconButton from "@mui/material/IconButton"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
@@ -21,10 +17,18 @@ const appointments = [
 const weekDays = ["D", "S", "T", "Q", "Q", "S", "S"]
 
 const typeColor: Record<string, string> = {
-  "Retorno": "#14B8A6",
-  "Primeira Consulta": "#0F2137",
-  "Urgência": "#E57373",
+  "Retorno": "text-primary",
+  "Primeira Consulta": "text-navy",
+  "Urgência": "text-coral",
 }
+
+const typeBg: Record<string, string> = {
+  "Retorno": "bg-primary/10",
+  "Primeira Consulta": "bg-navy/10",
+  "Urgência": "bg-coral/10",
+}
+
+const delayClass = ["delay-100", "delay-200", "delay-300"]
 
 export function AgendaWidget() {
   const [currentDate] = useState(new Date())
@@ -44,37 +48,24 @@ export function AgendaWidget() {
   const days = getDaysInMonth()
 
   return (
-    <MuiCard
-      elevation={0}
-      sx={{
-        border: "1px solid rgba(226,232,240,0.8)",
-        borderRadius: 3,
-        transition: "all 0.22s ease",
-        "&:hover": {
-          borderColor: "rgba(20,184,166,0.25)",
-          boxShadow: "0 4px 24px rgba(20,184,166,0.07)",
-        },
-      }}
-    >
-      <MuiCardHeader
-        title="Agenda"
-        titleTypographyProps={{ fontSize: "0.9375rem", fontWeight: 600, color: "#0F2137" }}
-        action={
+    <Card className="border-border/80 hover:border-primary/25 hover:shadow-[0_4px_24px_rgba(94,75,139,0.07)] transition-all duration-200">
+      <CardHeader className="pb-2 pt-5 px-5">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-[0.9375rem] font-semibold text-navy">Agenda</CardTitle>
           <div className="flex items-center gap-0.5">
-            <MuiIconButton size="small" sx={{ color: "#64748B" }}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
               <ChevronLeft size={16} />
-            </MuiIconButton>
+            </Button>
             <span className="text-xs font-medium text-muted-foreground px-1">
               {currentDate.toLocaleDateString("pt-BR", { month: "short", year: "numeric" })}
             </span>
-            <MuiIconButton size="small" sx={{ color: "#64748B" }}>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground">
               <ChevronRight size={16} />
-            </MuiIconButton>
+            </Button>
           </div>
-        }
-        sx={{ pb: 0, pt: 2, px: 2.5 }}
-      />
-      <MuiCardContent sx={{ px: 2.5, pt: 1.5, pb: "16px !important" }}>
+        </div>
+      </CardHeader>
+      <CardContent className="px-5 pt-1.5 pb-4">
         {/* Mini calendar */}
         <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
           {weekDays.map((d, i) => (
@@ -90,8 +81,8 @@ export function AgendaWidget() {
                 day === null
                   ? "cursor-default"
                   : day === today
-                  ? "bg-[#14B8A6] text-white shadow-sm"
-                  : "hover:bg-[#F0F9F8] text-foreground hover:text-[#14B8A6]"
+                  ? "bg-primary text-white shadow-sm"
+                  : "hover:bg-secondary text-foreground hover:text-primary"
               }`}
             >
               {day}
@@ -101,55 +92,45 @@ export function AgendaWidget() {
 
         {/* Appointments */}
         <div className="pt-3 border-t border-border/50 space-y-2">
-          <p className="text-xs font-semibold text-[#0F2137] mb-2">Consultas de Hoje</p>
+          <p className="text-xs font-semibold text-navy mb-2">Consultas de Hoje</p>
           <div className="space-y-1.5 max-h-[180px] overflow-y-auto">
             {appointments.slice(0, 3).map((apt, i) => (
-              <motion.div
+              <div
                 key={apt.id}
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.07, duration: 0.24 }}
-                className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 hover:bg-[#F0F9F8] transition-colors cursor-pointer"
+                className={`flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 hover:bg-secondary transition-colors cursor-pointer animate-fade-left ${delayClass[i]}`}
               >
                 <span
-                  className="text-sm font-bold tabular-nums w-12 flex-shrink-0"
-                  style={{ color: typeColor[apt.type] ?? "#14B8A6" }}
+                  className={`text-sm font-bold tabular-nums w-12 flex-shrink-0 ${typeColor[apt.type] ?? "text-primary"}`}
                 >
                   {apt.time}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-[#0F2137] truncate">{apt.patient}</p>
+                  <p className="text-sm font-medium text-navy truncate">{apt.patient}</p>
                   <div className="flex items-center gap-1.5 mt-0.5">
-                    <MuiChip
-                      label={apt.type}
-                      size="small"
-                      sx={{
-                        height: 16,
-                        fontSize: "0.6rem",
-                        fontWeight: 600,
-                        bgcolor: `${typeColor[apt.type] ?? "#14B8A6"}14`,
-                        color: typeColor[apt.type] ?? "#14B8A6",
-                        border: "none",
-                        "& .MuiChip-label": { px: 0.75 },
-                      }}
-                    />
+                    <Badge
+                      variant="secondary"
+                      className={`text-[0.6rem] h-4 px-1.5 font-semibold border-0 ${typeBg[apt.type] ?? "bg-primary/10"} ${typeColor[apt.type] ?? "text-primary"}`}
+                    >
+                      {apt.type}
+                    </Badge>
                     <span
-                      className="h-1.5 w-1.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: apt.status === "confirmed" ? "#10B981" : "#F59E0B" }}
+                      className={`h-1.5 w-1.5 rounded-full flex-shrink-0 ${
+                        apt.status === "confirmed" ? "bg-success" : "bg-warning"
+                      }`}
                     />
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
           <Button
             variant="ghost"
-            className="w-full text-[#14B8A6] hover:text-[#0D9488] hover:bg-[#F0F9F8] mt-1 text-xs h-8"
+            className="w-full text-primary hover:text-purple-dark hover:bg-secondary mt-1 text-xs h-8"
           >
             Ver agenda completa
           </Button>
         </div>
-      </MuiCardContent>
-    </MuiCard>
+      </CardContent>
+    </Card>
   )
 }

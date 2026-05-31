@@ -4,51 +4,115 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* Cérebro Amigo Color Palette */
+  /* Cérebro Amigo — paleta roxo custom (light) */
   --background: #F8FAFB;
   --foreground: #0F2137;
   --card: #FFFFFF;
   --card-foreground: #0F2137;
   --popover: #FFFFFF;
   --popover-foreground: #0F2137;
-  --primary: #14B8A6;
+
+  --primary: #5E4B8B;            /* roxo custom — era teal #14B8A6 */
   --primary-foreground: #FFFFFF;
-  --secondary: #F0F9F8;
-  --secondary-foreground: #14B8A6;
+  --secondary: #EFEAF6;          /* tint do roxo — era #F0F9F8 */
+  --secondary-foreground: #4A3A70;
+
   --muted: #F1F5F9;
   --muted-foreground: #64748B;
-  --accent: #E57373;
+
+  --accent: #E57373;             /* coral — mantido */
   --accent-foreground: #FFFFFF;
+
   --destructive: #EF4444;
   --destructive-foreground: #FFFFFF;
+
   --border: #E2E8F0;
   --input: #E2E8F0;
-  --ring: #14B8A6;
-  --chart-1: #14B8A6;
-  --chart-2: #2DD4BF;
-  --chart-3: #5EEAD4;
-  --chart-4: #5EEAD4;
-  --chart-5: #99F6E4;
+  --ring: #5E4B8B;
+
+  --chart-1: #5E4B8B;
+  --chart-2: #7A66A8;
+  --chart-3: #9A88C2;
+  --chart-4: #BBADD9;
+  --chart-5: #D9CFEA;
+
   --radius: 0.75rem;
+
   --sidebar: #FFFFFF;
   --sidebar-foreground: #0F2137;
-  --sidebar-primary: #14B8A6;
+  --sidebar-primary: #5E4B8B;
   --sidebar-primary-foreground: #FFFFFF;
-  --sidebar-accent: #F0F9F8;
-  --sidebar-accent-foreground: #14B8A6;
+  --sidebar-accent: #EFEAF6;
+  --sidebar-accent-foreground: #4A3A70;
   --sidebar-border: #E2E8F0;
-  --sidebar-ring: #14B8A6;
-  
-  /* Custom colors for Cérebro Amigo */
-  --teal: #14B8A6;
-  --teal-light: #2DD4BF;
-  --teal-dark: #0D9488;
-  --navy: #0F2137;
+  --sidebar-ring: #5E4B8B;
+
+  /* Tokens de marca — renomeados de teal → purple */
+  --purple: #5E4B8B;
+  --purple-light: #7A66A8;
+  --purple-dark: #4A3A70;
+  --navy: #0F2137;               /* superfície escura de marca (hero/CTA/footer) */
   --navy-light: #1E3A5A;
   --coral: #E57373;
   --coral-dark: #EF5350;
   --success: #10B981;
   --warning: #F59E0B;
+  --accent-on-dark: #9486C9;   /* roxo claro para uso sobre bg-navy (~5.2:1 sobre #0F2137) */
+}
+
+.dark {
+  /* Dark mode plum-tinted — faltava no arquivo original */
+  --background: #15131D;
+  --foreground: #ECEAF4;
+  --card: #1C1A26;
+  --card-foreground: #ECEAF4;
+  --popover: #1C1A26;
+  --popover-foreground: #ECEAF4;
+
+  --primary: #9486C9;            /* roxo clareado p/ contraste no escuro */
+  --primary-foreground: #15131D;
+  --secondary: #262233;
+  --secondary-foreground: #CFC6E6;
+
+  --muted: #262233;
+  --muted-foreground: #9A93AD;
+
+  --accent: #E57373;
+  --accent-foreground: #15131D;
+
+  --destructive: #F26464;
+  --destructive-foreground: #15131D;
+
+  --border: #2C2838;
+  --input: #2C2838;
+  --ring: #9486C9;
+
+  --chart-1: #9486C9;
+  --chart-2: #7A66A8;
+  --chart-3: #B3A6DA;
+  --chart-4: #6B5896;
+  --chart-5: #D9CFEA;
+
+  --sidebar: #15131D;
+  --sidebar-foreground: #ECEAF4;
+  --sidebar-primary: #9486C9;
+  --sidebar-primary-foreground: #15131D;
+  --sidebar-accent: #262233;
+  --sidebar-accent-foreground: #CFC6E6;
+  --sidebar-border: #2C2838;
+  --sidebar-ring: #9486C9;
+
+  /* navy permanece escuro nos dois temas (é superfície, não texto) */
+  --purple: #9486C9;
+  --purple-light: #B3A6DA;
+  --purple-dark: #6B5896;
+  --navy: #0F2137;
+  --navy-light: #1E3A5A;
+  --coral: #E57373;
+  --coral-dark: #EF5350;
+  --success: #34D399;
+  --warning: #FBBF24;
+  --accent-on-dark: #9486C9;   /* mesmo valor — navy não muda entre temas */
 }
 
 @theme inline {
@@ -91,17 +155,18 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  
-  /* Custom Cérebro Amigo tokens */
-  --color-teal: var(--teal);
-  --color-teal-light: var(--teal-light);
-  --color-teal-dark: var(--teal-dark);
+
+  /* Tokens de marca Cérebro Amigo */
+  --color-purple: var(--purple);
+  --color-purple-light: var(--purple-light);
+  --color-purple-dark: var(--purple-dark);
   --color-navy: var(--navy);
   --color-navy-light: var(--navy-light);
   --color-coral: var(--coral);
   --color-coral-dark: var(--coral-dark);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-accent-on-dark: var(--accent-on-dark);
 }
 
 @layer base {
@@ -113,12 +178,10 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
-  /* Consistent, modern focus rings across interactive elements */
   :focus-visible {
     outline: none;
   }
 
-  /* Smooth, refined disabled state */
   button:disabled,
   [aria-disabled="true"] {
     @apply cursor-not-allowed opacity-50;
@@ -126,7 +189,6 @@
 }
 
 @layer components {
-  /* Modern card surface used across dashboard screens */
   [data-slot="card"] {
     @apply transition-all duration-200;
     box-shadow:
@@ -136,7 +198,6 @@
 }
 
 @layer utilities {
-  /* Subtle elevation helpers for a cleaner 2026 hierarchy */
   .elevate {
     @apply transition-all duration-200;
   }
@@ -148,7 +209,7 @@
   }
 }
 
-/* Custom scrollbar */
+/* Scrollbar — agora roxo */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -160,10 +221,10 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--teal);
+  background: var(--purple);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--teal-dark);
+  background: var(--purple-dark);
 }

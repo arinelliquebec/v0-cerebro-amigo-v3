@@ -24,7 +24,7 @@ const appointments = [
     patient: "Fernanda Lima",
     initials: "FL",
     type: "Primeira Consulta",
-    typeColor: "bg-[#14B8A6]",
+    typeColor: "bg-primary",
     modality: "Presencial",
     status: "confirmed",
   },
@@ -35,7 +35,7 @@ const appointments = [
     patient: "Maria Santos",
     initials: "MS",
     type: "Retorno",
-    typeColor: "bg-[#14B8A6]",
+    typeColor: "bg-primary",
     modality: "Presencial",
     status: "confirmed",
   },
@@ -46,7 +46,7 @@ const appointments = [
     patient: "João Silva",
     initials: "JS",
     type: "Retorno",
-    typeColor: "bg-[#14B8A6]",
+    typeColor: "bg-primary",
     modality: "Online",
     status: "confirmed",
   },
@@ -57,7 +57,7 @@ const appointments = [
     patient: "Ana Costa",
     initials: "AC",
     type: "Retorno",
-    typeColor: "bg-[#14B8A6]",
+    typeColor: "bg-primary",
     modality: "Presencial",
     status: "pending",
   },
@@ -68,7 +68,7 @@ const appointments = [
     patient: "Carlos Oliveira",
     initials: "CO",
     type: "Urgência",
-    typeColor: "bg-[#E57373]",
+    typeColor: "bg-coral",
     modality: "Presencial",
     status: "confirmed",
   },
@@ -79,7 +79,7 @@ const appointments = [
     patient: "Lucia Ferreira",
     initials: "LF",
     type: "Retorno",
-    typeColor: "bg-[#14B8A6]",
+    typeColor: "bg-primary",
     modality: "Online",
     status: "pending",
   },
@@ -130,7 +130,7 @@ export default function AgendaPage() {
               <Button variant="ghost" size="icon" onClick={prevWeek}>
                 <ChevronLeft className="h-5 w-5" />
               </Button>
-              <h2 className="text-lg font-semibold text-[#0F2137]">
+              <h2 className="text-lg font-semibold text-navy">
                 {currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
               </h2>
               <Button variant="ghost" size="icon" onClick={nextWeek}>
@@ -149,9 +149,9 @@ export default function AgendaPage() {
                     onClick={() => setSelectedDate(date)}
                     className={`flex flex-col items-center p-3 rounded-xl transition-all ${
                       isSelected
-                        ? "bg-[#14B8A6] text-white"
+                        ? "bg-primary text-white"
                         : isToday
-                        ? "bg-[#F0F9F8] text-[#14B8A6]"
+                        ? "bg-secondary text-primary"
                         : "hover:bg-muted"
                     }`}
                   >
@@ -164,9 +164,9 @@ export default function AgendaPage() {
                     {/* Appointment indicator */}
                     {i === 3 && (
                       <div className={`flex gap-0.5 mt-1 ${isSelected ? "opacity-80" : ""}`}>
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#14B8A6]" />
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#14B8A6]" />
-                        <span className="h-1.5 w-1.5 rounded-full bg-[#E57373]" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-coral" />
                       </div>
                     )}
                   </button>
@@ -182,10 +182,10 @@ export default function AgendaPage() {
             <Card className="border-border/50">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base font-semibold text-[#0F2137]">
+                  <CardTitle className="text-base font-semibold text-navy">
                     {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
                   </CardTitle>
-                  <Button className="bg-[#14B8A6] hover:bg-[#0D9488] text-white gap-2" size="sm">
+                  <Button className="bg-primary hover:bg-purple-dark text-white gap-2" size="sm">
                     <Plus className="h-4 w-4" />
                     Nova Consulta
                   </Button>
@@ -200,26 +200,26 @@ export default function AgendaPage() {
                     >
                       {/* Time Column */}
                       <div className="w-20 flex-shrink-0 p-4 border-r border-border">
-                        <p className="text-sm font-semibold text-[#14B8A6]">{apt.time}</p>
+                        <p className="text-sm font-semibold text-primary">{apt.time}</p>
                         <p className="text-xs text-muted-foreground">{apt.endTime}</p>
                       </div>
 
                       {/* Appointment Details */}
                       <div className="flex-1 p-4">
                         <div className="flex items-start gap-3">
-                          <Avatar className="h-10 w-10 border-2 border-[#14B8A6]/20">
-                            <AvatarFallback className="bg-[#F0F9F8] text-[#14B8A6] text-sm font-medium">
+                          <Avatar className="h-10 w-10 border-2 border-primary/20">
+                            <AvatarFallback className="bg-secondary text-primary text-sm font-medium">
                               {apt.initials}
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <h4 className="font-medium text-[#0F2137]">{apt.patient}</h4>
+                              <h4 className="font-medium text-navy">{apt.patient}</h4>
                               <Badge className={`${apt.typeColor} text-white text-xs`}>
                                 {apt.type}
                               </Badge>
                               <span className={`h-2 w-2 rounded-full ${
-                                apt.status === "confirmed" ? "bg-[#10B981]" : "bg-[#F59E0B]"
+                                apt.status === "confirmed" ? "bg-success" : "bg-warning"
                               }`} />
                             </div>
                             <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
@@ -255,24 +255,24 @@ export default function AgendaPage() {
           <div className="space-y-6">
             <Card className="border-border/50">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold text-[#0F2137]">
+                <CardTitle className="text-base font-semibold text-navy">
                   Resumo do Dia
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
                   <span className="text-sm text-muted-foreground">Total de consultas</span>
-                  <span className="text-lg font-bold text-[#0F2137]">{appointments.length}</span>
+                  <span className="text-lg font-bold text-navy">{appointments.length}</span>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-[#F0F9F8]">
-                  <span className="text-sm text-[#14B8A6]">Confirmadas</span>
-                  <span className="text-lg font-bold text-[#14B8A6]">
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary">
+                  <span className="text-sm text-primary">Confirmadas</span>
+                  <span className="text-lg font-bold text-primary">
                     {appointments.filter(a => a.status === "confirmed").length}
                   </span>
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-lg bg-amber-50">
-                  <span className="text-sm text-[#F59E0B]">Pendentes</span>
-                  <span className="text-lg font-bold text-[#F59E0B]">
+                  <span className="text-sm text-warning">Pendentes</span>
+                  <span className="text-lg font-bold text-warning">
                     {appointments.filter(a => a.status === "pending").length}
                   </span>
                 </div>
@@ -281,20 +281,20 @@ export default function AgendaPage() {
 
             <Card className="border-border/50">
               <CardHeader className="pb-3">
-                <CardTitle className="text-base font-semibold text-[#0F2137]">
+                <CardTitle className="text-base font-semibold text-navy">
                   Próxima Consulta
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-3 p-3 rounded-lg bg-[#F0F9F8]">
-                  <Avatar className="h-12 w-12 border-2 border-[#14B8A6]/30">
-                    <AvatarFallback className="bg-[#14B8A6] text-white font-medium">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary">
+                  <Avatar className="h-12 w-12 border-2 border-primary/30">
+                    <AvatarFallback className="bg-primary text-white font-medium">
                       FL
                     </AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-medium text-[#0F2137]">Fernanda Lima</p>
-                    <p className="text-sm text-[#14B8A6] font-semibold">08:00 - 09:00</p>
+                    <p className="font-medium text-navy">Fernanda Lima</p>
+                    <p className="text-sm text-primary font-semibold">08:00 - 09:00</p>
                     <p className="text-xs text-muted-foreground">Primeira Consulta</p>
                   </div>
                 </div>

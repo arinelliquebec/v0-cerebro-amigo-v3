@@ -1,14 +1,6 @@
-'use client'
+'use cache'
 
-import Timeline from '@mui/lab/Timeline'
-import TimelineItem from '@mui/lab/TimelineItem'
-import TimelineSeparator from '@mui/lab/TimelineSeparator'
-import TimelineConnector from '@mui/lab/TimelineConnector'
-import TimelineContent from '@mui/lab/TimelineContent'
-import TimelineDot from '@mui/lab/TimelineDot'
-import TimelineOppositeContent from '@mui/lab/TimelineOppositeContent'
-import Chip from '@mui/material/Chip'
-import Typography from '@mui/material/Typography'
+import { cacheLife } from 'next/cache'
 import { ClipboardList, Smartphone, ShieldAlert, Brain } from 'lucide-react'
 
 const steps = [
@@ -47,112 +39,68 @@ const steps = [
   },
 ]
 
-export function HowItWorks() {
+export async function HowItWorks() {
+  cacheLife('days')
+
   return (
-    <Timeline
-      sx={{
-        p: 0,
-        m: 0,
-        [`& .MuiTimelineItem-root:before`]: { flex: 0, padding: 0 },
-      }}
-    >
-      {steps.map((step, i) => {
-        const Icon = step.icon
-        const isLast = i === steps.length - 1
+    <div className="relative">
+      {/* Vertical line */}
+      <div className="absolute left-[19px] sm:left-[111px] top-0 bottom-0 w-0.5 bg-border" />
 
-        return (
-          <TimelineItem key={step.number}>
-            <TimelineOppositeContent
-              sx={{
-                flex: '0 0 96px',
-                pt: '18px',
-                pr: 3,
-                display: { xs: 'none', sm: 'block' },
-              }}
-            >
-              <Chip
-                label={step.label}
-                size="small"
-                sx={{
-                  fontSize: '0.68rem',
-                  fontWeight: 600,
-                  letterSpacing: '0.04em',
-                  bgcolor: step.highlight ? '#14B8A6' : '#F0F9F8',
-                  color: step.highlight ? '#fff' : '#14B8A6',
-                  border: '1px solid',
-                  borderColor: step.highlight ? '#14B8A6' : '#14B8A6/20',
-                  height: 24,
-                }}
-              />
-            </TimelineOppositeContent>
+      <div className="space-y-10">
+        {steps.map((step, i) => {
+          const Icon = step.icon
+          const isLast = i === steps.length - 1
 
-            <TimelineSeparator>
-              <TimelineDot
-                sx={{
-                  m: 0,
-                  p: '10px',
-                  bgcolor: step.highlight ? '#14B8A6' : '#F0F9F8',
-                  border: '2px solid',
-                  borderColor: step.highlight ? '#14B8A6' : '#E2E8F0',
-                  boxShadow: step.highlight
-                    ? '0 0 0 4px rgba(20,184,166,0.15)'
-                    : 'none',
-                }}
-              >
-                <Icon
-                  size={18}
-                  style={{ color: step.highlight ? '#fff' : '#14B8A6' }}
-                />
-              </TimelineDot>
-              {!isLast && (
-                <TimelineConnector
-                  sx={{ bgcolor: '#E2E8F0', width: '2px' }}
-                />
-              )}
-            </TimelineSeparator>
+          return (
+            <div key={step.number} className="relative flex gap-4 sm:gap-6">
+              {/* Left: label chip (desktop) */}
+              <div className="hidden sm:flex w-24 flex-shrink-0 pt-4 justify-end">
+                <span
+                  className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[0.68rem] font-semibold tracking-wide border h-6 ${
+                    step.highlight
+                      ? 'bg-primary text-white border-primary'
+                      : 'bg-secondary text-primary border-primary/20'
+                  }`}
+                >
+                  {step.label}
+                </span>
+              </div>
 
-            <TimelineContent sx={{ pb: isLast ? 0 : 4, pt: '10px', pl: 3 }}>
-              <Typography
-                variant="overline"
-                sx={{
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.08em',
-                  color: '#14B8A6',
-                  lineHeight: 1,
-                  display: { xs: 'block', sm: 'none' },
-                  mb: 0.5,
-                }}
-              >
-                {step.label}
-              </Typography>
-              <Typography
-                variant="subtitle1"
-                sx={{
-                  fontWeight: 600,
-                  color: '#0F2137',
-                  lineHeight: 1.3,
-                  mb: 0.75,
-                  fontSize: { xs: '0.95rem', sm: '1rem' },
-                }}
-              >
-                {step.title}
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{
-                  color: '#64748B',
-                  lineHeight: 1.65,
-                  maxWidth: 480,
-                  fontSize: '0.875rem',
-                }}
-              >
-                {step.description}
-              </Typography>
-            </TimelineContent>
-          </TimelineItem>
-        )
-      })}
-    </Timeline>
+              {/* Center: dot */}
+              <div className="flex flex-col items-center flex-shrink-0 z-10">
+                <div
+                  className={`h-10 w-10 rounded-full flex items-center justify-center border-2 ${
+                    step.highlight
+                      ? 'bg-primary border-primary shadow-[0_0_0_4px_rgba(94,75,139,0.15)]'
+                      : 'bg-secondary border-border'
+                  }`}
+                >
+                  <Icon
+                    size={18}
+                    className={step.highlight ? 'text-white' : 'text-primary'}
+                  />
+                </div>
+                {!isLast && <div className="flex-1 w-0.5 bg-border mt-2" />}
+              </div>
+
+              {/* Right: content */}
+              <div className={`flex-1 pb-2 ${isLast ? '' : 'pb-6'}`}>
+                {/* Mobile label */}
+                <span className="sm:hidden text-[0.65rem] font-bold tracking-widest text-primary uppercase">
+                  {step.label}
+                </span>
+                <h3 className="text-base font-semibold text-navy leading-tight mt-0.5 sm:mt-1 mb-2">
+                  {step.title}
+                </h3>
+                <p className="text-sm text-muted-foreground leading-relaxed max-w-[480px]">
+                  {step.description}
+                </p>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }

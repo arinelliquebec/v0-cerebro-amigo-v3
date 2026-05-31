@@ -123,7 +123,7 @@ export default function MensagensPage() {
                 <Input
                   type="search"
                   placeholder="Buscar conversa..."
-                  className="pl-9 bg-muted/50 border-0 focus-visible:ring-[#14B8A6]"
+                  className="pl-9 bg-muted/50 border-0 focus-visible:ring-primary"
                 />
               </div>
             </div>
@@ -134,22 +134,22 @@ export default function MensagensPage() {
                     key={conv.id}
                     onClick={() => setSelectedConversation(conv)}
                     className={`w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left ${
-                      selectedConversation.id === conv.id ? "bg-[#F0F9F8]" : ""
+                      selectedConversation.id === conv.id ? "bg-secondary" : ""
                     }`}
                   >
                     <div className="relative">
-                      <Avatar className="h-12 w-12 border-2 border-[#14B8A6]/20">
-                        <AvatarFallback className="bg-[#F0F9F8] text-[#14B8A6] font-medium">
+                      <Avatar className="h-12 w-12 border-2 border-primary/20">
+                        <AvatarFallback className="bg-secondary text-primary font-medium">
                           {conv.initials}
                         </AvatarFallback>
                       </Avatar>
                       {conv.online && (
-                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-[#10B981] border-2 border-card" />
+                        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-success border-2 border-card" />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-[#0F2137] truncate">
+                        <span className="font-medium text-navy truncate">
                           {conv.patient}
                         </span>
                         <span className="text-xs text-muted-foreground flex-shrink-0">
@@ -161,7 +161,7 @@ export default function MensagensPage() {
                       </p>
                     </div>
                     {conv.unread > 0 && (
-                      <Badge className="bg-[#14B8A6] text-white text-xs h-5 w-5 p-0 flex items-center justify-center rounded-full">
+                      <Badge className="bg-primary text-white text-xs h-5 w-5 p-0 flex items-center justify-center rounded-full">
                         {conv.unread}
                       </Badge>
                     )}
@@ -177,27 +177,27 @@ export default function MensagensPage() {
             <div className="p-4 border-b border-border flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="relative">
-                  <Avatar className="h-10 w-10 border-2 border-[#14B8A6]/20">
-                    <AvatarFallback className="bg-[#14B8A6] text-white font-medium">
+                  <Avatar className="h-10 w-10 border-2 border-primary/20">
+                    <AvatarFallback className="bg-primary text-white font-medium">
                       {selectedConversation.initials}
                     </AvatarFallback>
                   </Avatar>
                   {selectedConversation.online && (
-                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#10B981] border-2 border-card" />
+                    <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-card" />
                   )}
                 </div>
                 <div>
-                  <h3 className="font-medium text-[#0F2137]">{selectedConversation.patient}</h3>
+                  <h3 className="font-medium text-navy">{selectedConversation.patient}</h3>
                   <p className="text-xs text-muted-foreground">
                     {selectedConversation.online ? "Online" : "Offline"}
                   </p>
                 </div>
               </div>
               <div className="flex items-center gap-1">
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-[#14B8A6]">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                   <Phone className="h-5 w-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-[#14B8A6]">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                   <Video className="h-5 w-5" />
                 </Button>
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -216,7 +216,7 @@ export default function MensagensPage() {
                   <div
                     className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
                       msg.sender === "doctor"
-                        ? "bg-[#14B8A6] text-white rounded-br-md"
+                        ? "bg-primary text-white rounded-br-md"
                         : "bg-muted text-foreground rounded-bl-md"
                     }`}
                   >
@@ -241,7 +241,7 @@ export default function MensagensPage() {
             {/* Message Input */}
             <div className="p-4 border-t border-border">
               <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-[#14B8A6]">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                   <Paperclip className="h-5 w-5" />
                 </Button>
                 <Input
@@ -249,12 +249,12 @@ export default function MensagensPage() {
                   placeholder="Digite sua mensagem..."
                   value={messageInput}
                   onChange={(e) => setMessageInput(e.target.value)}
-                  className="flex-1 bg-muted/50 border-0 focus-visible:ring-[#14B8A6]"
+                  className="flex-1 bg-muted/50 border-0 focus-visible:ring-primary"
                 />
-                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-[#14B8A6]">
+                <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
                   <Smile className="h-5 w-5" />
                 </Button>
-                <Button size="icon" className="bg-[#14B8A6] hover:bg-[#0D9488] text-white">
+                <Button size="icon" className="bg-primary hover:bg-purple-dark text-white">
                   <Send className="h-5 w-5" />
                 </Button>
               </div>

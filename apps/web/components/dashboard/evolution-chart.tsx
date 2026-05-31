@@ -26,50 +26,50 @@ export function EvolutionChart() {
   return (
     <Card className="border-border/50 shadow-sm">
       <CardHeader className="pb-2">
-        <CardTitle className="text-base font-semibold text-[#0F2137]">
+        <CardTitle className="text-base font-semibold text-navy">
           Evolução
         </CardTitle>
         <p className="text-sm text-muted-foreground">Visão do progresso</p>
       </CardHeader>
       <CardContent>
         <div className="h-[200px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
             <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorPacientes" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#14B8A6" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="colorCheckins" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#14B8A6" stopOpacity={0} />
+                  <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
               <XAxis
                 dataKey="month"
-                tick={{ fill: "#64748B", fontSize: 12 }}
-                axisLine={{ stroke: "#E2E8F0" }}
+                tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
+                axisLine={{ stroke: "var(--border)" }}
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: "#64748B", fontSize: 12 }}
+                tick={{ fill: "var(--muted-foreground)", fontSize: 12 }}
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip
                 contentStyle={{
-                  backgroundColor: "#FFFFFF",
-                  border: "1px solid #E2E8F0",
+                  backgroundColor: "var(--card)",
+                  border: "1px solid var(--border)",
                   borderRadius: "8px",
                   boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
                 }}
-                labelStyle={{ color: "#0F2137", fontWeight: 600 }}
+                labelStyle={{ color: "var(--navy)", fontWeight: 600 }}
               />
               <Area
                 type="monotone"
                 dataKey="pacientes"
-                stroke="#14B8A6"
+                stroke="var(--primary)"
                 strokeWidth={2}
                 fill="url(#colorPacientes)"
                 name="Pacientes"
@@ -77,7 +77,7 @@ export function EvolutionChart() {
               <Area
                 type="monotone"
                 dataKey="checkins"
-                stroke="#14B8A6"
+                stroke="var(--primary)"
                 strokeWidth={2}
                 fill="url(#colorCheckins)"
                 name="Check-ins"
@@ -87,11 +87,11 @@ export function EvolutionChart() {
         </div>
         <div className="flex items-center justify-center gap-6 mt-4">
           <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-[#14B8A6]" />
+            <span className="h-3 w-3 rounded-full bg-primary" />
             <span className="text-xs text-muted-foreground">Pacientes</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="h-3 w-3 rounded-full bg-[#14B8A6]" />
+            <span className="h-3 w-3 rounded-full bg-primary" />
             <span className="text-xs text-muted-foreground">Check-ins</span>
           </div>
         </div>

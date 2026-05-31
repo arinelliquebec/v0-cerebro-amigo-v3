@@ -69,7 +69,7 @@ function relativeDate(iso: string | null) {
 }
 
 const TIPO_ICON: Record<string, React.ReactNode> = {
-  mensagem: <MessageSquare className="h-4 w-4 text-[#14B8A6]" />,
+  mensagem: <MessageSquare className="h-4 w-4 text-primary" />,
   sintoma: <Activity className="h-4 w-4 text-blue-500" />,
   evento: <Calendar className="h-4 w-4 text-purple-500" />,
   crise: <AlertTriangle className="h-4 w-4 text-red-500" />,
@@ -146,14 +146,14 @@ export default function ProntuariosPage() {
                   placeholder="Buscar paciente..."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 bg-muted/50 border-0 focus-visible:ring-[#14B8A6]"
+                  className="pl-9 bg-muted/50 border-0 focus-visible:ring-primary"
                 />
               </div>
             </CardHeader>
             <CardContent className="p-0">
               {loadingList ? (
                 <div className="flex justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-[#14B8A6]" />
+                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
                 </div>
               ) : filtered.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
@@ -166,16 +166,16 @@ export default function ProntuariosPage() {
                       key={p.id}
                       onClick={() => setSelected(p)}
                       className={`w-full flex items-center gap-3 p-4 hover:bg-muted/50 transition-colors text-left ${
-                        selected?.id === p.id ? "bg-[#F0F9F8]" : ""
+                        selected?.id === p.id ? "bg-secondary" : ""
                       }`}
                     >
-                      <Avatar className="h-11 w-11 border-2 border-[#14B8A6]/20">
-                        <AvatarFallback className="bg-[#F0F9F8] text-[#14B8A6] font-medium">
+                      <Avatar className="h-11 w-11 border-2 border-primary/20">
+                        <AvatarFallback className="bg-secondary text-primary font-medium">
                           {initials(p.nome)}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-[#0F2137] truncate">{p.nome}</p>
+                        <p className="font-medium text-navy truncate">{p.nome}</p>
                         <p className="text-xs text-muted-foreground">
                           {p.prescricoesAtivas} prescrição{p.prescricoesAtivas !== 1 ? "ões" : ""} ativa
                           {p.prescricoesAtivas !== 1 ? "s" : ""}
@@ -199,13 +199,13 @@ export default function ProntuariosPage() {
               <Card className="border-border/50">
                 <CardContent className="p-6">
                   <div className="flex items-start gap-4">
-                    <Avatar className="h-16 w-16 border-2 border-[#14B8A6]/30">
-                      <AvatarFallback className="bg-[#14B8A6] text-white text-xl font-medium">
+                    <Avatar className="h-16 w-16 border-2 border-primary/30">
+                      <AvatarFallback className="bg-primary text-white text-xl font-medium">
                         {initials(selected.nome)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h2 className="text-xl font-semibold text-[#0F2137]">{selected.nome}</h2>
+                      <h2 className="text-xl font-semibold text-navy">{selected.nome}</h2>
                       <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
                         {age(selected.dataNascimento) && (
                           <span className="flex items-center gap-1">
@@ -217,7 +217,7 @@ export default function ProntuariosPage() {
                           <span className="truncate">{selected.email}</span>
                         )}
                       </div>
-                      <Badge className="mt-2 bg-[#F0F9F8] text-[#14B8A6] hover:bg-[#F0F9F8]">
+                      <Badge className="mt-2 bg-secondary text-primary hover:bg-secondary">
                         Paciente #{selected.numero}
                       </Badge>
                     </div>
@@ -229,19 +229,19 @@ export default function ProntuariosPage() {
                 <TabsList className="bg-muted/50">
                   <TabsTrigger
                     value="timeline"
-                    className="data-[state=active]:bg-[#14B8A6] data-[state=active]:text-white"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-white"
                   >
                     Timeline
                   </TabsTrigger>
                   <TabsTrigger
                     value="prescricoes"
-                    className="data-[state=active]:bg-[#14B8A6] data-[state=active]:text-white"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-white"
                   >
                     Prescrições
                   </TabsTrigger>
                   <TabsTrigger
                     value="exames"
-                    className="data-[state=active]:bg-[#14B8A6] data-[state=active]:text-white"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-white"
                   >
                     Exames
                   </TabsTrigger>
@@ -251,7 +251,7 @@ export default function ProntuariosPage() {
                 <TabsContent value="timeline" className="space-y-3">
                   {loadingTimeline ? (
                     <div className="flex justify-center py-10">
-                      <Loader2 className="h-6 w-6 animate-spin text-[#14B8A6]" />
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     </div>
                   ) : timeline.length === 0 ? (
                     <Card className="border-border/50">
@@ -279,7 +279,7 @@ export default function ProntuariosPage() {
                                   {new Date(item.quando).toLocaleString("pt-BR")}
                                 </span>
                               </div>
-                              <p className="text-sm font-medium text-[#0F2137]">{item.titulo}</p>
+                              <p className="text-sm font-medium text-navy">{item.titulo}</p>
                               {item.descricao && (
                                 <p className="text-sm text-muted-foreground mt-0.5 line-clamp-3">
                                   {item.descricao}
@@ -297,7 +297,7 @@ export default function ProntuariosPage() {
                 <TabsContent value="prescricoes">
                   {loadingPrescricoes ? (
                     <div className="flex justify-center py-10">
-                      <Loader2 className="h-6 w-6 animate-spin text-[#14B8A6]" />
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     </div>
                   ) : prescricoes.length === 0 ? (
                     <Card className="border-border/50">
@@ -313,11 +313,11 @@ export default function ProntuariosPage() {
                       {prescricoes.map((rx) => (
                         <Card key={rx.id} className="border-border/50">
                           <CardContent className="p-4 flex items-center gap-3">
-                            <div className="h-9 w-9 rounded-lg bg-[#F0F9F8] flex items-center justify-center shrink-0">
-                              <Pill className="h-4 w-4 text-[#14B8A6]" />
+                            <div className="h-9 w-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                              <Pill className="h-4 w-4 text-primary" />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className="font-medium text-[#0F2137]">{rx.medicamentoNome}</p>
+                              <p className="font-medium text-navy">{rx.medicamentoNome}</p>
                               <p className="text-sm text-muted-foreground">{rx.posologia}</p>
                             </div>
                             <Badge

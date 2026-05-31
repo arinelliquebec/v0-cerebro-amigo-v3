@@ -63,7 +63,7 @@ export default function PacientesPage() {
               placeholder="Buscar paciente por nome..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 bg-card border-border focus-visible:ring-[#14B8A6]"
+              className="pl-9 bg-card border-border focus-visible:ring-primary"
             />
           </div>
           <div className="flex gap-2">
@@ -71,7 +71,7 @@ export default function PacientesPage() {
               <Filter className="h-4 w-4" />
               Filtros
             </Button>
-            <Button className="bg-[#14B8A6] hover:bg-[#0D9488] text-white gap-2">
+            <Button className="bg-primary hover:bg-purple-dark text-white gap-2">
               <Plus className="h-4 w-4" />
               Novo Paciente
             </Button>
@@ -83,13 +83,13 @@ export default function PacientesPage() {
           <Card className="border-border/50">
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">Total</p>
-              <p className="text-2xl font-bold text-[#0F2137]">{pacientes.length}</p>
+              <p className="text-2xl font-bold text-navy">{pacientes.length}</p>
             </CardContent>
           </Card>
           <Card className="border-border/50">
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">Com prescrição ativa</p>
-              <p className="text-2xl font-bold text-[#10B981]">
+              <p className="text-2xl font-bold text-success">
                 {pacientes.filter((p) => p.prescricoesAtivas > 0).length}
               </p>
             </CardContent>
@@ -97,7 +97,7 @@ export default function PacientesPage() {
           <Card className="border-border/50">
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">Sem prescrição</p>
-              <p className="text-2xl font-bold text-[#14B8A6]">
+              <p className="text-2xl font-bold text-primary">
                 {pacientes.filter((p) => p.prescricoesAtivas === 0).length}
               </p>
             </CardContent>
@@ -105,7 +105,7 @@ export default function PacientesPage() {
           <Card className="border-border/50">
             <CardContent className="p-4">
               <p className="text-sm text-muted-foreground">Filtrados</p>
-              <p className="text-2xl font-bold text-[#F59E0B]">
+              <p className="text-2xl font-bold text-warning">
                 {filteredPatients.length}
               </p>
             </CardContent>
@@ -128,15 +128,15 @@ export default function PacientesPage() {
                     key={paciente.id}
                     className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors cursor-pointer group"
                   >
-                    <Avatar className="h-12 w-12 border-2 border-[#14B8A6]/20">
-                      <AvatarFallback className="bg-[#F0F9F8] text-[#14B8A6] font-medium">
+                    <Avatar className="h-12 w-12 border-2 border-primary/20">
+                      <AvatarFallback className="bg-secondary text-primary font-medium">
                         {initials(paciente.nome)}
                       </AvatarFallback>
                     </Avatar>
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-medium text-[#0F2137] truncate">{paciente.nome}</h3>
+                        <h3 className="font-medium text-navy truncate">{paciente.nome}</h3>
                         <span className="text-xs text-muted-foreground">#{paciente.numero}</span>
                       </div>
                       <div className="flex items-center gap-4 mt-1 text-xs text-muted-foreground">
@@ -156,20 +156,20 @@ export default function PacientesPage() {
                     {paciente.ultimaMsg && (
                       <div className="hidden md:block text-right">
                         <p className="text-sm text-muted-foreground">Última mensagem</p>
-                        <p className="text-sm font-medium text-[#0F2137]">
+                        <p className="text-sm font-medium text-navy">
                           {new Date(paciente.ultimaMsg).toLocaleDateString("pt-BR")}
                         </p>
                       </div>
                     )}
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-[#14B8A6]">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
                         <Calendar className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-[#14B8A6]">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
                         <MessageSquare className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-[#14B8A6]">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
                         <FileText className="h-4 w-4" />
                       </Button>
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">

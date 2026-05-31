@@ -1,7 +1,6 @@
 'use client'
 
 import { useRef, useState, type ReactNode } from 'react'
-import { motion } from 'framer-motion'
 import { cn } from '@/lib/utils'
 
 type SpotlightCardProps = {
@@ -13,7 +12,7 @@ type SpotlightCardProps = {
 export function SpotlightCard({
   children,
   className,
-  spotlightColor = '20,184,166',
+  spotlightColor = '94,75,139',
 }: SpotlightCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState({ x: 0, y: 0 })
@@ -26,15 +25,13 @@ export function SpotlightCard({
   }
 
   return (
-    <motion.div
+    <div
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setOpacity(1)}
       onMouseLeave={() => setOpacity(0)}
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.2, ease: 'easeOut' }}
       className={cn(
-        'relative overflow-hidden rounded-xl border border-border/40 bg-card',
+        'relative overflow-hidden rounded-xl border border-border/40 bg-card transition-transform duration-200 hover:-translate-y-1',
         className,
       )}
     >
@@ -55,6 +52,6 @@ export function SpotlightCard({
         }}
       />
       {children}
-    </motion.div>
+    </div>
   )
 }
