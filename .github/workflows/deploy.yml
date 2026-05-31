@@ -33,6 +33,7 @@ jobs:
             --document-name "AWS-RunShellScript" \
             --parameters 'commands=[
               "set -euo pipefail",
+              "export HOME=/root",
               "git config --global --add safe.directory /opt/cerebro-amigo-v3",
               "cd /opt/cerebro-amigo-v3",
               "git pull origin main",
