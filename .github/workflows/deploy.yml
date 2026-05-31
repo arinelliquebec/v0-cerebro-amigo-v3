@@ -37,6 +37,7 @@ jobs:
               "git config --global --add safe.directory /opt/cerebro-amigo-v3",
               "cd /opt/cerebro-amigo-v3",
               "git pull origin main",
+              "docker stop $(docker ps -q) 2>/dev/null || true",
               "docker compose down --remove-orphans || true",
               "docker compose build --pull",
               "docker compose up -d --remove-orphans",
