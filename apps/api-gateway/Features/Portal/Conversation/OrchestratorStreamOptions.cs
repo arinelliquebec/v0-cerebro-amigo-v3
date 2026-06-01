@@ -17,6 +17,6 @@ public sealed class OrchestratorStreamOptions
 {
     public string BaseUrl { get; set; } = "http://orchestrator-py:8081";
     public string InternalApiToken { get; set; } = string.Empty;
-    public string PacienteIdClaim { get; set; } = "paciente_id";
+    public string PacienteIdClaim { get; set; } = "sub";
     public int TimeoutSeconds { get; set; } = 120;
 }

@@ -1,7 +1,7 @@
 import { Suspense } from "react"
 import { headers } from "next/headers"
 import Link from "next/link"
-import { BookText, Heart, Pill } from "lucide-react"
+import { BookText, Heart, Pill, MessageCircle } from "lucide-react"
 import { Skeleton } from "@/components/ui/skeleton"
 
 /**
@@ -39,6 +39,9 @@ async function PortalShell({ children }: { children: React.ReactNode }) {
         <div className="flex justify-around py-2">
           <NavItem href="/p" label="Início" active={pathname === "/p"}>
             <Heart className="w-5 h-5" />
+          </NavItem>
+          <NavItem href="/p/conversa" label="Conversa" active={pathname.startsWith("/p/conversa")}>
+            <MessageCircle className="w-5 h-5" />
           </NavItem>
           <NavItem href="/p/diario" label="Diário" active={pathname.startsWith("/p/diario")}>
             <BookText className="w-5 h-5" />
