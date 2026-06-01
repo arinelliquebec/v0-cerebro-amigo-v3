@@ -4,7 +4,7 @@ import { cacheLife } from 'next/cache'
 import Link from "next/link"
 import { HeroPreview } from "@/components/landing/hero-preview"
 import { Button } from "@/components/ui/button"
-import { CheckCircle, ArrowRight, Sparkles, ShieldCheck } from "lucide-react"
+import { CheckCircle, ArrowRight, Sparkles, HeartHandshake } from "lucide-react"
 
 export async function HeroSection() {
   cacheLife('days')
@@ -59,10 +59,16 @@ export async function HeroSection() {
               </Button>
             </div>
 
-            {/* Credibilidade — fato verdadeiro, sem depoimento/nº/logos inventados */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/15 bg-secondary/60 px-3.5 py-1.5 text-sm">
-              <ShieldCheck className="h-4 w-4 text-primary" />
-              <span className="font-medium text-navy">Desenvolvido com psiquiatra</span>
+            {/* Nota do criador — fato verdadeiro, sem depoimento/nº/logos inventados */}
+            <div className="flex items-start gap-3 rounded-xl border border-primary/15 bg-secondary/50 p-3.5 max-w-md">
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <HeartHandshake className="h-5 w-5" />
+              </div>
+              <p className="text-sm leading-relaxed text-navy/80">
+                <span className="font-semibold text-navy">Feito por quem vive isso.</span>{" "}
+                Sou desenvolvedor e paciente psiquiátrico há 15+ anos — e construí o
+                Cérebro Amigo com a orientação de um psiquiatra.
+              </p>
             </div>
 
             <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
