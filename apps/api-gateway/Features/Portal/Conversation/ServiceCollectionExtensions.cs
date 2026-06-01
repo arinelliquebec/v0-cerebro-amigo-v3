@@ -26,7 +26,9 @@ public static class ConversationServiceCollectionExtensions
         var baseUrl = configuration["ORCHESTRATOR_PY_URL"]
                       ?? "http://orchestrator-py:8081";
 
-        var claim = configuration["JWT_PACIENTE_ID_CLAIM"] ?? "paciente_id";
+        // O JWT do paciente carrega o paciente_id no claim `sub` (ver
+        // GerarTokensSessao). Default "sub" — não "paciente_id" (claim inexistente).
+        var claim = configuration["JWT_PACIENTE_ID_CLAIM"] ?? "sub";
 
         var timeout = int.TryParse(
             configuration["ORCHESTRATOR_PY_TIMEOUT_SECONDS"],

@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { BookText, Pill, CalendarClock, Smile, ChevronRight, LogOut } from "lucide-react"
+import { BookText, Pill, CalendarClock, Smile, ChevronRight, LogOut, MessageCircle } from "lucide-react"
 import { gatewayPaciente, GatewayPacienteError } from "@/lib/gateway-paciente"
 import { Button } from "@/components/ui/button"
 import { sairPaciente } from "./entrar/actions"
@@ -117,6 +117,21 @@ export default async function PortalHome() {
           <p className="text-xs text-muted-foreground capitalize">{data.proxConsulta.modalidade}</p>
         </section>
       )}
+
+      {/* Atalho conversa */}
+      <Link
+        href="/p/conversa"
+        className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4"
+      >
+        <div className="grid h-11 w-11 place-items-center rounded-xl bg-secondary text-primary">
+          <MessageCircle className="h-5 w-5" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium text-navy">Conversar</p>
+          <p className="text-xs text-muted-foreground">Desabafe; sua psiquiatra é avisada se houver risco</p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+      </Link>
 
       {/* Atalho diário */}
       <Link
