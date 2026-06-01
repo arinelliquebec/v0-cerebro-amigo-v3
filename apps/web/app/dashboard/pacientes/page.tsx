@@ -8,7 +8,6 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import {
   Search,
-  Plus,
   Filter,
   Calendar,
   MessageSquare,
@@ -16,8 +15,14 @@ import {
   Mail,
   Pill,
   ChevronRight,
+  Download,
+  FileDown,
+  Printer,
 } from "lucide-react"
 import { useState, useEffect } from "react"
+import { ImportarDialog } from "@/components/pacientes/importar-dialog"
+import { NovoPacienteDialog } from "@/components/pacientes/novo-paciente-dialog"
+import { baixarModelo, exportarPacientes } from "@/lib/pacientes-xlsx"
 
 interface Paciente {
   id: string
@@ -37,12 +42,17 @@ export default function PacientesPage() {
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
+  const recarregar = () => {
+    setLoading(true)
     fetch("/api/pacientes/")
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then(setPacientes)
       .catch(() => setPacientes([]))
       .finally(() => setLoading(false))
+  }
+
+  useEffect(() => {
+    recarregar()
   }, [])
 
   const filteredPatients = pacientes.filter((p) =>
@@ -51,11 +61,17 @@ export default function PacientesPage() {
 
   return (
     <div className="min-h-screen">
-      <Header title="Pacientes" subtitle="Gerencie seus pacientes" />
+      <div className="print:hidden">
+        <Header title="Pacientes" subtitle="Gerencie seus pacientes" />
+      </div>
+      {/* Título só na impressão (Header é escondido no print) */}
+      <h1 className="hidden print:block px-6 pt-6 text-2xl font-semibold text-navy">
+        Pacientes
+      </h1>
 
       <div className="p-6 space-y-6">
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        {/* Search and Toolbar */}
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between print:hidden">
           <div className="relative w-full sm:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
@@ -66,15 +82,30 @@ export default function PacientesPage() {
               className="pl-9 bg-card border-border focus-visible:ring-primary"
             />
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="outline" className="gap-2">
               <Filter className="h-4 w-4" />
               Filtros
             </Button>
-            <Button className="bg-primary hover:bg-purple-dark text-white gap-2">
-              <Plus className="h-4 w-4" />
-              Novo Paciente
+            <ImportarDialog onConcluido={recarregar} />
+            <Button variant="outline" className="gap-2" onClick={baixarModelo}>
+              <Download className="h-4 w-4" />
+              Baixar modelo
             </Button>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={() => exportarPacientes(filteredPatients)}
+              disabled={filteredPatients.length === 0}
+            >
+              <FileDown className="h-4 w-4" />
+              Exportar
+            </Button>
+            <Button variant="outline" className="gap-2" onClick={() => window.print()}>
+              <Printer className="h-4 w-4" />
+              Imprimir
+            </Button>
+            <NovoPacienteDialog onConcluido={recarregar} />
           </div>
         </div>
 
@@ -162,7 +193,7 @@ export default function PacientesPage() {
                       </div>
                     )}
 
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
                       <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
                         <Calendar className="h-4 w-4" />
                       </Button>

@@ -7,19 +7,22 @@ import { NextRequest, NextResponse } from "next/server"
  * 1. Protect /dashboard/* — requires auth_token (doctor)
  * 2. Protect /p/* — requires paciente_token (patient portal)
  * 3. Preserve ?next= redirect for post-login return
+ * 4. Expose the pathname as `x-pathname` so server layouts can decide chrome
+ *    (ex.: portal esconde a bottom-nav em /p/entrar).
  */
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
 
+  const requestHeaders = new Headers(req.headers)
+  requestHeaders.set("x-pathname", pathname)
+  const next = () => NextResponse.next({ request: { headers: requestHeaders } })
+
   // ── Patient portal ──
   if (pathname.startsWith("/p")) {
     // Allow public portal pages
-    if (
-      pathname === "/p/entrar" ||
-      pathname.startsWith("/p/entrar/")
-    ) {
-      return NextResponse.next()
+    if (pathname === "/p/entrar" || pathname.startsWith("/p/entrar/")) {
+      return next()
     }
 
     const token = req.cookies.get("paciente_token")?.value
@@ -28,7 +31,7 @@ export function proxy(req: NextRequest) {
       loginUrl.searchParams.set("next", pathname)
       return NextResponse.redirect(loginUrl)
     }
-    return NextResponse.next()
+    return next()
   }
 
   // ── Doctor dashboard ──
@@ -39,10 +42,10 @@ export function proxy(req: NextRequest) {
       loginUrl.searchParams.set("next", pathname)
       return NextResponse.redirect(loginUrl)
     }
-    return NextResponse.next()
+    return next()
   }
 
-  return NextResponse.next()
+  return next()
 }
 
 export const config = {

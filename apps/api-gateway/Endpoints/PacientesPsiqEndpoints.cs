@@ -275,86 +275,24 @@ public static class PacientesPsiqEndpoints
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
 
-            if (string.IsNullOrWhiteSpace(req.Email) || string.IsNullOrWhiteSpace(req.Nome))
-                return Results.BadRequest(new { error = "email e nome são obrigatórios" });
-
-            // WhatsApp agora é obrigatório para fallback de emergência (decisão
-            // clínica, não técnica — paciente precisa ser alcançável fora do app).
-            var waId = string.IsNullOrWhiteSpace(req.WaId)
-                ? ""
-                : new string(req.WaId.Where(char.IsDigit).ToArray());
-
-            if (waId.Length < 10 || waId.Length > 15)
-                return Results.BadRequest(new {
-                    error = "telefone (WhatsApp) é obrigatório e precisa ter entre 10 e 15 dígitos"
-                });
-
             var modoSenhaProvisoria = !string.IsNullOrWhiteSpace(req.SenhaInicial);
             if (modoSenhaProvisoria && req.SenhaInicial!.Length < 6)
                 return Results.BadRequest(new { error = "senha provisória precisa ter pelo menos 6 caracteres" });
 
+            // Validação + criação de clientes/pacientes — núcleo compartilhado com
+            // o /importar (lote). Escopado ao médico do JWT.
+            var resultado = await CriarPacienteCoreAsync(
+                db, medicoId.Value, req.Nome, req.Email, req.WaId,
+                req.Cpf, req.DataNascimento, logger);
+
+            if (resultado.Tipo == CriarTipo.Validacao)
+                return Results.BadRequest(new { error = resultado.Motivo });
+            if (resultado.Tipo == CriarTipo.Conflito)
+                return Results.Conflict(new { error = resultado.Motivo });
+
+            // Criado ou JaExistente → segue para o fluxo de convite (senha/magic link).
+            var clienteId = resultado.PacienteId!.Value;
             var emailNorm = req.Email.Trim().ToLowerInvariant();
-
-            // 1. Verifica se já existe cliente com esse email
-            var clienteId = await db.Database.ExecuteScalarAsync<Guid?>(
-                "SELECT id FROM clientes WHERE email = {0}", emailNorm);
-
-            if (clienteId is not null)
-            {
-                var medicoExistente = await db.Database.ExecuteScalarAsync<Guid?>(
-                    "SELECT medico_responsavel_id FROM pacientes WHERE cliente_id = {0}",
-                    clienteId);
-                if (medicoExistente is not null && medicoExistente != medicoId)
-                    return Results.Conflict(new { error = "Paciente já cadastrado com outro médico" });
-            }
-            else
-            {
-                // `clientes.wa_id` é UNIQUE. Antes de tentar inserir, valida pra devolver
-                // 409 com mensagem clínica em vez de deixar a constraint quebrar e cair
-                // no global exception handler como 500.
-                if (waId.Length > 0)
-                {
-                    var donoDoTel = await db.Database.ExecuteScalarAsync<string?>(
-                        "SELECT email FROM clientes WHERE wa_id = {0}", waId);
-                    if (donoDoTel is not null && donoDoTel != emailNorm)
-                        return Results.Conflict(new
-                        {
-                            error = "Esse WhatsApp já está cadastrado para outro paciente. " +
-                                    "Confirme o número (com DDD) antes de prosseguir."
-                        });
-                }
-
-                var newId = Guid.NewGuid();
-                try
-                {
-                    await db.Database.ExecuteSqlRawAsync(@"
-                        INSERT INTO clientes (id, wa_id, nome, email)
-                        VALUES ({0}, NULLIF({1}, ''), {2}, {3})",
-                        newId, waId, req.Nome, emailNorm);
-                }
-                catch (Npgsql.PostgresException pe) when (pe.SqlState == "23505")
-                {
-                    // Safety net pra race condition (validação prévia + INSERT não são
-                    // atômicos). `ConstraintName` diz qual coluna estourou.
-                    logger.LogWarning("Conflito UNIQUE ao criar cliente: {Constraint}", pe.ConstraintName);
-                    var msg = pe.ConstraintName switch
-                    {
-                        "clientes_wa_id_key" => "WhatsApp já cadastrado para outro paciente.",
-                        "clientes_email_key" => "E-mail já cadastrado.",
-                        _ => "Conflito ao cadastrar paciente (dado duplicado)."
-                    };
-                    return Results.Conflict(new { error = msg });
-                }
-                clienteId = newId;
-            }
-
-            // 2. Cria paciente (idempotente)
-            await db.Database.ExecuteSqlRawAsync(@"
-                INSERT INTO pacientes (cliente_id, medico_responsavel_id, cpf, data_nascimento)
-                VALUES ({0}, {1}, NULLIF({2}, ''), {3})
-                ON CONFLICT (cliente_id) DO UPDATE SET
-                  medico_responsavel_id = EXCLUDED.medico_responsavel_id",
-                clienteId, medicoId, req.Cpf ?? "", req.DataNascimento);
 
             // ----------------------------------------------------------------
             // Fluxo B — senha provisória definida pelo médico
@@ -475,6 +413,152 @@ public static class PacientesPsiqEndpoints
                 senhaProvisoria = (string?)null,
             });
         });
+
+        // ================================================================
+        // IMPORTAR PACIENTES EM LOTE (planilha .xlsx parseada no front)
+        // ================================================================
+        // Cria pacientes em estado "convite pendente" — SEM senha, SEM e-mail.
+        // Convites são ação separada depois. Processa LINHA A LINHA; um erro numa
+        // linha NÃO aborta o lote. Tudo escopado ao médico do JWT.
+        g.MapPost("/importar", async (
+            [FromBody] ImportarPacientesRequest req,
+            AppDbContext db, ClaimsPrincipal user, ILogger<Program> logger) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            var itens = req.Pacientes ?? new List<ImportarLinha>();
+            var resultados = new List<ImportarResultadoLinha>(itens.Count);
+            int criados = 0, pulados = 0, erros = 0;
+
+            for (var i = 0; i < itens.Count; i++)
+            {
+                var linha = i + 1;
+                var item = itens[i];
+                try
+                {
+                    var r = await CriarPacienteCoreAsync(
+                        db, medicoId.Value, item.Nome, item.Email, item.WaId,
+                        item.Cpf, item.DataNascimento, logger);
+
+                    switch (r.Tipo)
+                    {
+                        case CriarTipo.Criado:
+                            criados++;
+                            resultados.Add(new ImportarResultadoLinha(linha, "criado", null));
+                            break;
+                        case CriarTipo.JaExistente:
+                            pulados++;
+                            resultados.Add(new ImportarResultadoLinha(linha, "pulado_duplicado", r.Motivo));
+                            break;
+                        default: // Conflito | Validacao
+                            erros++;
+                            resultados.Add(new ImportarResultadoLinha(linha, "erro", r.Motivo));
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Falha inesperada ao importar linha {Linha}", linha);
+                    erros++;
+                    resultados.Add(new ImportarResultadoLinha(
+                        linha, "erro", "Erro inesperado ao processar a linha."));
+                }
+            }
+
+            return Results.Ok(new
+            {
+                resultados,
+                resumo = new { criados, pulados, erros, total = itens.Count },
+            });
+        });
+    }
+
+    // Tipos do resultado do núcleo de criação (compartilhado POST / e /importar).
+    private enum CriarTipo { Criado, JaExistente, Conflito, Validacao }
+    private sealed record CriarResultado(CriarTipo Tipo, Guid? PacienteId, string? Motivo);
+
+    /// <summary>
+    /// Núcleo de criação de paciente: valida e insere `clientes` + `pacientes`,
+    /// escopado ao médico do JWT. NÃO cria senha/magic link nem envia e-mail —
+    /// o cadastro único faz isso depois usando o PacienteId retornado.
+    /// </summary>
+    private static async Task<CriarResultado> CriarPacienteCoreAsync(
+        AppDbContext db, Guid medicoId,
+        string? nome, string? email, string? waId, string? cpf,
+        DateOnly? dataNascimento, ILogger logger)
+    {
+        if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(nome))
+            return new CriarResultado(CriarTipo.Validacao, null, "nome e e-mail são obrigatórios");
+
+        // WhatsApp obrigatório (fallback de emergência — decisão clínica).
+        var wa = string.IsNullOrWhiteSpace(waId)
+            ? ""
+            : new string(waId.Where(char.IsDigit).ToArray());
+        if (wa.Length < 10 || wa.Length > 15)
+            return new CriarResultado(CriarTipo.Validacao, null,
+                "telefone (WhatsApp) é obrigatório e precisa ter entre 10 e 15 dígitos");
+
+        var emailNorm = email.Trim().ToLowerInvariant();
+
+        var clienteId = await db.Database.ExecuteScalarAsync<Guid?>(
+            "SELECT id FROM clientes WHERE email = {0}", emailNorm);
+
+        if (clienteId is not null)
+        {
+            var medicoExistente = await db.Database.ExecuteScalarAsync<Guid?>(
+                "SELECT medico_responsavel_id FROM pacientes WHERE cliente_id = {0}", clienteId);
+            if (medicoExistente is not null && medicoExistente != medicoId)
+                return new CriarResultado(CriarTipo.Conflito, null, "Paciente já cadastrado com outro médico");
+            if (medicoExistente == medicoId)
+                return new CriarResultado(CriarTipo.JaExistente, clienteId, "Paciente já cadastrado com você");
+            // cliente existe mas sem vínculo de paciente (órfão) → cria o vínculo abaixo.
+        }
+        else
+        {
+            // `clientes.wa_id` é UNIQUE — valida antes pra devolver conflito claro
+            // em vez de deixar a constraint cair no handler global como 500.
+            if (wa.Length > 0)
+            {
+                var donoDoTel = await db.Database.ExecuteScalarAsync<string?>(
+                    "SELECT email FROM clientes WHERE wa_id = {0}", wa);
+                if (donoDoTel is not null && donoDoTel != emailNorm)
+                    return new CriarResultado(CriarTipo.Conflito, null,
+                        "Esse WhatsApp já está cadastrado para outro paciente. Confirme o número (com DDD).");
+            }
+
+            var newId = Guid.NewGuid();
+            try
+            {
+                await db.Database.ExecuteSqlRawAsync(@"
+                    INSERT INTO clientes (id, wa_id, nome, email)
+                    VALUES ({0}, NULLIF({1}, ''), {2}, {3})",
+                    newId, wa, nome, emailNorm);
+            }
+            catch (Npgsql.PostgresException pe) when (pe.SqlState == "23505")
+            {
+                // Safety net pra race (validação prévia + INSERT não são atômicos).
+                logger.LogWarning("Conflito UNIQUE ao criar cliente: {Constraint}", pe.ConstraintName);
+                var msg = pe.ConstraintName switch
+                {
+                    "clientes_wa_id_key" => "WhatsApp já cadastrado para outro paciente.",
+                    "clientes_email_key" => "E-mail já cadastrado.",
+                    _ => "Conflito ao cadastrar paciente (dado duplicado)."
+                };
+                return new CriarResultado(CriarTipo.Conflito, null, msg);
+            }
+            clienteId = newId;
+        }
+
+        // Cria/garante o vínculo de paciente, escopado ao médico (idempotente).
+        await db.Database.ExecuteSqlRawAsync(@"
+            INSERT INTO pacientes (cliente_id, medico_responsavel_id, cpf, data_nascimento)
+            VALUES ({0}, {1}, NULLIF({2}, ''), {3})
+            ON CONFLICT (cliente_id) DO UPDATE SET
+              medico_responsavel_id = EXCLUDED.medico_responsavel_id",
+            clienteId, medicoId, cpf ?? "", dataNascimento);
+
+        return new CriarResultado(CriarTipo.Criado, clienteId, null);
     }
 
     private static string SHA256(string s)
@@ -534,6 +618,14 @@ public record CriarPacienteRequest(
     // o frontend manda `"2000-01-15"` (sem timezone).
     DateOnly? DataNascimento,
     string? SenhaInicial); // preenchido = fluxo "senha provisória" (sem email)
+
+// Importação em lote — body do POST /api/v1/pacientes/importar
+public record ImportarLinha(
+    string? Nome, string? Email, string? WaId, string? Cpf, DateOnly? DataNascimento);
+
+public record ImportarPacientesRequest(List<ImportarLinha> Pacientes);
+
+public record ImportarResultadoLinha(int Linha, string Status, string? Motivo);
 
 public sealed record ResumoPreConsultaDto(
     Guid Id,
