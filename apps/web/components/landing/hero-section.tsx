@@ -66,8 +66,7 @@ export async function HeroSection() {
               </div>
               <p className="text-sm leading-relaxed text-navy/80">
                 <span className="font-semibold text-navy">Feito por quem vive isso.</span>{" "}
-                A ideia e o desenvolvimento são meus — sou paciente psiquiátrico há
-                15+ anos. Um psiquiatra faz a validação clínica.
+                Sou desenvolvedor e também paciente há 15+ anos. Validado por psiquiatras.
               </p>
             </div>
 
