@@ -16,8 +16,10 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="min-h-screen bg-background">
-      <SidebarWrapper />
-      <main className="pl-64 min-h-screen transition-all duration-300">
+      <div className="print:hidden">
+        <SidebarWrapper />
+      </div>
+      <main className="pl-64 min-h-screen transition-all duration-300 print:pl-0">
         <div className="relative">
           <Suspense fallback={<div className="min-h-[60vh]" />}>
             {children}
