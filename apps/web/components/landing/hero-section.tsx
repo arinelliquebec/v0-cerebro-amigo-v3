@@ -66,8 +66,8 @@ export async function HeroSection() {
               </div>
               <p className="text-sm leading-relaxed text-navy/80">
                 <span className="font-semibold text-navy">Feito por quem vive isso.</span>{" "}
-                Sou desenvolvedor e paciente psiquiátrico há 15+ anos — e construí o
-                Cérebro Amigo com a orientação de um psiquiatra.
+                A ideia e o desenvolvimento são meus — sou paciente psiquiátrico há
+                15+ anos. Um psiquiatra faz a validação clínica.
               </p>
             </div>
 
