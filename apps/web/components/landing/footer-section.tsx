@@ -20,13 +20,13 @@ export async function FooterSection() {
           <div className="flex flex-col items-start md:items-end gap-4">
             <div className="flex items-center gap-6">
               <Link
-                href="#"
+                href="/privacy"
                 className="text-white/30 hover:text-white/70 text-sm transition-colors duration-200"
               >
                 Privacidade
               </Link>
               <Link
-                href="#"
+                href="/terms"
                 className="text-white/30 hover:text-white/70 text-sm transition-colors duration-200"
               >
                 Termos de uso
