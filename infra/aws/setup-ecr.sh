@@ -15,7 +15,8 @@ set -euo pipefail
 AWS_REGION="sa-east-1"
 AWS_ACCOUNT_ID="004177894935"
 ECR_BASE="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-EC2_ROLE_NAME="${EC2_ROLE_NAME:-cerebro-amigo-ec2-role}"
+EC2_ROLE_NAME="${EC2_ROLE_NAME:-EC2-SSM-CerebroAmigo}"
+CI_POLICY_NAME="${CI_POLICY_NAME:-CerebroAmigoGitHubDeploy}"
 
 SERVICES=(
   "cerebro-amigo/web"
@@ -25,29 +26,18 @@ SERVICES=(
   "cerebro-amigo/notifier-py"
 )
 
-# Lifecycle policy: manter as 10 imagens mais recentes por push.
-# Imagens mais antigas são expiradas automaticamente, liberando espaço.
+# Lifecycle policy: manter as 10 imagens mais recentes, expirar o resto.
+# NOTA: `tagPrefixList: [""]` é INVÁLIDO no ECR (string vazia rejeitada). Para
+# "manter as N mais recentes independente de tag" use `tagStatus: any`.
 LIFECYCLE_POLICY='{
   "rules": [
     {
       "rulePriority": 1,
-      "description": "Manter ultimas 10 imagens por push (rollback ate 10 deploys)",
+      "description": "Manter ultimas 10 imagens (rollback ate 10 deploys)",
       "selection": {
-        "tagStatus": "tagged",
-        "tagPrefixList": [""],
+        "tagStatus": "any",
         "countType": "imageCountMoreThan",
         "countNumber": 10
-      },
-      "action": { "type": "expire" }
-    },
-    {
-      "rulePriority": 2,
-      "description": "Expirar imagens sem tag apos 1 dia",
-      "selection": {
-        "tagStatus": "untagged",
-        "countType": "sinceImagePushed",
-        "countUnit": "days",
-        "countNumber": 1
       },
       "action": { "type": "expire" }
     }
@@ -126,19 +116,43 @@ aws iam attach-role-policy \
 echo "  Policy attachada ao role $EC2_ROLE_NAME"
 
 echo ""
-echo "=== Permissões necessárias para o CI (secrets AWS_ACCESS_KEY_ID/SECRET) ==="
-echo ""
-echo "  O usuário/role do CI precisa de:"
-echo "    ecr:GetAuthorizationToken"
-echo "    ecr:BatchCheckLayerAvailability"
-echo "    ecr:GetDownloadUrlForLayer"
-echo "    ecr:BatchGetImage"
-echo "    ecr:PutImage"
-echo "    ecr:InitiateLayerUpload"
-echo "    ecr:UploadLayerPart"
-echo "    ecr:CompleteLayerUpload"
-echo "  Resource: arn:aws:ecr:sa-east-1:${AWS_ACCOUNT_ID}:repository/cerebro-amigo/*"
-echo "  + ecr:GetAuthorizationToken  Resource: *"
+echo "=== Concedendo ECR push ao CI (policy ${CI_POLICY_NAME}) ==="
+# Antes só imprimia as permissões — agora aplica de fato (nova versão default
+# da managed policy do usuário do CI). Sem isso o `docker push` no build falha
+# com 'not authorized to perform: ecr:GetAuthorizationToken'.
+CI_POLICY_ARN="arn:aws:iam::${AWS_ACCOUNT_ID}:policy/${CI_POLICY_NAME}"
+if aws iam get-policy --policy-arn "$CI_POLICY_ARN" >/dev/null 2>&1; then
+  TMP_CI=$(mktemp)
+  # Preserva os statements existentes (SSM) e adiciona ECR auth + push.
+  CUR_VER=$(aws iam get-policy --policy-arn "$CI_POLICY_ARN" --query 'Policy.DefaultVersionId' --output text)
+  aws iam get-policy-version --policy-arn "$CI_POLICY_ARN" --version-id "$CUR_VER" \
+    --query 'PolicyVersion.Document' --output json > "$TMP_CI"
+  if grep -q '"ecr:GetAuthorizationToken"' "$TMP_CI"; then
+    echo "  ECR já presente na policy do CI — nada a fazer"
+  else
+    python3 - "$TMP_CI" "$AWS_ACCOUNT_ID" <<'PY'
+import json, sys
+doc_path, acct = sys.argv[1], sys.argv[2]
+doc = json.load(open(doc_path))
+doc["Statement"] += [
+    {"Sid": "ECRAuth", "Effect": "Allow",
+     "Action": "ecr:GetAuthorizationToken", "Resource": "*"},
+    {"Sid": "ECRPush", "Effect": "Allow",
+     "Action": ["ecr:BatchCheckLayerAvailability", "ecr:GetDownloadUrlForLayer",
+                "ecr:BatchGetImage", "ecr:PutImage", "ecr:InitiateLayerUpload",
+                "ecr:UploadLayerPart", "ecr:CompleteLayerUpload"],
+     "Resource": f"arn:aws:ecr:sa-east-1:{acct}:repository/cerebro-amigo/*"},
+]
+json.dump(doc, open(doc_path, "w"))
+PY
+    aws iam create-policy-version --policy-arn "$CI_POLICY_ARN" \
+      --policy-document "file://$TMP_CI" --set-as-default --output text > /dev/null
+    echo "  ECR push concedido ao CI (nova versão default de ${CI_POLICY_NAME})"
+  fi
+  rm -f "$TMP_CI"
+else
+  echo "  AVISO: policy ${CI_POLICY_NAME} não encontrada — pulando (CI pode falhar no push)"
+fi
 
 echo ""
 echo "=== Smoke test: login no ECR ==="
