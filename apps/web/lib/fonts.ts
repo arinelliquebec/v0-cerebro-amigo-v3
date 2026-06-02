@@ -1,4 +1,4 @@
-import { Inter, Playfair_Display } from "next/font/google"
+import { Inter, Playfair_Display, JetBrains_Mono } from "next/font/google"
 
 export const inter = Inter({
   subsets: ["latin", "latin-ext"],
@@ -12,4 +12,12 @@ export const playfair = Playfair_Display({
   display: "swap",
   weight: ["400", "500", "600", "700"],
   style: ["normal", "italic"],
+})
+
+// Mono — eyebrows/labels/dados na estética Neural Noir (landing).
+export const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono-jb",
+  display: "swap",
+  weight: ["400", "500", "600"],
 })

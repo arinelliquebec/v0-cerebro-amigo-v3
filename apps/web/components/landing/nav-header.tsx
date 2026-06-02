@@ -5,10 +5,10 @@ import { ArrowRight } from "lucide-react"
 
 export async function NavHeader() {
   return (
-    <header className="sticky top-0 z-50 border-b border-border/40">
-      <div className="glass-strong border-b border-white/20">
+    <header className="sticky top-0 z-50">
+      <div className="glass-noir border-b border-noir-line">
         <div className="container mx-auto max-w-7xl px-6 h-16 flex items-center justify-between">
-          <Logo size="md" />
+          <Logo size="md" variant="light" />
           <nav className="hidden md:flex items-center gap-1">
             {[
               { href: "#como-funciona", label: "Como funciona" },
@@ -18,24 +18,17 @@ export async function NavHeader() {
               <Link
                 key={item.href}
                 href={item.href}
-                className="relative px-4 py-2 text-sm font-medium text-muted-foreground hover:text-navy transition-colors duration-200 rounded-lg hover:bg-secondary/60"
+                className="relative px-4 py-2 font-mono text-xs uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors duration-200 rounded-lg hover:bg-noir-surface-raised/60"
               >
                 {item.label}
               </Link>
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              className="text-navy/80 hover:text-navy hover:bg-secondary/60 font-medium"
-              asChild
-            >
+            <Button variant="ghost" className="text-muted-foreground hover:text-foreground hover:bg-noir-surface-raised/60 font-medium" asChild>
               <Link href="/login">Entrar</Link>
             </Button>
-            <Button
-              className="bg-coral hover:bg-coral-dark text-white font-medium shadow-lg shadow-coral/20 hover:shadow-xl hover:shadow-coral/25 transition-all duration-300 hover:-translate-y-0.5"
-              asChild
-            >
+            <Button variant="coral" className="font-medium transition-all duration-300 hover:-translate-y-0.5" asChild>
               <Link href="/dashboard">
                 Ver demonstração
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -43,6 +36,8 @@ export async function NavHeader() {
             </Button>
           </div>
         </div>
+        {/* hairline de glow no rodapé do nav */}
+        <div className="h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
       </div>
     </header>
   )

@@ -2,6 +2,9 @@
 
 import { cacheLife } from 'next/cache'
 import { CheckCircle } from "lucide-react"
+import { Eyebrow } from "@/components/landing/eyebrow"
+import { AuroraBackdrop } from "@/components/landing/aurora-backdrop"
+import { Reveal, RevealGroup, RevealItem } from "@/components/landing/reveal"
 
 const securityItems = [
   "Dados armazenados exclusivamente em servidores AWS no Brasil (sa-east-1)",
@@ -21,14 +24,13 @@ export async function SecuritySection() {
   cacheLife('days')
 
   return (
-    <section id="seguranca" className="py-24 bg-secondary/50 border-y border-primary/10">
-      <div className="container mx-auto max-w-7xl px-6">
+    <section id="seguranca" className="relative py-28 border-y border-noir-line bg-noir-bg overflow-hidden">
+      <AuroraBackdrop />
+      <div className="container mx-auto max-w-7xl px-6 relative">
         <div className="grid md:grid-cols-2 gap-16 items-center">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">
-              Segurança &amp; Privacidade
-            </p>
-            <h2 className="text-3xl font-semibold text-navy mb-4 text-balance">
+          <Reveal>
+            <Eyebrow className="mb-4">Segurança &amp; Privacidade</Eyebrow>
+            <h2 className="font-serif text-4xl font-medium text-foreground mb-4 text-balance leading-[1.05]">
               Infraestrutura pensada para dados de saúde mental
             </h2>
             <p className="text-muted-foreground leading-relaxed mb-8">
@@ -39,23 +41,23 @@ export async function SecuritySection() {
               {securityItems.map((item) => (
                 <div key={item} className="flex items-start gap-3">
                   <CheckCircle className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span className="text-sm text-navy leading-relaxed">{item}</span>
+                  <span className="text-sm text-foreground/90 leading-relaxed">{item}</span>
                 </div>
               ))}
             </div>
-          </div>
+          </Reveal>
 
-          <div className="grid grid-cols-2 gap-4">
+          <RevealGroup className="grid grid-cols-2 gap-4">
             {securityBadges.map((item) => (
-              <div
+              <RevealItem
                 key={item.label}
-                className="p-5 rounded-2xl bg-white border border-border/50 shadow-sm hover:shadow-md transition-shadow"
+                className="glass-noir rounded-2xl border border-noir-line p-5 transition-all hover:glow-purple-lg"
               >
-                <p className="font-semibold text-navy text-sm mb-1.5">{item.label}</p>
+                <p className="font-mono text-xs uppercase tracking-wider text-accent-on-dark mb-1.5">{item.label}</p>
                 <p className="text-xs text-muted-foreground leading-snug">{item.desc}</p>
-              </div>
+              </RevealItem>
             ))}
-          </div>
+          </RevealGroup>
         </div>
       </div>
     </section>

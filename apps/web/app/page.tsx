@@ -6,6 +6,8 @@ import { FeaturesSection } from "@/components/landing/features-section"
 import { SecuritySection } from "@/components/landing/security-section"
 import { CTASection } from "@/components/landing/cta-section"
 import { FooterSection } from "@/components/landing/footer-section"
+import { Eyebrow } from "@/components/landing/eyebrow"
+import { Reveal } from "@/components/landing/reveal"
 
 export const metadata = {
   title: "Cérebro Amigo — Acompanhamento entre consultas para psiquiatria",
@@ -15,22 +17,23 @@ export const metadata = {
 
 export default function HomePage() {
   return (
-    <div className="min-h-screen bg-background">
+    // `.theme-noir` escopa o tema dark espacial só à landing — dashboard e
+    // portal têm seus próprios layouts e seguem o :root (light).
+    <div className="theme-noir min-h-screen bg-background text-foreground antialiased">
       <NavHeader />
       <HeroSection />
       <ProblemBar />
 
       {/* How it works */}
-      <section id="como-funciona" className="py-24 bg-muted/20">
+      <section id="como-funciona" className="relative py-28">
         <div className="container mx-auto max-w-7xl px-6">
-          <div className="max-w-2xl mb-16">
-            <p className="text-xs font-semibold uppercase tracking-widest text-primary mb-3">
-              Como funciona
-            </p>
-            <h2 className="text-3xl lg:text-4xl font-semibold text-navy leading-tight text-balance">
-              Do plano ao retorno, sem perder visibilidade
+          <Reveal className="max-w-2xl mb-16">
+            <Eyebrow className="mb-4">Como funciona</Eyebrow>
+            <h2 className="font-serif text-4xl lg:text-5xl font-medium text-foreground leading-[1.05] text-balance">
+              Do plano ao retorno,{" "}
+              <span className="text-accent-on-dark">sem perder visibilidade</span>
             </h2>
-          </div>
+          </Reveal>
           <HowItWorks />
         </div>
       </section>

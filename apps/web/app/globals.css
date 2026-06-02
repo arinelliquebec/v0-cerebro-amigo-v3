@@ -115,10 +115,86 @@
   --accent-on-dark: #9486C9;   /* mesmo valor — navy não muda entre temas */
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Neural Noir — tema ESCOPADO à landing (aplicado via `.theme-noir` em
+   app/page.tsx). Redefine os tokens-base para um dark espacial; dashboard
+   (/dashboard/*) e portal (/p/*) têm seus próprios layouts e seguem `:root`
+   (light), intocados. A classe é estática no markup → sem flash/hidratação.
+   ────────────────────────────────────────────────────────────────────────── */
+.theme-noir {
+  --background: #07070D;          /* deep space */
+  --foreground: #ECEBF5;          /* ~14:1 */
+  --card: #0E0E18;
+  --card-foreground: #ECEBF5;
+  --popover: #12121F;
+  --popover-foreground: #ECEBF5;
+
+  --primary: #9486C9;             /* roxo claro — acento frio */
+  --primary-foreground: #07070D;
+  --secondary: #171426;
+  --secondary-foreground: #CFC6E6;
+
+  --muted: #14141F;
+  --muted-foreground: #9B96B5;    /* ~5.4:1 */
+
+  --accent: #E57373;              /* CORAL — único calor humano */
+  --accent-foreground: #07070D;
+
+  --destructive: #F26464;
+  --destructive-foreground: #07070D;
+
+  --border: #20202E;
+  --input: #20202E;
+  --ring: #9486C9;
+
+  --chart-1: #9486C9;
+  --chart-2: #B3A6DA;
+  --chart-3: #E57373;
+  --chart-4: #6B5896;
+  --chart-5: #D9CFEA;
+
+  /* superfícies de marca redefinidas (eram navy de contraste) */
+  --purple: #9486C9;
+  --purple-light: #B3A6DA;
+  --purple-dark: #6B5896;
+  --navy: #0B0B14;                /* → surface noir */
+  --navy-light: #10101C;          /* → surface raised */
+  --coral: #E57373;
+  --coral-dark: #EF5350;
+  --success: #34D399;
+  --warning: #FBBF24;
+  --accent-on-dark: #B3A6DA;      /* eyebrow sobre noir */
+
+  /* tokens noir dedicados (efeitos sem equivalente no design system) */
+  --noir-bg: #07070D;
+  --noir-surface: #0E0E18;
+  --noir-surface-raised: #14141F;
+  --noir-line: #2A2A3D;
+  --noir-node: #6E5FB0;
+  --noir-node-active: #B3A6DA;
+  --noir-text-dim: #6F6B86;
+  --noir-glow-purple: rgba(148, 134, 201, 0.45);
+  --noir-glow-coral: rgba(229, 115, 115, 0.42);
+  --noir-aurora-1: rgba(110, 95, 176, 0.22);
+  --noir-aurora-2: rgba(229, 115, 115, 0.12);
+  --noir-glass-bg: rgba(18, 18, 30, 0.55);
+  --noir-glass-border: rgba(180, 166, 218, 0.14);
+
+  background-color: var(--noir-bg);
+  color: var(--foreground);
+}
+
+/* Foco visível sobre o noir (o :root zera outline; reintroduzimos p/ links) */
+.theme-noir a:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 @theme inline {
   --font-sans: var(--font-inter), system-ui, sans-serif;
   --font-serif: 'Playfair Display', Georgia, 'Times New Roman', serif;
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
+  --font-mono: var(--font-mono-jb), 'JetBrains Mono', ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -167,6 +243,15 @@
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-accent-on-dark: var(--accent-on-dark);
+
+  /* Tokens Neural Noir (consumidos só pela landing dentro de .theme-noir) */
+  --color-noir-bg: var(--noir-bg);
+  --color-noir-surface: var(--noir-surface);
+  --color-noir-surface-raised: var(--noir-surface-raised);
+  --color-noir-line: var(--noir-line);
+  --color-noir-node: var(--noir-node);
+  --color-noir-node-active: var(--noir-node-active);
+  --color-noir-text-dim: var(--noir-text-dim);
 }
 
 @layer base {
@@ -282,6 +367,48 @@
     box-shadow: 0 0 40px -8px rgb(229 115 115 / 0.35);
   }
 
+  /* ── Neural Noir ───────────────────────────────────────────────── */
+  .glass-noir {
+    background: var(--noir-glass-bg);
+    backdrop-filter: blur(24px) saturate(1.4);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid var(--noir-glass-border);
+  }
+  .glow-purple-lg {
+    box-shadow: 0 0 80px -16px var(--noir-glow-purple);
+  }
+  .glow-coral-lg {
+    box-shadow: 0 0 80px -16px var(--noir-glow-coral);
+  }
+  .aurora {
+    background:
+      radial-gradient(60% 55% at 50% -8%, var(--noir-aurora-1), transparent 70%),
+      radial-gradient(45% 45% at 85% 22%, var(--noir-aurora-2), transparent 70%),
+      radial-gradient(40% 40% at 12% 70%, var(--noir-aurora-1), transparent 72%);
+  }
+  .text-noir-shimmer {
+    background: linear-gradient(
+      90deg,
+      var(--foreground) 0%,
+      var(--noir-node-active) 50%,
+      var(--foreground) 100%
+    );
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: shimmer 6s linear infinite;
+  }
+  .grid-noir {
+    background-image:
+      linear-gradient(var(--noir-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--noir-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 30%, transparent 75%);
+    opacity: 0.5;
+  }
+
   /* Waveform — barras do card "Diário por voz" (landing) */
   .animate-waveform {
     animation: waveform 1.1s ease-in-out infinite;
@@ -340,6 +467,14 @@
 @keyframes waveform {
   0%, 100% { transform: scaleY(0.35); }
   50% { transform: scaleY(1); }
+}
+
+@keyframes shimmer {
+  to { background-position: 200% center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .text-noir-shimmer { animation: none; }
 }
 
 /* Scrollbar — agora roxo */

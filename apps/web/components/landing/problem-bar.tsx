@@ -1,6 +1,8 @@
 'use cache'
 
 import { cacheLife } from 'next/cache'
+import { Eyebrow } from '@/components/landing/eyebrow'
+import { RevealGroup, RevealItem } from '@/components/landing/reveal'
 
 const items = [
   {
@@ -11,14 +13,12 @@ const items = [
   {
     label: "O custo",
     value: "Gaps clínicos não detectados",
-    sub:
-      "Crises, abandono de medicação e recaídas se desenvolvem no intervalo — e chegam tarde.",
+    sub: "Crises, abandono de medicação e recaídas se desenvolvem no intervalo — e chegam tarde.",
   },
   {
     label: "A solução",
     value: "Acompanhamento contínuo e automatizado",
-    sub:
-      "Cérebro Amigo monitora, alerta e organiza — para você chegar ao retorno preparado.",
+    sub: "Cérebro Amigo monitora, alerta e organiza — para você chegar ao retorno preparado.",
   },
 ]
 
@@ -26,19 +26,17 @@ export async function ProblemBar() {
   cacheLife('days')
 
   return (
-    <section className="bg-navy">
+    <section className="relative border-y border-noir-line bg-noir-surface">
       <div className="container mx-auto max-w-7xl px-6">
-        <div className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-white/10">
+        <RevealGroup className="grid md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-noir-line">
           {items.map((item) => (
-            <div key={item.label} className="py-10 px-8 lg:px-10">
-              <p className="text-xs font-semibold uppercase tracking-widest text-accent-on-dark mb-3">
-                {item.label}
-              </p>
-              <p className="text-white font-semibold text-lg leading-snug mb-3">{item.value}</p>
-              <p className="text-white/50 text-sm leading-relaxed">{item.sub}</p>
-            </div>
+            <RevealItem key={item.label} className="py-12 px-8 lg:px-10">
+              <Eyebrow className="mb-3">{item.label}</Eyebrow>
+              <p className="text-foreground font-medium text-xl leading-snug mb-3 text-balance">{item.value}</p>
+              <p className="text-muted-foreground text-sm leading-relaxed">{item.sub}</p>
+            </RevealItem>
           ))}
-        </div>
+        </RevealGroup>
       </div>
     </section>
   )
