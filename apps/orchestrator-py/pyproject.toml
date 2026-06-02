@@ -32,6 +32,9 @@ dependencies = [
     # Observabilidade
     "structlog>=24.4.0",
 
+    # Cifragem em repouso (ADR-018)
+    "cryptography>=44.0.0",
+
     # Push (mantido aqui para a fase em que migrarmos VAPID; opcional)
     "pywebpush>=2.0.0",
 ]

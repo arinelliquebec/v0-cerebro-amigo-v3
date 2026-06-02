@@ -63,6 +63,10 @@ class Settings(BaseSettings):
     # ─── Auth interna ───
     internal_api_token: SecretStr
 
+    # ─── Cifragem em repouso (ADR-018) ───
+    # Modo legacy: None/vazio = não cifra (dev). Em prod é obrigatória.
+    encryption_key: SecretStr | None = Field(default=None, validation_alias="ENCRYPTION_KEY")
+
     @model_validator(mode="after")
     def _validate_llm_provider(self) -> "Settings":
         """Fail-fast: a auth exigida depende do provider selecionado (ADR-015)."""

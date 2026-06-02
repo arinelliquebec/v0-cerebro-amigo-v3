@@ -21,8 +21,9 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import get_settings
 from app.conversation.crisis_copy import CRISIS_COPY, texto_protocolo
+from app.core.crypto import encrypt
 from app.conversation.llm import haiku, with_schema
-from app.conversation.prompts import CRISIS_DETECTION_SYSTEM_V1
+from app.conversation.prompt_loader import get_prompt
 from app.conversation.schemas import CrisisDetectionOutput
 from app.conversation.state import ConversaState
 from app.db import acquire
@@ -36,7 +37,7 @@ async def detect_crisis(state: ConversaState) -> dict:
     try:
         result: CrisisDetectionOutput = await llm.ainvoke(
             [
-                SystemMessage(content=CRISIS_DETECTION_SYSTEM_V1),
+                SystemMessage(content=await get_prompt("orchestrator", "crisis_detection")),
                 HumanMessage(content=state["mensagem"]),
             ]
         )
@@ -147,14 +148,16 @@ async def crisis_protocol(state: ConversaState) -> dict:
             paciente_id,
         )
 
-        # 5. Mensagem do bot persistida — texto fixo de protocolo
+        # 5. Mensagem do bot persistida — texto fixo de protocolo (cifrado)
+        key = get_settings().encryption_key
+        key_str = key.get_secret_value() if key else None
         await conn.execute(
             """
             INSERT INTO mensagens (conversa_id, papel, conteudo, modelo_usado)
             VALUES ($1, 'assistant', $2, $3)
             """,
             conversa_id,
-            texto,
+            encrypt(texto, key_str),
             f"crisis_copy:{CRISIS_COPY.versao}",
         )
 

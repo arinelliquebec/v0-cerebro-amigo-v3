@@ -17,12 +17,20 @@ public static class AuthEndpoints
             [FromBody] LoginRequest req,
             AppDbContext db,
             IPasswordHasher hasher,
-            TokenService tokens) =>
+            TokenService tokens,
+            LoginRateLimiter rateLimiter) =>
         {
             var emailNorm = req.Email.Trim().ToLowerInvariant();
+
+            // Rate limiting: bloqueio após 5 tentativas falhas em 15 min
+            if (rateLimiter.IsBlocked(emailNorm))
+                return Results.StatusCode(429);
+
             var user = await db.Usuarios.FirstOrDefaultAsync(u => u.Email == emailNorm);
             if (user is null || !hasher.Verify(req.Senha, user.SenhaHash))
             {
+                rateLimiter.RecordFailure(emailNorm);
+
                 // Antes de devolver 401 genérico, verifica se o email pertence
                 // ao portal do paciente. Se for o caso, devolve 409 com hint pra
                 // o frontend redirecionar — pacientes confundem `/login` (médico)
@@ -41,7 +49,15 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
+            rateLimiter.RecordSuccess(emailNorm);
             user.UltimoLogin = DateTime.UtcNow;
+
+            // Migração gradual: hash legado PBKDF2 → bcrypt no próximo login OK
+            if (hasher.NeedsRehash(user.SenhaHash))
+            {
+                user.SenhaHash = hasher.Hash(req.Senha);
+            }
+
             await db.SaveChangesAsync();
 
             var token = tokens.GenerateForUser(user);

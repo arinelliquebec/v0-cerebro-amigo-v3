@@ -21,7 +21,7 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.conversation.llm import haiku, with_schema
-from app.conversation.prompts import MEDICATION_CLASSIFICATION_SYSTEM_V1
+from app.conversation.prompt_loader import get_prompt
 from app.conversation.schemas import MedicationResponseOutput
 from app.conversation.state import ConversaState
 from app.db import acquire
@@ -57,7 +57,7 @@ async def classify_medication(state: ConversaState) -> dict:
         ensure_ascii=False,
     )
 
-    system = MEDICATION_CLASSIFICATION_SYSTEM_V1.format(
+    system = (await get_prompt("orchestrator", "medication_classification")).format(
         checkin_resumo=checkin_resumo,
         prescricoes_resumo=prescricoes_resumo,
     )

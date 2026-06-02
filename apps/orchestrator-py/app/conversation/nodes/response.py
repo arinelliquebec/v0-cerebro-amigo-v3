@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.config import get_settings
 from app.conversation.llm import haiku, resolve_model_id, sonnet, with_schema
 from app.conversation.pricing import LLMProvider, ModelTier, compute_cost
-from app.conversation.prompts import AUDIT_SYSTEM_V1, RESPONSE_GENERATION_SYSTEM_V1
+from app.conversation.prompt_loader import get_prompt
 from app.conversation.schemas import AuditOutput
 from app.conversation.state import ConversaState
 from app.db import acquire
@@ -22,7 +22,7 @@ async def generate_response(state: ConversaState) -> dict:
     settings = get_settings()
     sintomas_resumo = json.dumps(state.get("sintomas") or {}, ensure_ascii=False)
 
-    system = RESPONSE_GENERATION_SYSTEM_V1.format(
+    system = (await get_prompt("orchestrator", "response_generation")).format(
         nome_paciente=state.get("nome_paciente", "") or "",
         sintomas_resumo=sintomas_resumo,
     )
@@ -80,7 +80,7 @@ async def audit_response(state: ConversaState) -> dict:
     try:
         result: AuditOutput = await llm.ainvoke(
             [
-                SystemMessage(content=AUDIT_SYSTEM_V1),
+                SystemMessage(content=await get_prompt("orchestrator", "audit")),
                 HumanMessage(content=f"Resposta proposta ao paciente:\n\n{rascunho}"),
             ]
         )

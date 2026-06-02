@@ -1,0 +1,143 @@
+using ApiGateway.Data;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+
+namespace ApiGateway.Endpoints;
+
+/// <summary>
+/// Endpoints de gerenciamento de prompts versionados (editor de prompts).
+/// 
+/// Permite que médicos com role=admin visualizem, editem e versionem
+/// os prompts system dos agentes e do orchestrator.
+/// 
+/// As aplicações Python (orchestrator-py, agents-py) leem o prompt ativo
+/// do banco em tempo de execução, com fallback para o builtin hardcoded.
+/// </summary>
+public static class PromptsEndpoints
+{
+    public static void Map(WebApplication app)
+    {
+        var g = app.MapGroup("/api/v1/prompts")
+            .WithTags("prompts")
+            .RequireAuthorization();
+
+        // ─── LISTAR prompts ativos (todas as versões ativas) ────────────────────
+        g.MapGet("/", async (AppDbContext db) =>
+        {
+            var rows = await db.Database.SqlQueryRaw<PromptAtivoDto>(@"
+                SELECT p.id, p.agente, p.nome, p.versao, p.conteudo,
+                       p.metadata, p.criado_em, u.nome AS criado_por_nome
+                FROM prompts p
+                LEFT JOIN usuarios u ON u.id = p.criado_por
+                WHERE p.ativo = TRUE
+                ORDER BY p.agente, p.nome").ToListAsync();
+            return Results.Ok(rows);
+        });
+
+        // ─── HISTÓRICO de versões de um prompt ──────────────────────────────────
+        g.MapGet("/{agente}/{nome}", async (
+            string agente,
+            string nome,
+            AppDbContext db) =>
+        {
+            var rows = await db.Database.SqlQueryRaw<PromptVersaoDto>(@"
+                SELECT p.id, p.versao, p.conteudo, p.ativo,
+                       p.metadata, p.criado_em, u.nome AS criado_por_nome
+                FROM prompts p
+                LEFT JOIN usuarios u ON u.id = p.criado_por
+                WHERE p.agente = {0} AND p.nome = {1}
+                ORDER BY p.versao DESC", agente, nome).ToListAsync();
+            return Results.Ok(rows);
+        });
+
+        // ─── CRIAR nova versão de prompt ────────────────────────────────────────
+        // Requer role=admin.
+        g.MapPost("/", async (
+            [FromBody] CriarPromptRequest req,
+            AppDbContext db,
+            ClaimsPrincipal user) =>
+        {
+            if (!user.IsInRole("admin"))
+                return Results.Forbid();
+
+            var criadoPor = user.FindFirst("sub")?.Value
+                ?? throw new InvalidOperationException("claim 'sub' ausente");
+
+            // Calcula próxima versão
+            var ultimaVersao = await db.Database.SqlQueryRaw<int>(@"
+                SELECT COALESCE(MAX(versao), 0)
+                FROM prompts
+                WHERE agente = {0} AND nome = {1}", req.Agente, req.Nome).FirstOrDefaultAsync();
+
+            var novaVersao = ultimaVersao + 1;
+
+            var id = await db.Database.SqlQueryRaw<Guid>(@"
+                INSERT INTO prompts
+                    (agente, nome, versao, conteudo, metadata, criado_por)
+                VALUES ({0}, {1}, {2}, {3}, {4}::jsonb, {5}::uuid)
+                RETURNING id",
+                req.Agente, req.Nome, novaVersao,
+                req.Conteudo,
+                string.IsNullOrEmpty(req.Metadata) ? "{}" : req.Metadata,
+                criadoPor).FirstAsync();
+
+            return Results.Ok(new { id, versao = novaVersao });
+        })
+        .WithSummary("Criar nova versão de prompt (requer admin)");
+
+        // ─── ATIVAR uma versão específica ──────────────────────────────────────
+        // Desativa todas as outras versões do mesmo (agente, nome).
+        g.MapPost("/{id:guid}/ativar", async (
+            Guid id,
+            AppDbContext db,
+            ClaimsPrincipal user) =>
+        {
+            if (!user.IsInRole("admin"))
+                return Results.Forbid();
+
+            var row = await db.Database.SqlQueryRaw<PromptAtivarTarget>(@"
+                SELECT agente, nome FROM prompts WHERE id = {0}", id).FirstOrDefaultAsync();
+
+            if (row is null) return Results.NotFound();
+
+            await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE prompts SET ativo = FALSE
+                WHERE agente = {0} AND nome = {1};
+                UPDATE prompts SET ativo = TRUE
+                WHERE id = {2}", row.Agente, row.Nome, id);
+
+            return Results.Ok(new { ativado = id, agente = row.Agente, nome = row.Nome });
+        })
+        .WithSummary("Ativar versão de prompt (requer admin)");
+    }
+}
+
+// ─── DTOs ───────────────────────────────────────────────────────────────────
+
+public record PromptAtivoDto(
+    Guid Id,
+    string Agente,
+    string Nome,
+    int Versao,
+    string Conteudo,
+    string? Metadata,
+    DateTime CriadoEm,
+    string? CriadoPorNome);
+
+public record PromptVersaoDto(
+    Guid Id,
+    int Versao,
+    string Conteudo,
+    bool Ativo,
+    string? Metadata,
+    DateTime CriadoEm,
+    string? CriadoPorNome);
+
+public record CriarPromptRequest(
+    string Agente,
+    string Nome,
+    string Conteudo,
+    string? Metadata);
+
+public record PromptAtivarTarget(string Agente, string Nome);

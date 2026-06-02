@@ -13,6 +13,7 @@ from pydantic import BaseModel
 
 from app.core.config import get_settings
 from app.core.db import acquire, close_pool, init_pool
+from app.core.observability import redact_pii_processor
 from app.dispatcher import dispatch_for_patient, dispatch_pending, test_push_to_sub
 from app.scheduler import shutdown_scheduler, start_scheduler
 
@@ -25,6 +26,7 @@ def _configure_logging() -> None:
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.dict_tracebacks,
+            redact_pii_processor,
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
@@ -79,9 +81,11 @@ async def ready() -> dict[str, str]:
 
 
 def _check_token(authorization: str | None = Header(None)) -> None:
+    import hmac
+
     settings = get_settings()
     expected = f"Bearer {settings.internal_api_token.get_secret_value()}"
-    if authorization != expected:
+    if not hmac.compare_digest(authorization or "", expected):
         raise HTTPException(status_code=401, detail="invalid internal token")
 
 

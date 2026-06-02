@@ -14,6 +14,8 @@ from app.core.config import get_settings
 
 logger = structlog.get_logger(__name__)
 
+# T0-2: CPF sem separador redatado como [CPF_REDACTED] (pode ser telefone).
+# Falso positivo intencional — CPF roda antes de PHONE; 11-digit sempre redatado.
 _CPF_RE = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
 _CNPJ_RE = re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b")
 _EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
@@ -24,6 +26,7 @@ _DATE_RE = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")
 
 
 def redact_pii(text: str) -> str:
+    """Substitui PII brasileiras por placeholders."""
     if not text:
         return text
     text = _CPF_RE.sub("[CPF_REDACTED]", text)
@@ -42,6 +45,11 @@ def _redact_recursive(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_redact_recursive(item) for item in obj]
     return obj
+
+
+def redact_pii_processor(_logger: Any, _method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+    """structlog processor que aplica redact_pii em toda string do evento."""
+    return _redact_recursive(event_dict)
 
 
 def make_redacting_hooks() -> tuple[Callable[..., Any], Callable[..., Any]]:

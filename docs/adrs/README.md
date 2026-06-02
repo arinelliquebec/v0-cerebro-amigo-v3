@@ -31,6 +31,9 @@ contexto regulatório, sem dependência da memória do autor.
 | [011](011-enforcement-custo-llm.md) | Enforcement do teto de custo diário de LLM | Accepted (impl. adiada) | Operação / Segurança clínica |
 | [014](014-dirty-patients-find-pending.md) | Candidatos incrementais em find_pending ("pacientes sujos") | Proposed | Performance / Arquitetura analítica |
 | [015](015-llm-provider-switchavel.md) | Camada LLM provider-switchável (Anthropic API ⇄ Bedrock) | Accepted | Stack / Compliance |
+| [016](016-agenda-e-revisao-mensagens.md) | Agenda e revisão de mensagens | Accepted | Produto / Arquitetura |
+| [017](017-imutabilidade-audit-trail-no-banco.md) | Imutabilidade do audit trail garantida no banco | Accepted | Segurança clínica / Compliance |
+| [018](018-cifragem-em-repouso.md) | Cifragem em repouso de dados clínicos (application-level) | Accepted | Segurança clínica / Compliance |
 
 ## Status possíveis
 

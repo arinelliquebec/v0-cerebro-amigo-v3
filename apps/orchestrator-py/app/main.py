@@ -16,7 +16,7 @@ from app.config import get_settings
 from app.conversation import process_message
 from app.conversation.graph import get_compiled_app, shutdown_graph
 from app.db import acquire, close_pool, init_pool
-from app.observability import configure_observability
+from app.observability import configure_observability, redact_pii_processor
 
 
 def _configure_logging() -> None:
@@ -27,6 +27,7 @@ def _configure_logging() -> None:
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.dict_tracebacks,
+            redact_pii_processor,
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
@@ -91,9 +92,11 @@ class RunConversationRequest(BaseModel):
 
 
 def _check_internal_token(authorization: str | None = Header(None)) -> None:
+    import hmac
+
     settings = get_settings()
     expected = f"Bearer {settings.internal_api_token.get_secret_value()}"
-    if authorization != expected:
+    if not hmac.compare_digest(authorization or "", expected):
         raise HTTPException(status_code=401, detail="invalid internal token")
 
 

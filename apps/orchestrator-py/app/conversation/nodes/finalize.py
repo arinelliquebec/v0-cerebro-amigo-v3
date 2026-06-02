@@ -14,6 +14,7 @@ from __future__ import annotations
 import structlog
 
 from app.config import get_settings
+from app.core.crypto import encrypt
 from app.conversation.state import ConversaState
 from app.db import acquire
 
@@ -27,6 +28,9 @@ async def finalize(state: ConversaState) -> dict:
         logger.warning("finalize.no_response")
         return {"enviado": False}
 
+    key = settings.encryption_key
+    key_str = key.get_secret_value() if key else None
+
     async with acquire() as conn:
         await conn.execute(
             """
@@ -36,7 +40,7 @@ async def finalize(state: ConversaState) -> dict:
             VALUES ($1, 'assistant', $2, $3, $4, $5, $6)
             """,
             state["conversa_id"],
-            texto,
+            encrypt(texto, key_str),
             state.get("modelo_resposta"),
             state.get("tokens_in"),
             state.get("tokens_out"),

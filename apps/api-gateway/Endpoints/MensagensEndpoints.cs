@@ -1,4 +1,5 @@
 using ApiGateway.Data;
+using ApiGateway.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 
@@ -25,7 +26,7 @@ public static class MensagensEndpoints
             .RequireAuthorization();
 
         // Inbox: um item por paciente com conversa, ordenado pela última mensagem.
-        g.MapGet("/conversas", async (AppDbContext db, ClaimsPrincipal user) =>
+        g.MapGet("/conversas", async (AppDbContext db, ClaimsPrincipal user, CryptoService crypto) =>
         {
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
@@ -56,12 +57,17 @@ public static class MensagensEndpoints
                 ORDER BY ult.criada_em DESC",
                 medicoId.Value).ToListAsync();
 
-            return Results.Ok(rows);
+            // Decifra conteúdo antes de devolver (ADR-018)
+            var decryptedRows = rows.Select(r => r with {
+                UltimaMensagem = crypto.Decrypt(r.UltimaMensagem) ?? r.UltimaMensagem
+            }).ToList();
+
+            return Results.Ok(decryptedRows);
         });
 
         // Thread completa de um paciente (todas as conversas), ordem cronológica.
         g.MapGet("/paciente/{pacienteId:guid}", async (
-            Guid pacienteId, AppDbContext db, ClaimsPrincipal user) =>
+            Guid pacienteId, AppDbContext db, ClaimsPrincipal user, CryptoService crypto) =>
         {
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
@@ -80,7 +86,12 @@ public static class MensagensEndpoints
                 LIMIT 500",
                 pacienteId).ToListAsync();
 
-            return Results.Ok(msgs);
+            // Decifra conteúdo antes de devolver (ADR-018)
+            var decryptedMsgs = msgs.Select(m => m with {
+                Conteudo = crypto.Decrypt(m.Conteudo) ?? m.Conteudo
+            }).ToList();
+
+            return Results.Ok(decryptedMsgs);
         });
     }
 

@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import structlog
 
+from app.config import get_settings
+from app.core.crypto import encrypt
 from app.conversation.state import ConversaState
 from app.db import acquire
 
@@ -78,6 +80,8 @@ async def load_context(state: ConversaState) -> dict:
 
         # Mensagem do paciente vai persistida sempre — mesmo se escalada,
         # médico precisa ver
+        key = get_settings().encryption_key
+        key_str = key.get_secret_value() if key else None
         mensagem_db_id = await conn.fetchval(
             """
             INSERT INTO mensagens (conversa_id, papel, conteudo)
@@ -85,7 +89,7 @@ async def load_context(state: ConversaState) -> dict:
             RETURNING id
             """,
             conversa_id,
-            state["mensagem"],
+            encrypt(state["mensagem"], key_str),
         )
 
         # Prescrições ativas (resumo leve)

@@ -33,6 +33,7 @@ import structlog
 
 from app.checkin_copy import get_copy
 from app.core.db import acquire
+from app.email_fallback import enviar_email_fallback
 from app.push_client import Subscription, send_push
 
 logger = structlog.get_logger(__name__)
@@ -96,6 +97,8 @@ async def dispatch_pending() -> DispatchStats:
                 checkin_id=str(c["id"]),
                 paciente_id=str(c["paciente_id"]),
             )
+            # Fallback: envia email se nenhum device recebeu push
+            await _tentar_email_fallback(c)
 
         await _registrar_notificacao_medico(c, sucesso)
 
@@ -137,7 +140,7 @@ async def _send_for_checkin(checkin_row: asyncpg.Record, stats: DispatchStats) -
             p256dh_key=s["p256dh_key"],
             auth_key=s["auth_key"],
         )
-        result = send_push(sub, titulo=copy.titulo, corpo=copy.corpo)
+        result = await send_push(sub, titulo=copy.titulo, corpo=copy.corpo)
 
         if result.status == "delivered":
             any_delivered = True
@@ -225,6 +228,34 @@ async def _registrar_notificacao_medico(
         )
 
 
+async def _tentar_email_fallback(checkin_row: asyncpg.Record) -> None:
+    """Busca email do paciente e envia fallback via Resend quando push falhou."""
+    paciente_id: UUID = checkin_row["paciente_id"]
+    tipo: str = checkin_row["tipo"]
+    copy = get_copy(tipo)
+
+    async with acquire() as conn:
+        email = await conn.fetchval(
+            "SELECT email FROM clientes WHERE id = $1", paciente_id
+        )
+
+    if not email:
+        logger.warning(
+            "email_fallback.no_email",
+            paciente_id=str(paciente_id),
+            checkin_id=str(checkin_row["id"]),
+        )
+        return
+
+    await enviar_email_fallback(
+        email,
+        titulo=copy.titulo,
+        corpo=copy.corpo,
+        paciente_id=str(paciente_id),
+        checkin_id=str(checkin_row["id"]),
+    )
+
+
 # ─── Disparos manuais ──────────────────────────────────────────────────────
 
 
@@ -253,6 +284,7 @@ async def dispatch_for_patient(paciente_id: UUID) -> DispatchStats:
             await _marcar_checkin_enviado(c["id"])
         else:
             stats.checkins_failed += 1
+            await _tentar_email_fallback(c)
         await _registrar_notificacao_medico(c, sucesso)
 
     return stats
@@ -281,7 +313,7 @@ async def test_push_to_sub(sub_id: UUID) -> dict:
         p256dh_key=s["p256dh_key"],
         auth_key=s["auth_key"],
     )
-    result = send_push(
+    result = await send_push(
         sub,
         titulo="Cérebro Amigo · teste",
         corpo="Esta é uma notificação de teste do servidor.",

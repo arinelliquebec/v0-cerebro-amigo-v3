@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     push_ttl_seconds: int = 3600
     push_urgency: Literal["very-low", "low", "normal", "high"] = "normal"
 
+    # Email fallback (quando push falha em TODOS os devices)
+    # Se None, o fallback é desabilitado (loga o fato mas não envia email).
+    resend_api_key: SecretStr | None = Field(default=None, validation_alias="RESEND_API_KEY")
+    email_from: str = Field(default="Cérebro Amigo <noreply@cerebroamigo.com.br>", validation_alias="EMAIL_FROM")
+    email_fallback_enabled: bool = Field(default=False)
+
 
 @lru_cache
 def get_settings() -> Settings:

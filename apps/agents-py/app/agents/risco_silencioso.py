@@ -244,16 +244,26 @@ class RiscoSilenciosoAgent(BaseAgent):
     # ─── Candidatos ─────────────────────────────────────────────────────────
 
     async def _listar_candidatos(self) -> list[tuple[UUID, UUID]]:
-        """Todos pacientes ativos (têm algum sinal de existência no sistema).
-        Sem prescrição não é critério aqui — risco_silencioso atua mesmo em
-        pacientes que ainda não foram medicados."""
+        """Pacientes ativos que ainda NÃO têm insight de risco_silencioso na
+        janela de dedup (7 dias). Evita escanear per-patient quem já foi
+        notificado — ADR-014 dedup-no-SQL (fix G-2 DEBT.md)."""
+        dedup_seconds = self.dedup_window_hours * 3600
         async with acquire() as conn:
             rows = await conn.fetch(
                 """
-                SELECT cliente_id AS paciente_id,
-                       medico_responsavel_id AS medico_id
-                FROM pacientes
+                SELECT p.cliente_id AS paciente_id,
+                       p.medico_responsavel_id AS medico_id
+                FROM pacientes p
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM insights i
+                    WHERE i.paciente_id = p.cliente_id
+                      AND i.agente = $1
+                      AND i.descartado_em IS NULL
+                      AND i.criado_em >= NOW() - ($2 * INTERVAL '1 second')
+                )
                 """,
+                self.name,
+                dedup_seconds,
             )
         return [(r["paciente_id"], r["medico_id"]) for r in rows]
 

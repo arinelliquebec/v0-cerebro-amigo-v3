@@ -1,0 +1,50 @@
+name: CI
+
+# Gate de testes para pull requests e branches de trabalho. O mesmo gate roda
+# (como pré-requisito do build) em .github/workflows/deploy.yml no push a main.
+# Tier 0 de segurança clínica: o fail-safe do classificador de crise (ADR-006)
+# e a integridade do dataset de crise são verificados aqui.
+
+on:
+  pull_request:
+  push:
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  python:
+    name: Python services — lint + tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        service: [orchestrator-py, agents-py]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        working-directory: apps/${{ matrix.service }}
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Ruff
+        working-directory: apps/${{ matrix.service }}
+        run: ruff check .
+
+      - name: Pytest
+        working-directory: apps/${{ matrix.service }}
+        run: pytest -q

@@ -28,10 +28,16 @@ public static class PacienteAuthEndpoints
         g.MapPost("/magic-link", async (
             [FromBody] SolicitarMagicLinkRequest req,
             AppDbContext db,
-            IConfiguration config) =>
+            IConfiguration config,
+            LoginRateLimiter rateLimiter) =>
         {
             if (string.IsNullOrWhiteSpace(req.Email))
                 return Results.BadRequest(new { error = "email obrigatório" });
+
+            // Rate limiting: previne spam de magic links para o mesmo paciente
+            var emailNorm = req.Email.Trim().ToLowerInvariant();
+            if (rateLimiter.IsBlocked(emailNorm))
+                return Results.StatusCode(429);
 
             // Busca paciente pelo email
             var paciente = await db.Database.SqlQueryRaw<MagicLinkPacienteDto>(@"
@@ -41,7 +47,12 @@ public static class PacienteAuthEndpoints
                 WHERE LOWER(c.email) = {0}", req.Email.Trim().ToLowerInvariant())
                 .FirstOrDefaultAsync();
 
-            if (paciente is null) return Results.NotFound();
+            if (paciente is null)
+            {
+                // Mesmo em 404, registra tentativa para evitar enumeration + spam
+                rateLimiter.RecordFailure(emailNorm);
+                return Results.NotFound();
+            }
 
             // Gera token (bytes aleatórios -> base64url)
             var tokenBytes = RandomNumberGenerator.GetBytes(32);
@@ -51,13 +62,14 @@ public static class PacienteAuthEndpoints
 
             await db.Database.ExecuteSqlRawAsync(@"
                 INSERT INTO magic_links (paciente_id, token_hash, proposito, expira_em)
-                VALUES ({0}, {1}, {2}, NOW() + INTERVAL '24 hours')",
+                VALUES ({0}, {1}, {2}, NOW() + INTERVAL '1 hour')",
                 paciente.Id, hash, req.Proposito);
 
             var portalBase = config["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
             var url = $"{portalBase}/p/entrar?token={token}";
 
-            return Results.Ok(new { url, expiraEm = DateTime.UtcNow.AddHours(24) });
+            rateLimiter.RecordFailure(emailNorm); // conta tentativa (mesmo sucesso) — previne spam
+            return Results.Ok(new { url, expiraEm = DateTime.UtcNow.AddHours(1) });
         })
         .RequireAuthorization(); // só médico ou serviço interno
 
@@ -167,10 +179,17 @@ public static class PacienteAuthEndpoints
             }
 
             // Login OK
+            var novoHash = hasher.NeedsRehash(cred.SenhaHash)
+                ? hasher.Hash(req.Senha)
+                : cred.SenhaHash;
+
             await db.Database.ExecuteSqlRawAsync(@"
                 UPDATE pacientes_credenciais
-                SET ultimo_login = NOW(), falhas_seguidas = 0, bloqueado_ate = NULL
-                WHERE paciente_id = {0}", cred.PacienteId);
+                SET ultimo_login = NOW(),
+                    falhas_seguidas = 0,
+                    bloqueado_ate = NULL,
+                    senha_hash = {1}
+                WHERE paciente_id = {0}", cred.PacienteId, novoHash);
 
             await RegistrarAcesso(db, cred.PacienteId, "login", ctx);
 

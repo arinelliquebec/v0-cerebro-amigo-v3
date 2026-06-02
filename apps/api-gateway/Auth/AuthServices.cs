@@ -11,31 +11,52 @@ public interface IPasswordHasher
 {
     string Hash(string password);
     bool Verify(string password, string hash);
+    /// <summary>
+    /// True se o hash for do algoritmo legado (PBKDF2) e precisar ser
+    /// re-hashed para bcrypt no próximo login bem-sucedido.
+    /// </summary>
+    bool NeedsRehash(string hash);
 }
 
 /// <summary>
-/// PBKDF2 com salt — versão simples sem dependências externas.
-/// Em produção considere migrar para argon2 (libsodium) ou bcrypt.
+/// Bcrypt com fallback PBKDF2 — migração gradual sem quebrar logins existentes.
+///
+/// Novos hashes: bcrypt (work factor 12).
+/// Verificação: tenta bcrypt primeiro; se falhar, tenta PBKDF2 legado.
+/// Rehash: <see cref="NeedsRehash"/> detecta hash legado; o caller (login)
+/// pode re-hash após verificação OK e atualizar o banco.
 /// </summary>
 public class PasswordHasher : IPasswordHasher
 {
+    private const int BcryptWorkFactor = 12;
+
+    // ─── Legacy PBKDF2 constants ───
     private const int SaltSize = 16;
     private const int HashSize = 32;
     private const int Iterations = 100_000;
 
     public string Hash(string password)
     {
-        var salt = RandomNumberGenerator.GetBytes(SaltSize);
-        var hash = Rfc2898DeriveBytes.Pbkdf2(
-            password, salt, Iterations, HashAlgorithmName.SHA256, HashSize);
-
-        var bytes = new byte[SaltSize + HashSize];
-        Buffer.BlockCopy(salt, 0, bytes, 0, SaltSize);
-        Buffer.BlockCopy(hash, 0, bytes, SaltSize, HashSize);
-        return Convert.ToBase64String(bytes);
+        return BCrypt.Net.BCrypt.HashPassword(password, BcryptWorkFactor);
     }
 
-    public bool Verify(string password, string base64)
+    public bool Verify(string password, string hash)
+    {
+        // 1. Tentativa bcrypt (algoritmo novo, mais comum no futuro)
+        if (BCrypt.Net.BCrypt.Verify(password, hash))
+            return true;
+
+        // 2. Fallback PBKDF2 (hash legado — dados antigos ainda não re-hashed)
+        return _verifyLegacyPbkdf2(password, hash);
+    }
+
+    public bool NeedsRehash(string hash)
+    {
+        // Hash bcrypt começa com '$2'; hash PBKDF2 é base64 cru
+        return !hash.StartsWith("$2");
+    }
+
+    private static bool _verifyLegacyPbkdf2(string password, string base64)
     {
         try
         {

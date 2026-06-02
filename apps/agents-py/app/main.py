@@ -17,7 +17,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 from app.core.config import get_settings
 from app.core.db import acquire, close_pool, init_pool
-from app.core.observability import configure_observability
+from app.core.observability import configure_observability, redact_pii_processor
 from app.scheduler import (
     run_for_patient,
     run_once,
@@ -36,6 +36,7 @@ def _configure_logging() -> None:
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.dict_tracebacks,
+            redact_pii_processor,
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(
@@ -97,9 +98,11 @@ async def ready() -> dict[str, str]:
 
 
 def _check_internal_token(authorization: str | None = Header(None)) -> None:
+    import hmac
+
     settings = get_settings()
     expected = f"Bearer {settings.internal_api_token.get_secret_value()}"
-    if authorization != expected:
+    if not hmac.compare_digest(authorization or "", expected):
         raise HTTPException(status_code=401, detail="invalid internal token")
 
 

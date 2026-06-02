@@ -102,9 +102,11 @@ public static class ConversationProxyEndpoint
             {
                 var status = (int)upstream.StatusCode;
                 var upstreamBody = await upstream.Content.ReadAsStringAsync(ct);
+                // NÃO logar o body: pode conter texto de resposta ao paciente
+                // (conteúdo clínico / PII — LGPD categoria especial).
                 logger.LogWarning(
-                    "Orchestrator returned {Status} for paciente {PacienteId}: {Body}",
-                    upstream.StatusCode, pacienteId, upstreamBody);
+                    "Orchestrator returned {Status} for paciente {PacienteId}",
+                    upstream.StatusCode, pacienteId);
 
                 ctx.Response.StatusCode = status;
                 ctx.Response.ContentType = upstream.Content.Headers.ContentType?.ToString()

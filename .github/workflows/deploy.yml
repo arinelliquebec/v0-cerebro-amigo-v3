@@ -28,9 +28,44 @@ permissions:
 # policy (keep last 10) não as apagar. Ver infra/aws/setup-ecr.sh.
 
 jobs:
+  # ─── Job 0: gate de testes (BLOQUEIA o deploy se falhar) ─────────────────
+  #
+  # Tier 0 de segurança clínica: nenhuma imagem é buildada/deployada sem que
+  # os testes dos serviços Python passem. Inclui o gate de fail-safe do
+  # classificador de crise (ADR-006) e a integridade do dataset de crise.
+  # Ver também .github/workflows/ci.yml (mesmo gate em pull requests).
+  test:
+    name: Tests (gate)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: orchestrator-py — lint + tests
+        working-directory: apps/orchestrator-py
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          ruff check .
+          pytest -q
+
+      - name: agents-py — lint + tests
+        working-directory: apps/agents-py
+        run: |
+          pip install -e ".[dev]"
+          ruff check .
+          pytest -q
+
   # ─── Job 1: build e push das 5 imagens para o ECR ────────────────────────
   build:
     name: Build & push to ECR
+    needs: test
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:

@@ -26,6 +26,9 @@ logger = structlog.get_logger(__name__)
 
 # ─── Regex de PII brasileiras ──────────────────────────────────────────────
 # Conservadoras: preferimos falsos positivos a vazar PII.
+# T0-2: CPF sem separador (11 dígitos) redatado como [CPF_REDACTED] mesmo
+# podendo ser telefone. Falso positivo intencional — CPF roda antes de PHONE,
+# garantindo que 11-digit sem formatação seja sempre redatado.
 _CPF_RE = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
 _CNPJ_RE = re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b")
 _EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
@@ -61,6 +64,16 @@ def _redact_recursive(obj: Any) -> Any:
     if isinstance(obj, list):
         return [_redact_recursive(item) for item in obj]
     return obj
+
+
+def redact_pii_processor(_logger: Any, _method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+    """structlog processor que aplica redact_pii em toda string do evento.
+
+    Deve ser inserido no pipeline ANTES do renderer (JSONRenderer ou outro).
+    Protege os logs de aplicação contra vazamento de PII mesmo que um dev
+    futuro logue conteúdo clínico cru sem redigir manualmente.
+    """
+    return _redact_recursive(event_dict)
 
 
 def make_redacting_hooks() -> tuple[Callable[..., Any], Callable[..., Any]]:

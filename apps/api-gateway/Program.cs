@@ -20,6 +20,7 @@ using ApiGateway.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using System.Security.Cryptography;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -98,7 +99,11 @@ builder.Services.AddAuthorization(options =>
             var token = cfg.Request.Headers["Authorization"]
                 .ToString().Replace("Bearer ", "").Trim();
             var expected = builder.Configuration["INTERNAL_API_TOKEN"] ?? "";
-            return !string.IsNullOrEmpty(expected) && token == expected;
+            // Comparação constante-time (timing-attack safe) via CryptographicOperations
+            return !string.IsNullOrEmpty(expected)
+                && CryptographicOperations.FixedTimeEquals(
+                    System.Text.Encoding.UTF8.GetBytes(token),
+                    System.Text.Encoding.UTF8.GetBytes(expected));
         }));
 });
 
@@ -124,6 +129,8 @@ builder.Services.AddCors(options =>
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+builder.Services.AddSingleton<LoginRateLimiter>();
+builder.Services.AddSingleton<CryptoService>();
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 
 // HTTP clients
@@ -247,6 +254,7 @@ CheckinsEndpoints.Map(app);
 InsightsEndpoints.Map(app);
 ConsultasEndpoints.Map(app);
 MensagensEndpoints.Map(app);
+PromptsEndpoints.Map(app);
 SeedEndpoint.Map(app);
 
 app.Run();

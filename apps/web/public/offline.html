@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sem conexão — Cérebro Amigo</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #F8FAFB;
+      color: #0F2137;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100svh;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .icon { font-size: 3rem; margin-bottom: 1rem; }
+    h1 { font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem; }
+    p { font-size: 0.9rem; color: #6B7280; max-width: 22rem; line-height: 1.5; }
+    button {
+      margin-top: 1.5rem;
+      padding: 0.6rem 1.5rem;
+      background: #5E4B8B;
+      color: #fff;
+      border: none;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    button:hover { background: #4A3A70; }
+  </style>
+</head>
+<body>
+  <div class="icon">📶</div>
+  <h1>Sem conexão com a internet</h1>
+  <p>Verifique sua rede e tente novamente. Páginas já visitadas podem estar disponíveis no cache.</p>
+  <button onclick="location.reload()">Tentar novamente</button>
+</body>
+</html>

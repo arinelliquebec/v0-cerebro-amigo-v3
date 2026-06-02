@@ -1,0 +1,41 @@
+"""Redação de PII brasileiras em logs de aplicação (structlog processor)."""
+
+from __future__ import annotations
+
+import re
+from typing import Any
+
+_CPF_RE = re.compile(r"\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b")
+_CNPJ_RE = re.compile(r"\b\d{2}\.?\d{3}\.?\d{3}/?\d{4}-?\d{2}\b")
+_EMAIL_RE = re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b")
+_PHONE_RE = re.compile(
+    r"(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?9?\d{4}[-\s]?\d{4}",
+)
+_DATE_RE = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")
+
+
+def redact_pii(text: str) -> str:
+    """Substitui PII brasileiras por placeholders."""
+    if not text:
+        return text
+    text = _CPF_RE.sub("[CPF_REDACTED]", text)
+    text = _CNPJ_RE.sub("[CNPJ_REDACTED]", text)
+    text = _EMAIL_RE.sub("[EMAIL_REDACTED]", text)
+    text = _PHONE_RE.sub("[PHONE_REDACTED]", text)
+    text = _DATE_RE.sub("[DATE_REDACTED]", text)
+    return text
+
+
+def _redact_recursive(obj: Any) -> Any:
+    if isinstance(obj, str):
+        return redact_pii(obj)
+    if isinstance(obj, dict):
+        return {k: _redact_recursive(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_redact_recursive(item) for item in obj]
+    return obj
+
+
+def redact_pii_processor(_logger: Any, _method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+    """structlog processor que aplica redact_pii em toda string do evento."""
+    return _redact_recursive(event_dict)

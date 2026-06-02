@@ -11,7 +11,7 @@ import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.conversation.llm import sonnet, with_schema
-from app.conversation.prompts import SYMPTOM_EXTRACTION_SYSTEM_V1
+from app.conversation.prompt_loader import get_prompt
 from app.conversation.schemas import SymptomExtractionOutput
 from app.conversation.state import ConversaState
 from app.db import acquire
@@ -25,7 +25,7 @@ async def extract_symptoms(state: ConversaState) -> dict:
     try:
         result: SymptomExtractionOutput = await llm.ainvoke(
             [
-                SystemMessage(content=SYMPTOM_EXTRACTION_SYSTEM_V1),
+                SystemMessage(content=await get_prompt("orchestrator", "symptom_extraction")),
                 HumanMessage(content=state["mensagem"]),
             ]
         )

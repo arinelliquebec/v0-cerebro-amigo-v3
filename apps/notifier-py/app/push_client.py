@@ -14,6 +14,7 @@ para parar de tentar nesse device.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass
 from typing import Literal
@@ -48,18 +49,18 @@ class PushResult:
     detail: str | None = None
 
 
-def send_push(sub: Subscription, *, titulo: str, corpo: str, url: str = "/") -> PushResult:
-    """Envia push para uma subscription. Retorna `PushResult` discriminado.
+async def send_push(sub: Subscription, *, titulo: str, corpo: str, url: str = "/") -> PushResult:
+    """Envia push para uma subscription (não bloqueante — roda em thread pool).
 
-    Não levanta exceções pra erros esperados (Gone, TransientError) —
-    o caller decide o que fazer com cada caso.
+    Retorna `PushResult` discriminado. Não levanta exceções pra erros
+    esperados (Gone, TransientError) — o caller decide o que fazer.
     """
     settings = get_settings()
     log = logger.bind(sub_id=sub.id, endpoint_host=_redact_endpoint(sub.endpoint))
 
     payload = json.dumps({"titulo": titulo, "corpo": corpo, "url": url}, ensure_ascii=False)
 
-    try:
+    def _send() -> None:
         webpush(
             subscription_info=sub.to_pywebpush(),
             data=payload,
@@ -68,6 +69,9 @@ def send_push(sub: Subscription, *, titulo: str, corpo: str, url: str = "/") -> 
             ttl=settings.push_ttl_seconds,
             headers={"Urgency": settings.push_urgency},
         )
+
+    try:
+        await asyncio.to_thread(_send)
         log.info("push.delivered")
         return PushResult(status="delivered")
 
