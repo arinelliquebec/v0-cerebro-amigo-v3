@@ -9,7 +9,6 @@ import pytest
 
 from app.core.crypto import decrypt, encrypt, is_encrypted
 
-
 _TEST_KEY = "a" * 64  # 64 hex chars = 32 bytes
 
 
@@ -33,7 +32,7 @@ def test_different_nonces_produce_different_ciphertexts():
 
 def test_decrypt_with_wrong_key_fails():
     ct = encrypt("segredo", _TEST_KEY)
-    with pytest.raises(Exception):
+    with pytest.raises(Exception):  # noqa: B017 — qualquer erro criptográfico é válido
         decrypt(ct, "b" * 64)
 
 

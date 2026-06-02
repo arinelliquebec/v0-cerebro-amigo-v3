@@ -83,6 +83,6 @@ def sonnet(temperature: float = 0.3) -> BaseChatModel:
     return build_chat_model(ModelTier.SONNET, temperature=temperature, max_tokens=1024)
 
 
-def with_schema(llm: BaseChatModel, schema: type[T]) -> Runnable[Any, T]:
+def with_schema(llm: BaseChatModel, schema: type[T]) -> Runnable[Any, T]:  # noqa: UP047
     """Atalho para saída estruturada via JSON schema."""
     return llm.with_structured_output(schema, include_raw=False)  # type: ignore[return-value]

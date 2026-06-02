@@ -8,7 +8,7 @@ Lógica em duas fases:
 
 1. **Trigger de ausência** — atinge severidade base `media` se:
    - dias desde última atividade ≥ threshold absoluto (default 14d), OU
-   - dias atuais > p95 dos intervalos históricos do paciente × multiplicador
+   - dias atuais > p95 dos intervalos históricos do paciente x multiplicador
      (default 1.5), exigindo amostra mínima (default 5 intervalos)
 
 2. **Escalada por sinais negativos prévios** — antes do silêncio:
@@ -176,7 +176,7 @@ class RiscoSilenciosoAgent(BaseAgent):
         for paciente_id, medico_id in candidatos:
             try:
                 metricas = await self._calcular_metricas(paciente_id)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.exception(
                     "metrics.failed",
                     paciente_id=str(paciente_id),

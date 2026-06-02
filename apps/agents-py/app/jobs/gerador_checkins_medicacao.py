@@ -23,7 +23,6 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, ClassVar
-from uuid import UUID
 
 import structlog
 
@@ -113,7 +112,7 @@ class GeradorCheckinsMedicacaoJob(BaseJob):
                                 horario_previsto,
                             )
                             stats["tomadas_criadas"] += 1
-                        except Exception as exc:  # noqa: BLE001
+                        except Exception as exc:
                             stats["erros"] += 1
                             log.warning(
                                 "tomada.insert_failed",
@@ -143,7 +142,7 @@ class GeradorCheckinsMedicacaoJob(BaseJob):
                                 horario_previsto + timedelta(hours=4),  # expira em 4h
                             )
                             stats["checkins_criados"] += 1
-                        except Exception as exc:  # noqa: BLE001
+                        except Exception as exc:
                             stats["erros"] += 1
                             log.warning(
                                 "checkin.insert_failed",

@@ -90,7 +90,7 @@ class BaseAgent(abc.ABC):
             try:
                 await self._run_for_payload(payload)
                 stats["succeeded"] += 1
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 stats["failed"] += 1
                 log.exception(
                     "run.failed",
@@ -218,7 +218,7 @@ class BaseAgent(abc.ABC):
     # ─── Hooks abstratos ───────────────────────────────────────────────
 
     @abc.abstractmethod
-    def find_pending(self):  # noqa: D102
+    def find_pending(self):
         """Async iterator de AgentPayload."""
         raise NotImplementedError
 

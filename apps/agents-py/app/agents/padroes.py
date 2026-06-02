@@ -97,7 +97,7 @@ class AnalisePadraoPorVariavel(BaseModel):
     slope_r_squared: float | None = None
 
     # Step change
-    step_change_diff: float | None = None       # média(segunda) − média(primeira)
+    step_change_diff: float | None = None       # media(segunda) - media(primeira)
     step_change_p_value: float | None = None
     step_change_em: datetime | None = None      # data aproximada do corte
 
@@ -227,7 +227,7 @@ def _analisar_serie(
         a.slope_por_semana = float(reg.slope * 7)
         a.slope_p_value = float(reg.pvalue)
         a.slope_r_squared = float(reg.rvalue ** 2)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
     # ── Step change (t-test entre metades) ──
@@ -239,7 +239,7 @@ def _analisar_serie(
             a.step_change_diff = float(np.mean(second) - np.mean(first))
             a.step_change_p_value = float(tt.pvalue)
             a.step_change_em = momentos[mid]
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     # ── Avaliação de triggers ──
@@ -320,7 +320,7 @@ def _avaliar_severidade_global(m: MetricasPadroes) -> None:
     has_ansiedade_negativa = any(
         "ansiedade" in t for t in nomes if t.endswith("_negativa") or t.endswith("_negativo")
     )
-    has_volatilidade_alta = any("volatilidade" in t and "_alta" in t for t in nomes)
+    has_volatilidade_alta = any("volatilidade" in t and "_alta" in t for t in nomes)  # noqa: F841
 
     # Humor decrescente + ansiedade crescente → alta
     if has_humor_negativo and has_ansiedade_negativa:
@@ -354,7 +354,7 @@ class PadroesAgent(BaseAgent):
         for paciente_id, medico_id in candidatos:
             try:
                 metricas = await self._calcular_metricas(paciente_id)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.exception(
                     "metrics.failed",
                     paciente_id=str(paciente_id),

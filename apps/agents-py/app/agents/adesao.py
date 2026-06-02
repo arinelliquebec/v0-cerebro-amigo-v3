@@ -173,7 +173,7 @@ class AdesaoAgent(BaseAgent):
         for paciente_id, medico_id in candidatos:
             try:
                 metricas = await self._carregar_metricas(paciente_id)
-            except Exception as exc:  # noqa: BLE001
+            except Exception as exc:
                 log.exception(
                     "metrics.failed",
                     paciente_id=str(paciente_id),

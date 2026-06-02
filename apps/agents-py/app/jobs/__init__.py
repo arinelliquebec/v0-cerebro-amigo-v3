@@ -27,4 +27,4 @@ def get_job(name: str) -> BaseJob:
     return cls()
 
 
-__all__ = ["BaseJob", "JobStats", "JOB_REGISTRY", "get_job"]
+__all__ = ["JOB_REGISTRY", "BaseJob", "JobStats", "get_job"]

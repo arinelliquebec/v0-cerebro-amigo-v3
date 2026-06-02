@@ -14,7 +14,6 @@ Regras (clinical-safety):
 
 from __future__ import annotations
 
-import json
 import uuid
 from typing import Literal
 
@@ -101,7 +100,7 @@ async def detectar_crise(texto: str) -> CrisisDetectionOutput:
             confianca=out.confianca,
         )
         return out
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         # Fail-safe (regra #2): classificador indisponível → trata como crise.
         logger.exception("diario.crise.detect_failed", error=str(exc))
         return CrisisDetectionOutput(
@@ -137,7 +136,7 @@ async def acionar_protocolo_diario(
         paciente_id,
     )
 
-    metadata = {
+    metadata = {  # noqa: F841
         "nivel": crise.nivel,
         "confianca": crise.confianca,
         "gatilhos": crise.gatilhos,

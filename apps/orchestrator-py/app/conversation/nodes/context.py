@@ -17,8 +17,8 @@ from __future__ import annotations
 import structlog
 
 from app.config import get_settings
-from app.core.crypto import encrypt
 from app.conversation.state import ConversaState
+from app.core.crypto import encrypt
 from app.db import acquire
 
 logger = structlog.get_logger(__name__)

@@ -22,15 +22,15 @@ do primeiro tick.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 from app.agents import AGENT_REGISTRY, get_agent
-from app.jobs import JOB_REGISTRY, get_job
 from app.core.config import get_settings
+from app.jobs import JOB_REGISTRY, get_job
 
 logger = structlog.get_logger(__name__)
 
@@ -56,7 +56,7 @@ class _Schedule:
     jitter_s: int = 0
 
     def trigger(self) -> IntervalTrigger:
-        start = datetime.now(timezone.utc) + timedelta(seconds=self.start_offset_s)
+        start = datetime.now(UTC) + timedelta(seconds=self.start_offset_s)
         kwargs: dict = {"start_date": start}
         if self.jitter_s:
             kwargs["jitter"] = self.jitter_s
@@ -120,7 +120,7 @@ async def _tick_agent(name: str) -> None:
         agent = get_agent(name)
         stats = await agent.run_once()
         log.info("scheduler.tick.done", **stats)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.exception("scheduler.tick.failed", error=str(exc))
 
 
@@ -131,7 +131,7 @@ async def _tick_job(name: str) -> None:
         job = get_job(name)
         stats = await job.run_once()
         log.info("scheduler.job_tick.done", **stats)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.exception("scheduler.job_tick.failed", error=str(exc))
 
 
@@ -231,7 +231,7 @@ async def run_for_patient(name: str, paciente_id) -> dict:
 
     async for payload in agent.find_pending():
         if payload.paciente_id == paciente_id:
-            insight_id = await agent._run_for_payload(payload)  # noqa: SLF001
+            insight_id = await agent._run_for_payload(payload)
             return {
                 "insight_id": str(insight_id) if insight_id else None,
                 "payload_extra": payload.extra,

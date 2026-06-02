@@ -75,7 +75,7 @@ def sonnet(temperature: float = 0.2) -> BaseChatModel:
     return build_chat_model(ModelTier.SONNET, temperature=temperature, max_tokens=2048)
 
 
-def with_schema(llm: BaseChatModel, schema: type[T]) -> Runnable[Any, T]:
+def with_schema(llm: BaseChatModel, schema: type[T]) -> Runnable[Any, T]:  # noqa: UP047
     """Saída estruturada simples (sem trilha de uso)."""
     return llm.with_structured_output(schema, include_raw=False)  # type: ignore[return-value]
 
@@ -105,7 +105,8 @@ def _extract_model_id(raw: Any, llm: BaseChatModel) -> str | None:
     )
 
 
-async def ainvoke_structured(
+async def ainvoke_structured(  # noqa: UP047
+    
     llm: BaseChatModel,
     schema: type[T],
     messages: list,

@@ -126,7 +126,7 @@ async def translate_events(
         kind = ev.get("event", "")
         name = ev.get("name", "")
         data = ev.get("data", {}) or {}
-        tags = ev.get("tags", []) or []
+        # tags não usado; guardado aqui para referência futura
 
         # ─── Eventos de nó ──────────────────────────────────────────────
         if kind == "on_chain_start" and name in _NODE_NAMES:

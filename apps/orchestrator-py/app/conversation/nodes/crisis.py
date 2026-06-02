@@ -21,11 +21,11 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import get_settings
 from app.conversation.crisis_copy import CRISIS_COPY, texto_protocolo
-from app.core.crypto import encrypt
 from app.conversation.llm import haiku, with_schema
 from app.conversation.prompt_loader import get_prompt
 from app.conversation.schemas import CrisisDetectionOutput
 from app.conversation.state import ConversaState
+from app.core.crypto import encrypt
 from app.db import acquire
 
 logger = structlog.get_logger(__name__)

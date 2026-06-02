@@ -70,9 +70,9 @@ class SymptomExtractionOutput(BaseModel):
     """Saída do nó extract_symptoms (Sonnet).
 
     Mapeia diretamente para a tabela `sintomas`. Todos os campos numéricos
-    de escala são 0–10 com CHECK constraint no DB (humor, ansiedade).
+    de escala são 0-10 com CHECK constraint no DB (humor, ansiedade).
     Demais inteiros ficam livres mas conservadores entre 0 e 10.
-    Use None onde não houver evidência clara — sem chutes.
+    Use None onde não houver evidência clara - sem chutes.
     """
 
     humor: int | None = Field(

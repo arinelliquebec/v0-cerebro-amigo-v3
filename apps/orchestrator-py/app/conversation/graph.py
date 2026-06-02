@@ -52,7 +52,6 @@ from app.conversation.nodes.symptoms import extract_symptoms
 from app.conversation.state import ConversaState
 from app.db import checkpoint_dsn
 
-
 # ─── Edges condicionais ────────────────────────────────────────────────────
 
 

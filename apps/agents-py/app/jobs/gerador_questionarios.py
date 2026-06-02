@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, time, timedelta
 from typing import Any, ClassVar
-from uuid import UUID
 
 import structlog
 
@@ -123,7 +122,7 @@ class GeradorQuestionariosJob(BaseJob):
                                 slot + timedelta(hours=72),  # expira em 3 dias
                             )
                             stats["checkins_criados"] += 1
-                        except Exception as exc:  # noqa: BLE001
+                        except Exception as exc:
                             stats["erros"] += 1
                             log.warning(
                                 "checkin.insert_failed",

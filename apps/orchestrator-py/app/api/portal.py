@@ -129,7 +129,7 @@ async def _mark_status(idempotency_key: str, status: str) -> None:
 def _sse_format(event: str, data: dict) -> bytes:
     """Formato bruto SSE: `event: NAME\\ndata: JSON\\n\\n`."""
     payload = json.dumps(data, ensure_ascii=False, default=str)
-    return f"event: {event}\ndata: {payload}\n\n".encode("utf-8")
+    return f"event: {event}\ndata: {payload}\n\n".encode()
 
 
 # ─── Endpoint ──────────────────────────────────────────────────────────────

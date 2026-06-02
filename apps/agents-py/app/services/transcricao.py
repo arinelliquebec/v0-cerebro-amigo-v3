@@ -17,12 +17,12 @@ import time
 import urllib.request
 import uuid
 from dataclasses import dataclass, field
-from typing import Literal
 
 import boto3
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
-from pydantic import BaseModel, Field as PydanticField
+from pydantic import BaseModel
+from pydantic import Field as PydanticField
 
 from app.core.config import get_settings
 from app.core.db import acquire

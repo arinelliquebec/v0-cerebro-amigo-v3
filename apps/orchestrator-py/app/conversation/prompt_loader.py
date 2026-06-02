@@ -14,12 +14,10 @@ Fallback: se não houver prompt ativo no banco, usa o builtin (hardcoded em
 
 from __future__ import annotations
 
-import asyncio
 import time
-from typing import Any
 
-from app.db import acquire
 from app.conversation import prompts as builtin
+from app.db import acquire
 
 # Cache in-memory: chave → (conteúdo, timestamp)
 _cache: dict[str, tuple[str, float]] = {}

@@ -64,6 +64,6 @@ class BaseJob(abc.ABC):
                     sucesso,
                     erro,
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             # Audit failure não deve quebrar o job
             logger.warning("job.audit_failed", job=self.name, error=str(exc))

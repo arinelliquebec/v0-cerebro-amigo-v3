@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
-from uuid import UUID
+from datetime import UTC, datetime, timedelta
+from uuid import UUID, uuid4
 
 import structlog
 from fastapi import Depends, FastAPI, Header, HTTPException
@@ -13,8 +14,6 @@ from pydantic import BaseModel
 
 from app.agents import AGENT_REGISTRY, AgentPayload
 from app.agents.resumidor import ResumidorAgent
-from datetime import UTC, datetime, timedelta
-from uuid import uuid4
 from app.core.config import get_settings
 from app.core.db import acquire, close_pool, init_pool
 from app.core.observability import configure_observability, redact_pii_processor
@@ -249,7 +248,7 @@ async def run_resumo_on_demand(req: RunForPatientRequest) -> dict:
         },
     )
 
-    insight_id = await agent._run_for_payload(payload)  # noqa: SLF001
+    insight_id = await agent._run_for_payload(payload)
     return {
         "insight_id": str(insight_id) if insight_id else None,
         "on_demand": True,
