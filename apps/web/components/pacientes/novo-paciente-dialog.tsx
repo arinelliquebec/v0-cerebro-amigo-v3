@@ -1,6 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useForm, Controller } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
 import {
   Dialog,
   DialogContent,
@@ -22,7 +26,69 @@ import {
   KeyRound,
   Copy,
   Check,
+  LogIn,
 } from "lucide-react"
+
+// ── Máscaras ─────────────────────────────────────────────────────────────────
+function mascaraWhatsApp(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 13)
+  if (d.length <= 2) return d
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  if (d.length <= 11) return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+  return `+${d.slice(0, 2)} (${d.slice(2, 4)}) ${d.slice(4, 9)}-${d.slice(9)}`
+}
+function mascaraCpf(raw: string): string {
+  const d = raw.replace(/\D/g, "").slice(0, 11)
+  if (d.length <= 3) return d
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`
+}
+function somenteDigitos(val: string) {
+  return val.replace(/\D/g, "")
+}
+
+// ── Schema ────────────────────────────────────────────────────────────────────
+const schema = z
+  .object({
+    nome: z.string().trim().min(2, "Nome obrigatório (mínimo 2 caracteres)"),
+    email: z.string().trim().email("E-mail inválido"),
+    whatsapp: z
+      .string()
+      .transform(somenteDigitos)
+      .pipe(
+        z
+          .string()
+          .min(10, "WhatsApp inválido (10–13 dígitos com DDD)")
+          .max(13, "WhatsApp inválido (10–13 dígitos com DDD)"),
+      ),
+    cpf: z
+      .string()
+      .optional()
+      .transform((v) => (v ? somenteDigitos(v) : ""))
+      .pipe(
+        z
+          .string()
+          .refine((v) => v === "" || v.length === 11, "CPF inválido (11 dígitos)"),
+      ),
+    nascimento: z.string().optional(),
+    usarSenha: z.boolean().default(false),
+    senha: z.string().optional(),
+  })
+  .superRefine((d, ctx) => {
+    if (d.usarSenha && (!d.senha || d.senha.length < 6)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.too_small,
+        minimum: 6,
+        type: "string",
+        inclusive: true,
+        message: "Senha provisória precisa ter ao menos 6 caracteres",
+        path: ["senha"],
+      })
+    }
+  })
+
+type FormValues = z.infer<typeof schema>
 
 interface ResultadoCriacao {
   pacienteId: string
@@ -55,79 +121,117 @@ function CampoCopiavel({ valor }: { valor: string }) {
   )
 }
 
+// ── Auth status (pre-check no open) ──────────────────────────────────────────
+type AuthStatus = "checking" | "ok" | "sessao_expirada" | "sem_conta_medico" | "erro_conexao"
+
+function useAuthCheck(aberto: boolean): AuthStatus {
+  const [status, setStatus] = useState<AuthStatus>("checking")
+  useEffect(() => {
+    if (!aberto) {
+      setStatus("checking")
+      return
+    }
+    setStatus("checking")
+    fetch("/api/me")
+      .then((r) => {
+        if (r.ok) return setStatus("ok")
+        if (r.status === 401) return setStatus("sessao_expirada")
+        if (r.status === 403) return setStatus("sem_conta_medico")
+        setStatus("erro_conexao")
+      })
+      .catch(() => setStatus("erro_conexao"))
+  }, [aberto])
+  return status
+}
+
+// ── Error de auth ─────────────────────────────────────────────────────────────
+const AUTH_MSG: Record<string, { titulo: string; desc: string; link?: string }> = {
+  sessao_expirada: {
+    titulo: "Sessão expirada",
+    desc: "Sua sessão expirou ou foi aberta em outro dispositivo. Faça login novamente.",
+    link: "/login",
+  },
+  sem_conta_medico: {
+    titulo: "Conta não configurada",
+    desc: "O sistema ainda não foi inicializado com uma conta de médico. Execute o endpoint /api/v1/seed/primeiro-medico.",
+  },
+  erro_conexao: {
+    titulo: "Sem conexão com o servidor",
+    desc: "Não foi possível verificar sua sessão. Verifique se o gateway está rodando (API_GATEWAY_URL).",
+  },
+}
+
+// ── Componente principal ──────────────────────────────────────────────────────
 export function NovoPacienteDialog({ onConcluido }: { onConcluido: () => void }) {
   const [aberto, setAberto] = useState(false)
-  const [enviando, setEnviando] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
   const [resultado, setResultado] = useState<ResultadoCriacao | null>(null)
+  const [erroServidor, setErroServidor] = useState<string | null>(null)
 
-  // form
-  const [nome, setNome] = useState("")
-  const [email, setEmail] = useState("")
-  const [whatsapp, setWhatsapp] = useState("")
-  const [cpf, setCpf] = useState("")
-  const [nascimento, setNascimento] = useState("")
-  const [usarSenha, setUsarSenha] = useState(false)
-  const [senha, setSenha] = useState("")
+  const authStatus = useAuthCheck(aberto)
 
-  function reset() {
-    setEnviando(false)
-    setErro(null)
+  const {
+    register,
+    handleSubmit,
+    control,
+    watch,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { usarSenha: false },
+  })
+
+  const usarSenha = watch("usarSenha")
+
+  function fechar() {
+    setAberto(false)
     setResultado(null)
-    setNome("")
-    setEmail("")
-    setWhatsapp("")
-    setCpf("")
-    setNascimento("")
-    setUsarSenha(false)
-    setSenha("")
+    setErroServidor(null)
+    reset()
   }
 
-  async function submeter(e: React.FormEvent) {
-    e.preventDefault()
-    setErro(null)
-
-    const digitos = whatsapp.replace(/\D/g, "")
-    if (!nome.trim() || !email.trim()) return setErro("Nome e e-mail são obrigatórios.")
-    if (digitos.length < 10 || digitos.length > 15)
-      return setErro("WhatsApp precisa ter 10–15 dígitos (com DDD).")
-    if (usarSenha && senha.length < 6)
-      return setErro("Senha provisória precisa ter ao menos 6 caracteres.")
-
-    setEnviando(true)
+  async function onSubmit(values: FormValues) {
+    setErroServidor(null)
     try {
       const r = await fetch("/api/pacientes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          nome: nome.trim(),
-          email: email.trim(),
-          waId: digitos,
-          cpf: cpf.replace(/\D/g, "") || null,
-          dataNascimento: nascimento || null,
-          senhaInicial: usarSenha ? senha : null,
+          nome: values.nome,
+          email: values.email,
+          waId: values.whatsapp,
+          cpf: values.cpf || null,
+          dataNascimento: values.nascimento || null,
+          senhaInicial: values.usarSenha ? values.senha : null,
         }),
       })
       const data = await r.json().catch(() => null)
       if (!r.ok) {
-        setErro(data?.error ?? "Não foi possível cadastrar o paciente.")
+        if (r.status === 401)
+          setErroServidor("Sessão expirada — faça logout e login novamente.")
+        else if (r.status === 403)
+          setErroServidor("Sem permissão. Conta não está configurada como médico.")
+        else if (r.status === 409)
+          setErroServidor(data?.message ?? "Paciente já cadastrado com este e-mail ou CPF.")
+        else
+          setErroServidor(data?.error ?? data?.message ?? "Não foi possível cadastrar o paciente.")
         return
       }
       setResultado(data as ResultadoCriacao)
       onConcluido()
     } catch {
-      setErro("Erro de conexão. Tente novamente.")
-    } finally {
-      setEnviando(false)
+      setErroServidor("Erro de conexão. Tente novamente.")
     }
   }
+
+  const authInfo = authStatus !== "ok" && authStatus !== "checking" ? AUTH_MSG[authStatus] : null
 
   return (
     <Dialog
       open={aberto}
       onOpenChange={(o) => {
         setAberto(o)
-        if (!o) reset()
+        if (!o) fechar()
       }}
     >
       <DialogTrigger asChild>
@@ -145,8 +249,34 @@ export function NovoPacienteDialog({ onConcluido }: { onConcluido: () => void })
           </DialogDescription>
         </DialogHeader>
 
-        {/* ── Resultado ── */}
-        {resultado ? (
+        {/* ── Auth pre-check ── */}
+        {authStatus === "checking" && (
+          <div className="flex justify-center py-6 text-muted-foreground">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        )}
+
+        {authInfo && (
+          <div className="space-y-3">
+            <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-3 text-sm">
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+              <div>
+                <p className="font-medium text-destructive">{authInfo.titulo}</p>
+                <p className="text-muted-foreground mt-0.5">{authInfo.desc}</p>
+              </div>
+            </div>
+            {authInfo.link && (
+              <Button className="w-full gap-2 bg-primary hover:bg-purple-dark text-white" asChild>
+                <Link href={authInfo.link}>
+                  <LogIn className="h-4 w-4" /> Fazer login
+                </Link>
+              </Button>
+            )}
+          </div>
+        )}
+
+        {/* ── Resultado de criação ── */}
+        {authStatus === "ok" && resultado && (
           <div className="space-y-4">
             {resultado.modo === "magic_link" ? (
               resultado.emailEnviado ? (
@@ -183,74 +313,143 @@ export function NovoPacienteDialog({ onConcluido }: { onConcluido: () => void })
               </div>
             )}
             <DialogFooter>
-              <Button
-                className="bg-primary hover:bg-purple-dark text-white"
-                onClick={() => setAberto(false)}
-              >
+              <Button className="bg-primary hover:bg-purple-dark text-white" onClick={fechar}>
                 Concluir
               </Button>
             </DialogFooter>
           </div>
-        ) : (
-          /* ── Formulário ── */
-          <form onSubmit={submeter} className="space-y-4">
-            {erro && (
+        )}
+
+        {/* ── Formulário ── */}
+        {authStatus === "ok" && !resultado && (
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {erroServidor && (
               <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                <span>{erro}</span>
+                <span>{erroServidor}</span>
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {/* Nome */}
               <div className="space-y-1.5 sm:col-span-2">
                 <Label htmlFor="np-nome">Nome completo</Label>
-                <Input id="np-nome" value={nome} onChange={(e) => setNome(e.target.value)} required />
+                <Input id="np-nome" {...register("nome")} />
+                {errors.nome && (
+                  <p className="text-xs text-destructive">{errors.nome.message}</p>
+                )}
               </div>
+
+              {/* E-mail */}
               <div className="space-y-1.5">
                 <Label htmlFor="np-email">E-mail</Label>
-                <Input id="np-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Input id="np-email" type="email" {...register("email")} />
+                {errors.email && (
+                  <p className="text-xs text-destructive">{errors.email.message}</p>
+                )}
               </div>
+
+              {/* WhatsApp com máscara */}
               <div className="space-y-1.5">
                 <Label htmlFor="np-wa">WhatsApp (com DDD)</Label>
-                <Input id="np-wa" inputMode="numeric" placeholder="11999998888" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} required />
+                <Controller
+                  control={control}
+                  name="whatsapp"
+                  render={({ field }) => (
+                    <Input
+                      id="np-wa"
+                      inputMode="numeric"
+                      placeholder="(11) 99999-8888"
+                      value={mascaraWhatsApp(field.value ?? "")}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      onBlur={field.onBlur}
+                    />
+                  )}
+                />
+                {errors.whatsapp && (
+                  <p className="text-xs text-destructive">{errors.whatsapp.message}</p>
+                )}
               </div>
+
+              {/* CPF com máscara */}
               <div className="space-y-1.5">
                 <Label htmlFor="np-cpf">CPF (opcional)</Label>
-                <Input id="np-cpf" inputMode="numeric" value={cpf} onChange={(e) => setCpf(e.target.value)} />
+                <Controller
+                  control={control}
+                  name="cpf"
+                  render={({ field }) => (
+                    <Input
+                      id="np-cpf"
+                      inputMode="numeric"
+                      placeholder="000.000.000-00"
+                      value={mascaraCpf(field.value ?? "")}
+                      onChange={(e) => field.onChange(e.target.value)}
+                      onBlur={field.onBlur}
+                    />
+                  )}
+                />
+                {errors.cpf && (
+                  <p className="text-xs text-destructive">{errors.cpf.message}</p>
+                )}
               </div>
+
+              {/* Nascimento */}
               <div className="space-y-1.5">
                 <Label htmlFor="np-nasc">Nascimento (opcional)</Label>
-                <Input id="np-nasc" type="date" value={nascimento} onChange={(e) => setNascimento(e.target.value)} />
+                <Input id="np-nasc" type="date" {...register("nascimento")} />
               </div>
             </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
-              <div className="text-sm">
-                <p className="font-medium text-navy">
-                  {usarSenha ? "Definir senha provisória" : "Enviar convite por e-mail"}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {usarSenha
-                    ? "Sem e-mail — você entrega a senha (cadastro em consultório)."
-                    : "Magic link de 24h enviado ao paciente para criar a senha."}
-                </p>
-              </div>
-              <Switch checked={usarSenha} onCheckedChange={setUsarSenha} aria-label="Definir senha provisória" />
-            </div>
+            {/* Modo de acesso */}
+            <Controller
+              control={control}
+              name="usarSenha"
+              render={({ field }) => (
+                <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
+                  <div className="text-sm">
+                    <p className="font-medium text-navy">
+                      {field.value ? "Definir senha provisória" : "Enviar convite por e-mail"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {field.value
+                        ? "Sem e-mail — você entrega a senha (cadastro em consultório)."
+                        : "Magic link de 24h enviado ao paciente para criar a senha."}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                    aria-label="Definir senha provisória"
+                  />
+                </div>
+              )}
+            />
 
             {usarSenha && (
               <div className="space-y-1.5">
                 <Label htmlFor="np-senha">Senha provisória</Label>
-                <Input id="np-senha" type="text" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo 6 caracteres" />
+                <Input
+                  id="np-senha"
+                  type="text"
+                  placeholder="Mínimo 6 caracteres"
+                  {...register("senha")}
+                />
+                {errors.senha && (
+                  <p className="text-xs text-destructive">{errors.senha.message}</p>
+                )}
               </div>
             )}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setAberto(false)}>
+              <Button type="button" variant="outline" onClick={fechar}>
                 Cancelar
               </Button>
-              <Button type="submit" disabled={enviando} className="bg-primary hover:bg-purple-dark text-white">
-                {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cadastrar"}
+              <Button
+                type="submit"
+                disabled={isSubmitting}
+                className="bg-primary hover:bg-purple-dark text-white"
+              >
+                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Cadastrar"}
               </Button>
             </DialogFooter>
           </form>

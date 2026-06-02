@@ -3,6 +3,7 @@ using ApiGateway.Data;
 using ApiGateway.Models;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace ApiGateway.Endpoints;
 
@@ -48,5 +49,31 @@ public static class AuthEndpoints
         })
         .AllowAnonymous()
         .WithSummary("Login no dashboard");
+
+        // GET /api/v1/auth/me — valida a sessão e retorna dados do médico logado.
+        // Útil para o frontend verificar se a configuração está ok antes de
+        // operações que dependem do registro em `medicos`.
+        g.MapGet("/me", async (AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var sub = user.FindFirst("sub")?.Value;
+            if (!Guid.TryParse(sub, out var usuarioId))
+                return Results.Forbid();
+
+            var row = await db.Database.SqlQueryRaw<MedicoMeDto>(@"
+                SELECT m.id AS medico_id, m.nome, m.crm, m.especialidade,
+                       u.id AS usuario_id, u.email, u.role
+                FROM medicos m
+                JOIN usuarios u ON u.id = m.usuario_id
+                WHERE m.usuario_id = {0}",
+                usuarioId).FirstOrDefaultAsync();
+
+            return row is null ? Results.Forbid() : Results.Ok(row);
+        })
+        .RequireAuthorization()
+        .WithSummary("Perfil do médico logado (health-check de sessão)");
     }
 }
+
+public record MedicoMeDto(
+    Guid MedicoId, string Nome, string Crm, string? Especialidade,
+    Guid UsuarioId, string Email, string Role);
