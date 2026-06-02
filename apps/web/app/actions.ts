@@ -26,12 +26,14 @@ export async function loginAction(
     return { error: "Email e senha são obrigatórios" }
   }
 
+  let role = "medico"
   try {
     const data = await gateway.post<GatewayLoginResponse>(
       "/api/v1/auth/login",
       { email, senha },
     )
 
+    role = data.role
     const cookieStore = await cookies()
     cookieStore.set("auth_token", data.token, {
       httpOnly: true,
@@ -55,5 +57,7 @@ export async function loginAction(
     return { error: "Erro de conexão. Tente novamente." }
   }
 
-  redirect("/dashboard")
+  // owner/admin → painel da plataforma; médico → dashboard clínico
+  const destino = (role === "owner" || role === "admin") ? "/admin" : "/dashboard"
+  redirect(destino)
 }

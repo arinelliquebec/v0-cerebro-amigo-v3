@@ -105,6 +105,16 @@ builder.Services.AddAuthorization(options =>
                     System.Text.Encoding.UTF8.GetBytes(token),
                     System.Text.Encoding.UTF8.GetBytes(expected));
         }));
+
+    // Admin master (#1 = dono da plataforma, role='owner').
+    // Gerado pelo seed original (role='admin') e promovido via migration 0010.
+    options.AddPolicy("owner", policy =>
+        policy.RequireClaim("role", "owner"));
+
+    // Admins gerais + owner: acesso de leitura ao painel admin.
+    options.AddPolicy("admin_geral", policy =>
+        policy.RequireAssertion(ctx =>
+            ctx.User.HasClaim("role", "owner") || ctx.User.HasClaim("role", "admin")));
 });
 
 // -----------------------------------------------------------------------------
@@ -255,6 +265,7 @@ InsightsEndpoints.Map(app);
 ConsultasEndpoints.Map(app);
 MensagensEndpoints.Map(app);
 PromptsEndpoints.Map(app);
+AdminEndpoints.Map(app);
 SeedEndpoint.Map(app);
 
 app.Run();

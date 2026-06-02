@@ -34,6 +34,17 @@ export function proxy(req: NextRequest) {
     return next()
   }
 
+  // ── Admin (dono da plataforma + admins gerais) ──
+  if (pathname.startsWith("/admin")) {
+    const token = req.cookies.get("auth_token")?.value
+    if (!token) {
+      const loginUrl = new URL("/login", req.url)
+      loginUrl.searchParams.set("next", pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+    return next()
+  }
+
   // ── Doctor dashboard ──
   if (pathname.startsWith("/dashboard")) {
     const token = req.cookies.get("auth_token")?.value
@@ -49,5 +60,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/p/:path*"],
+  matcher: ["/admin/:path*", "/dashboard/:path*", "/p/:path*"],
 }
