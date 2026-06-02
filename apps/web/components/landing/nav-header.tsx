@@ -13,7 +13,8 @@ export async function NavHeader() {
             {[
               { href: "#como-funciona", label: "Como funciona" },
               { href: "#recursos", label: "Recursos" },
-              { href: "#seguranca", label: "Segurança" },
+              { href: "/precos", label: "Preços" },
+              { href: "/sobre", label: "Sobre" },
             ].map((item) => (
               <Link
                 key={item.href}

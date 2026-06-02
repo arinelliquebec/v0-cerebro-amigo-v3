@@ -8,11 +8,17 @@ import { CTASection } from "@/components/landing/cta-section"
 import { FooterSection } from "@/components/landing/footer-section"
 import { Eyebrow } from "@/components/landing/eyebrow"
 import { Reveal } from "@/components/landing/reveal"
+import { Schema, softwareSchema, websiteSchema } from "@/components/seo/schema"
 
 export const metadata = {
-  title: "Cérebro Amigo — Acompanhamento entre consultas para psiquiatria",
+  title: "Para Psiquiatras",
   description:
-    "Acompanhamento entre consultas para psiquiatria: o paciente registra humor, sintomas e áudios no diário; antes do retorno, a IA entrega o briefing pronto.",
+    "Briefing pré-consulta com IA, diário por voz do paciente, protocolo de crise integrado e acompanhamento automático entre consultas. 14 dias grátis.",
+  openGraph: {
+    title: "Cérebro Amigo — Para Psiquiatras",
+    description: "Briefing pré-consulta com IA. Paciente registra. Você chega preparado.",
+  },
+  alternates: { canonical: "https://www.cerebroamigo.com.br/medico" },
 }
 
 export default function MedicoLandingPage() {
@@ -20,6 +26,8 @@ export default function MedicoLandingPage() {
     // `.theme-noir` escopa o tema dark espacial só à landing — dashboard e
     // portal têm seus próprios layouts e seguem o :root (light).
     <div className="theme-noir min-h-screen bg-background text-foreground antialiased">
+      <Schema data={softwareSchema} />
+      <Schema data={websiteSchema} />
       <NavHeader />
       <HeroSection />
       <ProblemBar />

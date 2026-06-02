@@ -21,6 +21,8 @@ export async function FooterSection() {
             <div className="flex items-center gap-6">
               {[
                 { href: "/paciente", label: "Sou paciente" },
+                { href: "/precos", label: "Preços" },
+                { href: "/sobre", label: "Sobre" },
                 { href: "/privacy", label: "Privacidade" },
                 { href: "/terms", label: "Termos de uso" },
                 { href: "/login", label: "Entrar" },
