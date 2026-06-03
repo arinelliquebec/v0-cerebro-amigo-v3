@@ -34,6 +34,21 @@ const WEEKDAYS = [
   { v: "6", label: "Domingo" },
 ]
 
+const FREQS = [
+  { v: "diaria", label: "Todos os dias", dias: [0, 1, 2, 3, 4, 5, 6] },
+  { v: "uteis", label: "Dias úteis", dias: [0, 1, 2, 3, 4] },
+  { v: "swf", label: "Seg / Qua / Sex", dias: [0, 2, 4] },
+]
+function freqToDias(f: string): number[] {
+  return FREQS.find((x) => x.v === f)?.dias ?? [0, 1, 2, 3, 4, 5, 6]
+}
+function diasToFreq(dias: unknown): string {
+  if (!Array.isArray(dias)) return "diaria"
+  const k = [...(dias as number[])].sort().join(",")
+  for (const f of FREQS) if ([...f.dias].sort().join(",") === k) return f.v
+  return "diaria"
+}
+
 function parseConfig(c?: Conduta): Record<string, unknown> {
   if (!c) return {}
   try {
@@ -54,6 +69,12 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
   const [qPhq, setQPhq] = useState("0")
   const [qGad, setQGad] = useState("3")
   const [qHora, setQHora] = useState(9)
+  const [chAtivo, setChAtivo] = useState(false)
+  const [chFreq, setChFreq] = useState("diaria")
+  const [chHora, setChHora] = useState(12)
+  const [alAtivo, setAlAtivo] = useState(false)
+  const [alLimiar, setAlLimiar] = useState(2)
+  const [alJanela, setAlJanela] = useState(7)
 
   useEffect(() => {
     setLoading(true)
@@ -70,6 +91,14 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
         setQPhq(String(q.phq9_weekday ?? 0))
         setQGad(String(q.gad7_weekday ?? 3))
         setQHora(Number(q.hora_utc ?? 9))
+        const ch = parseConfig(map["checkin_humor"])
+        setChAtivo(ch.ativo === true)
+        setChFreq(diasToFreq(ch.dias))
+        setChHora(Number(ch.hora_utc ?? 12))
+        const al = parseConfig(map["alerta_nao_adesao"])
+        setAlAtivo(al.ativo === true)
+        setAlLimiar(Number(al.limiar ?? 2))
+        setAlJanela(Number(al.janela_dias ?? 7))
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -183,11 +212,96 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
         </CardContent>
       </Card>
 
-      {/* Tipos ainda não consumidos pelo agents-py */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <EmBreve icon={Smile} titulo="Check-in de humor" />
-        <EmBreve icon={BellRing} titulo="Alerta de não-adesão" />
-      </div>
+      {/* Check-in de humor (dirigido por conduta) */}
+      <Card className="border-border/50">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <Smile className="h-4 w-4 text-primary" /> Check-in de humor
+          </CardTitle>
+          <Switch checked={chAtivo} onCheckedChange={setChAtivo} />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Frequência</Label>
+              <Select value={chFreq} onValueChange={setChFreq} disabled={!chAtivo}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FREQS.map((f) => (
+                    <SelectItem key={f.v} value={f.v}>
+                      {f.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Horário (UTC)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={23}
+                value={chHora}
+                onChange={(e) => setChHora(Number(e.target.value))}
+                disabled={!chAtivo}
+              />
+            </div>
+          </div>
+          <SaveRow
+            tipo="checkin_humor"
+            saving={saving}
+            saved={saved}
+            onSave={() =>
+              salvar("checkin_humor", { ativo: chAtivo, dias: freqToDias(chFreq), hora_utc: chHora })
+            }
+          />
+        </CardContent>
+      </Card>
+
+      {/* Alerta de não-adesão (dirigido por conduta) */}
+      <Card className="border-border/50">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold">
+            <BellRing className="h-4 w-4 text-primary" /> Alerta de não-adesão
+          </CardTitle>
+          <Switch checked={alAtivo} onCheckedChange={setAlAtivo} />
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+            Avisar se
+            <Input
+              type="number"
+              min={1}
+              max={30}
+              value={alLimiar}
+              onChange={(e) => setAlLimiar(Number(e.target.value))}
+              className="w-20"
+              disabled={!alAtivo}
+            />
+            doses não tomadas em
+            <Input
+              type="number"
+              min={1}
+              max={90}
+              value={alJanela}
+              onChange={(e) => setAlJanela(Number(e.target.value))}
+              className="w-20"
+              disabled={!alAtivo}
+            />
+            dias.
+          </div>
+          <SaveRow
+            tipo="alerta_nao_adesao"
+            saving={saving}
+            saved={saved}
+            onSave={() =>
+              salvar("alerta_nao_adesao", { ativo: alAtivo, limiar: alLimiar, janela_dias: alJanela })
+            }
+          />
+        </CardContent>
+      </Card>
     </div>
   )
 }
@@ -247,16 +361,3 @@ function WeekdayField({
   )
 }
 
-function EmBreve({ icon: Icon, titulo }: { icon: typeof Smile; titulo: string }) {
-  return (
-    <Card className="border-dashed border-border/60 opacity-70">
-      <CardContent className="flex items-center gap-3 p-4">
-        <Icon className="h-5 w-5 text-muted-foreground" />
-        <div>
-          <p className="text-sm font-medium text-foreground">{titulo}</p>
-          <p className="text-xs text-muted-foreground">Em breve</p>
-        </div>
-      </CardContent>
-    </Card>
-  )
-}
