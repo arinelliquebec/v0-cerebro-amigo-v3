@@ -6,10 +6,21 @@ import { NextRequest, NextResponse } from "next/server"
  * Responsibilities:
  * 1. Protect /dashboard/* — requires auth_token (doctor)
  * 2. Protect /p/* — requires paciente_token (patient portal)
- * 3. Preserve ?next= redirect for post-login return
- * 4. Expose the pathname as `x-pathname` so server layouts can decide chrome
+ * 3. Protect /admin/* — requires auth_token with role owner or admin
+ * 4. Preserve ?next= redirect for post-login return
+ * 5. Expose the pathname as `x-pathname` so server layouts can decide chrome
  *    (ex.: portal esconde a bottom-nav em /p/entrar).
  */
+
+function decodeJwtRole(token: string): string | null {
+  try {
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
+    const data = JSON.parse(atob(payload))
+    return (data?.role as string) ?? null
+  } catch {
+    return null
+  }
+}
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
@@ -41,6 +52,10 @@ export function proxy(req: NextRequest) {
       const loginUrl = new URL("/login", req.url)
       loginUrl.searchParams.set("next", pathname)
       return NextResponse.redirect(loginUrl)
+    }
+    const role = decodeJwtRole(token)
+    if (role !== "owner" && role !== "admin") {
+      return NextResponse.redirect(new URL("/dashboard", req.url))
     }
     return next()
   }
