@@ -128,6 +128,28 @@ public static class ConsultasEndpoints
 
             return afetadas == 0 ? Results.NotFound() : Results.NoContent();
         });
+
+        // Desfecho pós-consulta: registra notas e marca a consulta como realizada.
+        // O médico autora as notas; a IA não interpreta nada. As condutas de
+        // acompanhamento são definidas na aba Conduta (CondutasEndpoints).
+        g.MapPost("/{id:guid}/desfecho", async (
+            Guid id, [FromBody] DesfechoRequest req, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            var afetadas = await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE consultas SET
+                    notas  = COALESCE(NULLIF({2}, ''), notas),
+                    status = 'realizada'
+                WHERE id = {0}
+                  AND paciente_id IN (
+                      SELECT cliente_id FROM pacientes WHERE medico_responsavel_id = {1}
+                  )",
+                id, medicoId.Value, req.Notas ?? "");
+
+            return afetadas == 0 ? Results.NotFound() : Results.NoContent();
+        });
     }
 
     private static async Task<Guid?> GetMedicoIdAsync(AppDbContext db, ClaimsPrincipal user)
@@ -148,3 +170,5 @@ public record CriarConsultaRequest(
 
 public record AtualizarConsultaRequest(
     string? Status, DateTime? IniciaEm, string? Modalidade, string? Notas);
+
+public record DesfechoRequest(string? Notas);

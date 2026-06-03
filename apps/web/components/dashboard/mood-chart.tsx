@@ -10,20 +10,18 @@ import {
   ResponsiveContainer,
 } from "recharts"
 
-const weeklyMoodData = [
-  { day: "Seg", muitoBem: 8, bem: 12, neutro: 3, mal: 1 },
-  { day: "Ter", muitoBem: 10, bem: 10, neutro: 4, mal: 0 },
-  { day: "Qua", muitoBem: 7, bem: 14, neutro: 2, mal: 2 },
-  { day: "Qui", muitoBem: 12, bem: 8, neutro: 3, mal: 1 },
-  { day: "Sex", muitoBem: 15, bem: 7, neutro: 1, mal: 1 },
-  { day: "Sáb", muitoBem: 6, bem: 5, neutro: 2, mal: 0 },
-  { day: "Dom", muitoBem: 4, bem: 4, neutro: 1, mal: 0 },
-]
+interface HumorSemanaPonto {
+  day: string
+  muitoBem: number
+  bem: number
+  neutro: number
+  mal: number
+}
 
-export function MoodChart() {
+export function MoodChart({ data = [] }: { data?: HumorSemanaPonto[] }) {
   return (
     <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={200}>
-      <BarChart data={weeklyMoodData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+      <BarChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
         <XAxis dataKey="day" tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={{ stroke: "var(--border)" }} tickLine={false} />
         <YAxis tick={{ fill: "var(--muted-foreground)", fontSize: 12 }} axisLine={false} tickLine={false} />

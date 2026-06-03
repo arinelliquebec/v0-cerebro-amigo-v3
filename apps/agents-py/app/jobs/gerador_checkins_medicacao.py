@@ -56,22 +56,34 @@ class GeradorCheckinsMedicacaoJob(BaseJob):
 
         try:
             async with acquire() as conn:
-                # 1. Busca prescrições ativas no intervalo
+                # 1. Busca prescrições ativas no intervalo.
+                #    Pula pacientes com automação pausada (circuit-breaker de crise).
                 prescricoes = await conn.fetch(
                     """
-                    SELECT id, paciente_id, medicamento, dose_descricao,
-                           horarios, inicio_em, fim_em
-                    FROM prescricoes
-                    WHERE ativa = TRUE
-                      AND inicio_em <= $1
-                      AND (fim_em IS NULL OR fim_em >= $1)
+                    SELECT pr.id, pr.paciente_id, pr.medicamento, pr.dose_descricao,
+                           pr.horarios, pr.inicio_em, pr.fim_em
+                    FROM prescricoes pr
+                    JOIN pacientes pa ON pa.cliente_id = pr.paciente_id
+                    WHERE pr.ativa = TRUE
+                      AND pa.automacao_pausada = FALSE
+                      AND pr.inicio_em <= $1
+                      AND (pr.fim_em IS NULL OR pr.fim_em >= $1)
                     """,
                     today,
                 )
 
                 stats["prescricoes_avaliadas"] = len(prescricoes)
 
+                # Override por paciente (conduta 'lembrete_medicacao'): pode
+                # desligar o lembrete ou ajustar a janela de expiração.
+                condutas = await self._carregar_condutas(conn, "lembrete_medicacao")
+
                 for p in prescricoes:
+                    cfg = condutas.get(p["paciente_id"], {})
+                    if cfg.get("ativo") is False:
+                        continue  # médico desligou o lembrete deste paciente
+                    expira_horas = int(cfg.get("expira_horas", 4) or 4)
+
                     # 2. Para cada horário do dia atual + amanhã
                     horarios_a_gerar = self._gerar_horarios_na_janela(
                         horarios=list(p["horarios"]),
@@ -139,7 +151,7 @@ class GeradorCheckinsMedicacaoJob(BaseJob):
                                     "dose_descricao": p["dose_descricao"],
                                 }),
                                 horario_previsto,
-                                horario_previsto + timedelta(hours=4),  # expira em 4h
+                                horario_previsto + timedelta(hours=expira_horas),
                             )
                             stats["checkins_criados"] += 1
                         except Exception as exc:

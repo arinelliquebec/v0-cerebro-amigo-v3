@@ -64,15 +64,22 @@ class GeradorQuestionariosJob(BaseJob):
                     SELECT p.cliente_id, p.medico_responsavel_id
                     FROM pacientes p
                     JOIN pacientes_credenciais pc ON pc.paciente_id = p.cliente_id
+                    WHERE p.automacao_pausada = FALSE
                     """
                 )
 
                 stats["pacientes_avaliados"] = len(pacientes)
 
+                # Override por paciente (conduta 'questionario').
+                condutas = await self._carregar_condutas(conn, "questionario")
+
                 for paciente in pacientes:
                     paciente_id = paciente["cliente_id"]
+                    cfg = condutas.get(paciente_id, {})
+                    if cfg.get("ativo") is False:
+                        continue  # médico desligou questionários deste paciente
 
-                    for codigo, (weekday, hora) in SCHEDULE.items():
+                    for codigo, (weekday, hora) in self._schedule_para(cfg).items():
                         # Calcula próximo slot do questionário
                         slot = self._proximo_slot(agora, weekday, hora)
 
@@ -139,6 +146,22 @@ class GeradorQuestionariosJob(BaseJob):
             log.exception("job.failed", error=str(exc))
             await self._audit_execucao(stats, sucesso=False, erro=str(exc))
             raise
+
+    def _schedule_para(self, cfg: dict) -> dict[str, tuple[int, int]]:
+        """Schedule efetivo por paciente: override da conduta sobre o global.
+
+        cfg pode trazer `<codigo>_weekday` e `hora_utc`; ausentes caem no
+        SCHEDULE global. cfg vazio => schedule global inalterado.
+        """
+        out: dict[str, tuple[int, int]] = {}
+        for codigo, (wd, hr) in SCHEDULE.items():
+            wd_ov = cfg.get(f"{codigo}_weekday")
+            hr_ov = cfg.get("hora_utc")
+            out[codigo] = (
+                int(wd_ov) if wd_ov is not None else wd,
+                int(hr_ov) if hr_ov is not None else hr,
+            )
+        return out
 
     def _proximo_slot(
         self, agora: datetime, weekday_alvo: int, hora_utc: int

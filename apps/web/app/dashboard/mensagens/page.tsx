@@ -7,6 +7,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Search, Loader2, ShieldCheck, MessageSquare, Bot, User } from "lucide-react"
 import { tempoRelativo } from "@/lib/tempo"
+import { EscalacaoInbox } from "@/components/escalacao/escalacao-inbox"
+import { RascunhoAdmin } from "@/components/comunicacao/rascunho-admin"
 
 interface ConversaInbox {
   pacienteId: string
@@ -67,6 +69,8 @@ export default function MensagensPage() {
   return (
     <div className="min-h-screen">
       <Header title="Mensagens" />
+
+      <EscalacaoInbox />
 
       <div className="grid h-[calc(100vh-4rem)] grid-cols-1 md:grid-cols-[320px_1fr]">
         {/* Inbox */}
@@ -183,7 +187,9 @@ export default function MensagensPage() {
                 )}
               </div>
 
-              {/* Aviso (sem composer — médico no loop via automação/portal) */}
+              <RascunhoAdmin pacienteId={sel.pacienteId} pacienteNome={sel.pacienteNome} />
+
+              {/* Aviso */}
               <div className="flex items-start gap-2 border-t border-border/60 bg-background px-5 py-3 text-xs text-muted-foreground">
                 <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
                 <p>

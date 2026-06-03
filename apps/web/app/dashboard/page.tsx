@@ -2,6 +2,7 @@ import { Suspense } from "react"
 import dynamic from "next/dynamic"
 import { Header } from "@/components/header"
 import { StatsCards, StatsCardsSkeleton } from "@/components/dashboard/stats-cards"
+import { FilaAtencao } from "@/components/dashboard/fila-atencao"
 import { AgendaWidget } from "@/components/dashboard/agenda-widget"
 import { RemindersWidget } from "@/components/dashboard/reminders-widget"
 import { MessagesWidget } from "@/components/dashboard/messages-widget"
@@ -30,6 +31,9 @@ export default function DashboardPage() {
         <Suspense fallback={<StatsCardsSkeleton />}>
           <StatsCards />
         </Suspense>
+
+        {/* Fila de atenção — o que precisa do médico agora (ranqueado) */}
+        <FilaAtencao />
 
         {/* Main Content Grid */}
         <div className="grid gap-8 lg:grid-cols-3">

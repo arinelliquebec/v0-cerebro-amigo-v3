@@ -15,6 +15,7 @@ import {
   Zap,
   Loader2,
   Sparkles,
+  Check,
 } from "lucide-react"
 
 interface Consulta {
@@ -24,6 +25,7 @@ interface Consulta {
   iniciaEm: string
   modalidade: string
   status: string
+  notas: string | null
 }
 interface PontoHumor {
   data: string
@@ -90,6 +92,9 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState(false)
   const [gerando, setGerando] = useState(false)
+  const [notas, setNotas] = useState("")
+  const [salvandoDesfecho, setSalvandoDesfecho] = useState(false)
+  const [desfechoSalvo, setDesfechoSalvo] = useState(false)
 
   useEffect(() => {
     let vivo = true
@@ -98,6 +103,7 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
         const c = await fetch(`/api/consultas/${id}`).then((r) => (r.ok ? r.json() : Promise.reject()))
         if (!vivo) return
         setConsulta(c)
+        setNotas(c.notas ?? "")
         const pid = c.pacienteId
         const [h, a, res] = await Promise.all([
           fetch(`/api/pacientes/${pid}/humor?dias=14`).then((r) => (r.ok ? r.json() : [])),
@@ -128,6 +134,25 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
       setResumo(data?.resumo ?? data?.ultimo ?? null)
     } finally {
       setGerando(false)
+    }
+  }
+
+  async function salvarDesfecho() {
+    setSalvandoDesfecho(true)
+    setDesfechoSalvo(false)
+    try {
+      const r = await fetch(`/api/consultas/${id}/desfecho`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notas }),
+      })
+      if (r.ok) {
+        setDesfechoSalvo(true)
+        setConsulta((c) => (c ? { ...c, status: "realizada" } : c))
+        setTimeout(() => setDesfechoSalvo(false), 2500)
+      }
+    } finally {
+      setSalvandoDesfecho(false)
     }
   }
 
@@ -280,6 +305,31 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
               {gerando ? "Gerando resumo do período…" : "Nenhum resumo gerado ainda. Clique em Gerar."}
             </p>
           )}
+        </div>
+
+        {/* Desfecho pós-consulta */}
+        <div className="rounded-2xl border border-border/50 bg-card p-5">
+          <p className="mb-2 text-sm font-semibold text-foreground">Desfecho da consulta</p>
+          <textarea
+            value={notas}
+            onChange={(e) => setNotas(e.target.value)}
+            rows={4}
+            placeholder="Notas da consulta, conduta combinada, próximos passos…"
+            className="w-full resize-none rounded-xl border border-border/60 bg-background p-3 text-sm outline-none focus:border-primary"
+          />
+          <div className="mt-3 flex items-center gap-3">
+            <Button size="sm" onClick={salvarDesfecho} disabled={salvandoDesfecho}>
+              {salvandoDesfecho ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar desfecho"}
+            </Button>
+            {desfechoSalvo && (
+              <span className="flex items-center gap-1 text-xs text-success">
+                <Check className="h-3.5 w-3.5" /> Registrado
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">
+              Marca a consulta como realizada. As condutas vão na aba Conduta do prontuário.
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center justify-between border-t border-border/50 pt-2">

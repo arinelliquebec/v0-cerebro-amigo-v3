@@ -27,6 +27,19 @@ class Settings(BaseSettings):
     # Fallback para jobs operacionais (gerador_checkins, gerador_questionarios).
     scheduler_interval_seconds: int = 300
 
+    # SHADOW: novas automações proativas (checkin_humor, alerta_nao_adesao)
+    # logam o que fariam SEM efeito até validação clínica (clinical-safety).
+    # Não altera os jobs legados nem os agentes analíticos.
+    shadow_mode: bool = False  # SHADOW_MODE
+
+    # checkin_humor (dirigido por conduta do médico)
+    checkin_humor_hora_utc_default: int = 12
+
+    # alerta_nao_adesao (dirigido por conduta do médico)
+    alerta_nao_adesao_janela_dias_default: int = 7
+    alerta_nao_adesao_limiar_default: int = 2
+    alerta_nao_adesao_dedup_horas: int = 24
+
     # Agentes sensíveis à janela de consulta — precisam de resposta rápida.
     resumidor_interval_seconds: int = 300   # RESUMIDOR_INTERVAL_SECONDS
     diario_interval_seconds: int = 300      # DIARIO_INTERVAL_SECONDS
