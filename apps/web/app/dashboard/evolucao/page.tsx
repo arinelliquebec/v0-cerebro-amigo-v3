@@ -1,154 +1,108 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import dynamic from "next/dynamic"
 import { Header } from "@/components/header"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   TrendingUp,
   TrendingDown,
+  Minus,
   Users,
   Calendar,
   Activity,
   Heart,
-  Brain,
-  ArrowUpRight,
-  ArrowDownRight,
+  Loader2,
 } from "lucide-react"
 
 const GrowthChart = dynamic(
   () => import("@/components/dashboard/growth-chart").then((m) => m.GrowthChart),
-  { loading: () => <ChartSkeleton /> }
+  { loading: () => <ChartSkeleton /> },
 )
 
 const MoodChart = dynamic(
   () => import("@/components/dashboard/mood-chart").then((m) => m.MoodChart),
-  { loading: () => <ChartSkeleton /> }
+  { loading: () => <ChartSkeleton /> },
 )
 
 function ChartSkeleton() {
   return <div className="h-[250px] animate-pulse bg-muted rounded-xl" />
 }
 
-const monthlyData = [
-  { month: "Jan", pacientes: 180, checkins: 45, consultas: 120 },
-  { month: "Fev", pacientes: 195, checkins: 52, consultas: 135 },
-  { month: "Mar", pacientes: 210, checkins: 61, consultas: 145 },
-  { month: "Abr", pacientes: 225, checkins: 58, consultas: 152 },
-  { month: "Mai", pacientes: 235, checkins: 72, consultas: 160 },
-  { month: "Jun", pacientes: 248, checkins: 68, consultas: 165 },
-]
+interface Resumo {
+  stats: {
+    taxaAdesao: number | null
+    humorMedio: number | null
+    pacientesAtivos: number
+    consultasMes: number
+  } | null
+  mensal: { month: string; pacientes: number; consultas: number }[]
+  humorSemana: { dia: string; muitoBem: number; bem: number; neutro: number; mal: number }[]
+  progresso: {
+    pacienteId: string
+    nome: string
+    humorAtual: number | null
+    deltaHumor: number | null
+    adesao: number | null
+  }[]
+}
 
-const weeklyMoodData = [
-  { day: "Seg", muitoBem: 8, bem: 12, neutro: 3, mal: 1 },
-  { day: "Ter", muitoBem: 10, bem: 10, neutro: 4, mal: 0 },
-  { day: "Qua", muitoBem: 7, bem: 14, neutro: 2, mal: 2 },
-  { day: "Qui", muitoBem: 12, bem: 8, neutro: 3, mal: 1 },
-  { day: "Sex", muitoBem: 15, bem: 7, neutro: 1, mal: 1 },
-  { day: "Sáb", muitoBem: 6, bem: 5, neutro: 2, mal: 0 },
-  { day: "Dom", muitoBem: 4, bem: 4, neutro: 1, mal: 0 },
-]
+function initials(nome: string) {
+  return nome.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0].toUpperCase()).join("")
+}
 
-const patientProgress = [
-  {
-    id: 1,
-    name: "Maria Santos",
-    initials: "MS",
-    diagnosis: "Ansiedade",
-    improvement: 35,
-    trend: "up",
-    lastMonth: "Melhora significativa nos sintomas",
-  },
-  {
-    id: 2,
-    name: "João Silva",
-    initials: "JS",
-    diagnosis: "Depressão",
-    improvement: 20,
-    trend: "up",
-    lastMonth: "Evolução positiva, mantendo tratamento",
-  },
-  {
-    id: 3,
-    name: "Ana Costa",
-    initials: "AC",
-    diagnosis: "TOC",
-    improvement: -5,
-    trend: "down",
-    lastMonth: "Necessita reavaliação do tratamento",
-  },
-  {
-    id: 4,
-    name: "Carlos Oliveira",
-    initials: "CO",
-    diagnosis: "TDAH",
-    improvement: 15,
-    trend: "up",
-    lastMonth: "Boa adesão ao tratamento",
-  },
-]
-
-const stats = [
-  {
-    title: "Taxa de Adesão",
-    value: "87%",
-    change: "+5%",
-    trend: "up",
-    icon: Activity,
-  },
-  {
-    title: "Média de Humor",
-    value: "4.2",
-    change: "+0.3",
-    trend: "up",
-    icon: Heart,
-  },
-  {
-    title: "Pacientes Ativos",
-    value: "248",
-    change: "+12",
-    trend: "up",
-    icon: Users,
-  },
-  {
-    title: "Consultas/Mês",
-    value: "165",
-    change: "+8%",
-    trend: "up",
-    icon: Calendar,
-  },
-]
+function fmt(n: number | null | undefined, suffix = "") {
+  return n === null || n === undefined ? "—" : `${n}${suffix}`
+}
 
 export default function EvolucaoPage() {
+  const [data, setData] = useState<Resumo | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch("/api/evolucao")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setData)
+      .catch(() => setData(null))
+      .finally(() => setLoading(false))
+  }, [])
+
+  const s = data?.stats
+  const statCards = [
+    { title: "Taxa de adesão", value: fmt(s?.taxaAdesao, "%"), icon: Activity },
+    { title: "Média de humor (0–10)", value: fmt(s?.humorMedio), icon: Heart },
+    { title: "Pacientes ativos (30d)", value: fmt(s?.pacientesAtivos), icon: Users },
+    { title: "Consultas no mês", value: fmt(s?.consultasMes), icon: Calendar },
+  ]
+
+  const moodData = (data?.humorSemana ?? []).map((h) => ({
+    day: h.dia,
+    muitoBem: h.muitoBem,
+    bem: h.bem,
+    neutro: h.neutro,
+    mal: h.mal,
+  }))
+
   return (
     <div className="min-h-screen">
-      <Header title="Evolução" subtitle="Acompanhe o progresso dos seus pacientes" />
+      <Header title="Evolução" subtitle="Sinais reportados pelos seus pacientes" />
 
       <div className="p-6 space-y-6">
-        {/* Stats Cards */}
+        {/* Stats Cards (fatos agregados) */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {stats.map((stat) => (
+          {statCards.map((stat) => (
             <Card key={stat.title} className="border-border/50">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="h-10 w-10 rounded-lg bg-secondary flex items-center justify-center">
                     <stat.icon className="h-5 w-5 text-primary" />
                   </div>
-                  <div className={`flex items-center gap-1 text-xs font-medium ${
-                    stat.trend === "up" ? "text-success" : "text-coral"
-                  }`}>
-                    {stat.trend === "up" ? (
-                      <ArrowUpRight className="h-3 w-3" />
-                    ) : (
-                      <ArrowDownRight className="h-3 w-3" />
-                    )}
-                    {stat.change}
-                  </div>
                 </div>
-                <p className="text-2xl font-bold text-foreground">{stat.value}</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {loading ? "…" : stat.value}
+                </p>
                 <p className="text-xs text-muted-foreground">{stat.title}</p>
               </CardContent>
             </Card>
@@ -156,33 +110,21 @@ export default function EvolucaoPage() {
         </div>
 
         <div className="grid lg:grid-cols-2 gap-6">
-          {/* Growth Chart */}
+          {/* Crescimento mensal */}
           <Card className="border-border/50">
             <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold text-foreground">
-                  Crescimento Mensal
-                </CardTitle>
-                <Select defaultValue="6m">
-                  <SelectTrigger className="w-[100px] h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="3m">3 meses</SelectItem>
-                    <SelectItem value="6m">6 meses</SelectItem>
-                    <SelectItem value="1y">1 ano</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <CardTitle className="text-base font-semibold text-foreground">
+                Atividade mensal
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[250px] w-full">
-                <GrowthChart />
+                <GrowthChart data={data?.mensal ?? []} />
               </div>
               <div className="flex items-center justify-center gap-6 mt-2">
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 rounded-full bg-primary" />
-                  <span className="text-xs text-muted-foreground">Pacientes</span>
+                  <span className="text-xs text-muted-foreground">Pacientes novos</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 rounded-full bg-primary" />
@@ -192,98 +134,106 @@ export default function EvolucaoPage() {
             </CardContent>
           </Card>
 
-          {/* Mood Distribution */}
+          {/* Distribuição de humor */}
           <Card className="border-border/50">
             <CardHeader className="pb-2">
               <CardTitle className="text-base font-semibold text-foreground">
-                Distribuição de Humor (Semana)
+                Humor reportado (últimos 7 dias)
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="h-[250px] w-full">
-                <MoodChart />
+                <MoodChart data={moodData} />
               </div>
               <div className="flex items-center justify-center gap-4 mt-2 flex-wrap">
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm bg-success" />
-                  <span className="text-xs text-muted-foreground">Muito bem</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm bg-primary" />
-                  <span className="text-xs text-muted-foreground">Bem</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm bg-warning" />
-                  <span className="text-xs text-muted-foreground">Neutro</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="h-3 w-3 rounded-sm bg-coral" />
-                  <span className="text-xs text-muted-foreground">Mal</span>
-                </div>
+                <Legenda cor="bg-success" texto="Muito bem" />
+                <Legenda cor="bg-primary" texto="Bem" />
+                <Legenda cor="bg-warning" texto="Neutro" />
+                <Legenda cor="bg-coral" texto="Mal" />
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Patient Progress */}
+        {/* Progresso factual por paciente (sem interpretação clínica) */}
         <Card className="border-border/50">
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-semibold text-foreground">
-                Progresso dos Pacientes
-              </CardTitle>
-              <Button variant="ghost" className="text-primary hover:text-purple-dark">
-                Ver todos
-              </Button>
-            </div>
+            <CardTitle className="text-base font-semibold text-foreground">
+              Humor e adesão por paciente
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {patientProgress.map((patient) => (
-                <div
-                  key={patient.id}
-                  className="flex items-center gap-4 p-4 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                >
-                  <Avatar className="h-11 w-11 border-2 border-primary/20">
-                    <AvatarFallback className="bg-secondary text-primary font-medium">
-                      {patient.initials}
-                    </AvatarFallback>
-                  </Avatar>
+            {loading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : (data?.progresso?.length ?? 0) === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">
+                Sem registros de humor no período.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {data!.progresso.map((p) => {
+                  const sobe = (p.deltaHumor ?? 0) > 0
+                  const desce = (p.deltaHumor ?? 0) < 0
+                  return (
+                    <div
+                      key={p.pacienteId}
+                      className="flex items-center gap-4 p-4 rounded-lg bg-muted/30"
+                    >
+                      <Avatar className="h-11 w-11 border-2 border-primary/20">
+                        <AvatarFallback className="bg-secondary text-primary font-medium">
+                          {initials(p.nome)}
+                        </AvatarFallback>
+                      </Avatar>
 
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h4 className="font-medium text-foreground">{patient.name}</h4>
-                      <Badge variant="secondary" className="text-xs">
-                        {patient.diagnosis}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {patient.lastMonth}
-                    </p>
-                  </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-foreground">{p.nome}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Humor médio (15d): {fmt(p.humorAtual)} · Adesão: {fmt(p.adesao, "%")}
+                        </p>
+                      </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className={`flex items-center gap-1 px-3 py-1.5 rounded-full ${
-                      patient.trend === "up" 
-                        ? "bg-success/10 text-success" 
-                        : "bg-coral/10 text-coral"
-                    }`}>
-                      {patient.trend === "up" ? (
-                        <TrendingUp className="h-4 w-4" />
-                      ) : (
-                        <TrendingDown className="h-4 w-4" />
-                      )}
-                      <span className="text-sm font-semibold">
-                        {patient.improvement > 0 ? "+" : ""}{patient.improvement}%
-                      </span>
+                      <div
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-full ${
+                          sobe
+                            ? "bg-success/10 text-success"
+                            : desce
+                              ? "bg-coral/10 text-coral"
+                              : "bg-muted text-muted-foreground"
+                        }`}
+                        title="Variação do humor médio reportado vs. quinzena anterior"
+                      >
+                        {sobe ? (
+                          <TrendingUp className="h-4 w-4" />
+                        ) : desce ? (
+                          <TrendingDown className="h-4 w-4" />
+                        ) : (
+                          <Minus className="h-4 w-4" />
+                        )}
+                        <span className="text-sm font-semibold">
+                          {p.deltaHumor === null || p.deltaHumor === undefined
+                            ? "—"
+                            : `${p.deltaHumor > 0 ? "+" : ""}${p.deltaHumor}`}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+                  )
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
+    </div>
+  )
+}
+
+function Legenda({ cor, texto }: { cor: string; texto: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`h-3 w-3 rounded-sm ${cor}`} />
+      <span className="text-xs text-muted-foreground">{texto}</span>
     </div>
   )
 }

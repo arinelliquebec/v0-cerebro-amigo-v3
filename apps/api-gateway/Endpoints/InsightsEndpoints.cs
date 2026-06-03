@@ -72,22 +72,28 @@ public static class InsightsEndpoints
             return Results.Ok(rows);
         });
 
-        // Marcar como visualizado
-        g.MapPost("/{id:guid}/visualizar", async (Guid id, AppDbContext db) =>
+        // Marcar como visualizado (escopado ao médico dono do insight — tenant não é opcional)
+        g.MapPost("/{id:guid}/visualizar", async (Guid id, AppDbContext db, ClaimsPrincipal user) =>
         {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
             await db.Database.ExecuteSqlRawAsync(
-                "UPDATE insights SET visualizado_em = NOW() WHERE id = {0} AND visualizado_em IS NULL",
-                id);
+                "UPDATE insights SET visualizado_em = NOW() WHERE id = {0} AND medico_id = {1} AND visualizado_em IS NULL",
+                id, medicoId.Value);
             return Results.NoContent();
         });
 
-        // Descartar (não foi útil ou já agi)
+        // Descartar (não foi útil ou já agi) — escopado ao médico dono do insight
         g.MapPost("/{id:guid}/descartar", async (
-            Guid id, [FromBody] DescartarRequest req, AppDbContext db) =>
+            Guid id, [FromBody] DescartarRequest req, AppDbContext db, ClaimsPrincipal user) =>
         {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
             await db.Database.ExecuteSqlRawAsync(@"
                 UPDATE insights SET descartado_em = NOW(), descartado_motivo = NULLIF({0}, '')
-                WHERE id = {1}", req.Motivo ?? "", id);
+                WHERE id = {1} AND medico_id = {2}", req.Motivo ?? "", id, medicoId.Value);
             return Results.NoContent();
         });
 

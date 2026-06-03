@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { CheckCircle2, Clock, AlertCircle, Loader2 } from "lucide-react"
+import { CheckCircle2, Clock, AlertCircle, Loader2, Check, X } from "lucide-react"
 import { tempoRelativo } from "@/lib/tempo"
 
 interface Insight {
@@ -29,6 +29,7 @@ const delayClass = ["delay-100", "delay-200", "delay-300", "delay-400"]
 export function RemindersWidget() {
   const [insights, setInsights] = useState<Insight[]>([])
   const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/insights")
@@ -37,6 +38,25 @@ export function RemindersWidget() {
       .catch(() => setInsights([]))
       .finally(() => setLoading(false))
   }, [])
+
+  // Marca visto / descarta. Otimista: remove da lista; se falhar, mantém.
+  async function agir(id: string, acao: "visualizar" | "descartar") {
+    setBusy(id)
+    const anterior = insights
+    setInsights((prev) => prev.filter((x) => x.id !== id))
+    try {
+      const r = await fetch(`/api/insights/${id}/${acao}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      })
+      if (!r.ok) setInsights(anterior)
+    } catch {
+      setInsights(anterior)
+    } finally {
+      setBusy(null)
+    }
+  }
 
   return (
     <Card className="border-border/80 hover:border-primary/25 hover:shadow-[0_4px_24px_rgba(94,75,139,0.07)] transition-all duration-200">
@@ -70,6 +90,32 @@ export function RemindersWidget() {
                     <p className="text-xs text-muted-foreground">
                       {r.nomePaciente ?? "Paciente"} · {tempoRelativo(r.criadoEm)}
                     </p>
+                  </div>
+                  <div className="flex flex-shrink-0 items-center gap-0.5">
+                    {busy === r.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => agir(r.id, "visualizar")}
+                          title="Marcar como visto"
+                          aria-label="Marcar como visto"
+                          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-primary"
+                        >
+                          <Check size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => agir(r.id, "descartar")}
+                          title="Descartar"
+                          aria-label="Descartar"
+                          className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-background hover:text-coral"
+                        >
+                          <X size={15} />
+                        </button>
+                      </>
+                    )}
                   </div>
                 </div>
               )

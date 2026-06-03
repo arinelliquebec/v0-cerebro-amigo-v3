@@ -8,6 +8,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.core.config import get_settings
 from app.dispatcher import dispatch_pending
+from app.medico_notify import despachar_crise_medico
 
 logger = structlog.get_logger(__name__)
 
@@ -21,6 +22,13 @@ async def _tick() -> None:
         logger.exception("scheduler.tick.failed", error=str(exc))
 
 
+async def _tick_medico_crise() -> None:
+    try:
+        await despachar_crise_medico()
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("scheduler.medico_crise.failed", error=str(exc))
+
+
 def start_scheduler() -> AsyncIOScheduler:
     global _scheduler
     if _scheduler is not None:
@@ -32,6 +40,14 @@ def start_scheduler() -> AsyncIOScheduler:
         _tick,
         trigger=IntervalTrigger(seconds=settings.scheduler_interval_seconds),
         id="tick:dispatch_pending",
+        replace_existing=True,
+        coalesce=True,
+        max_instances=1,
+    )
+    sched.add_job(
+        _tick_medico_crise,
+        trigger=IntervalTrigger(seconds=settings.scheduler_interval_seconds),
+        id="tick:medico_crise",
         replace_existing=True,
         coalesce=True,
         max_instances=1,
