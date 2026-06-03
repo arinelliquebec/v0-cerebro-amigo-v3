@@ -196,18 +196,20 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
   const [open, setOpen] = useState(false)
   const [nome, setNome] = useState("")
   const [email, setEmail] = useState("")
+  const [crm, setCrm] = useState("")
   const [plano, setPlano] = useState("trial")
   const [valor, setValor] = useState("0")
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [ok, setOk] = useState(false)
 
-  function reset() { setNome(""); setEmail(""); setPlano("trial"); setValor("0"); setErro(null); setOk(false) }
+  function reset() { setNome(""); setEmail(""); setCrm(""); setPlano("trial"); setValor("0"); setErro(null); setOk(false) }
 
   async function submeter(e: React.FormEvent) {
     e.preventDefault(); setErro(null)
     if (!nome.trim()) return setErro("Informe o nome do médico")
     if (!email.trim()) return setErro("Informe o e-mail")
+    if (!crm.trim()) return setErro("Informe o CRM")
     const v = parseFloat(valor.replace(",", "."))
     if (isNaN(v)) return setErro("Valor inválido")
     setEnviando(true)
@@ -215,7 +217,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
       const r = await fetch("/api/admin/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, plano, valorMensal: v }),
+        body: JSON.stringify({ nome, email, crm, plano, valorMensal: v }),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) return setErro(d?.error === "email_em_uso" ? "E-mail já cadastrado." : "Erro ao criar convite.")
@@ -250,6 +252,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
             {erro && <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"><AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> {erro}</div>}
             <div className="space-y-1.5"><Label>Nome completo</Label><Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Dr. João Silva" required /></div>
             <div className="space-y-1.5"><Label>E-mail</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="joao@clinica.com" required /></div>
+            <div className="space-y-1.5"><Label>CRM</Label><Input value={crm} onChange={(e) => setCrm(e.target.value)} placeholder="CRM/SP 123456" required /></div>
             <div className="space-y-1.5">
               <Label>Plano</Label>
               <Select value={plano} onValueChange={setPlano}>

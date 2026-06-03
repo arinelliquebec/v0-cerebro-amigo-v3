@@ -87,8 +87,50 @@ public static class AuthEndpoints
         })
         .RequireAuthorization()
         .WithSummary("Perfil do médico logado (health-check de sessão)");
+
+        // POST /api/v1/auth/ativar-conta — médico define senha usando token de convite.
+        g.MapPost("/ativar-conta", async (
+            [FromBody] AtivarContaRequest req,
+            AppDbContext db, IPasswordHasher hasher) =>
+        {
+            if (string.IsNullOrWhiteSpace(req.Token) || string.IsNullOrWhiteSpace(req.Senha))
+                return Results.BadRequest(new { error = "token e senha obrigatórios" });
+            if (req.Senha.Length < 8)
+                return Results.BadRequest(new { error = "senha minimo 8 caracteres" });
+
+            var tokenHash = AuthSha256(req.Token);
+            var row = await db.Database.SqlQueryRaw<TokenRow>(
+                "SELECT usuario_id::text AS usuario_id, expira_em, usado_em FROM medico_invite_tokens WHERE token_hash = {0}",
+                tokenHash).FirstOrDefaultAsync();
+
+            if (row is null) return Results.BadRequest(new { error = "token_invalido" });
+            if (row.UsadoEm is not null) return Results.BadRequest(new { error = "token_ja_utilizado" });
+            if (row.ExpiraEm < DateTime.UtcNow) return Results.StatusCode(410);
+
+            var senhaHash = hasher.Hash(req.Senha);
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE usuarios SET senha_hash = {0} WHERE id = {1}::uuid",
+                senhaHash, row.UsuarioId);
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE medico_invite_tokens SET usado_em = NOW() WHERE token_hash = {0}",
+                tokenHash);
+
+            return Results.NoContent();
+        })
+        .AllowAnonymous()
+        .WithSummary("Ativa conta de médico convidado (define senha)");
+    }
+
+    private static string AuthSha256(string input)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(input));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 }
+
+public record AtivarContaRequest(string Token, string Senha);
+internal record TokenRow(string UsuarioId, DateTime ExpiraEm, DateTime? UsadoEm);
 
 public record MedicoMeDto(
     Guid MedicoId, string Nome, string Crm, string? Especialidade,
