@@ -3,6 +3,8 @@ import { redirect } from "next/navigation"
 import { gateway, GatewayError } from "@/lib/gateway"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 
+export const dynamic = "force-dynamic"
+
 interface MeResponse {
   id: string
   nome: string
