@@ -13,6 +13,7 @@ permissions:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  ECR: 004177894935.dkr.ecr.sa-east-1.amazonaws.com
 
 # ─── Rollback ──────────────────────────────────────────────────────────────
 #
@@ -38,9 +39,13 @@ jobs:
   # classificador de crise (ADR-006) e a integridade do dataset de crise.
   # Ver também .github/workflows/ci.yml (mesmo gate em pull requests).
   test:
-    name: Tests (gate)
+    name: Tests — ${{ matrix.service }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: true
+      matrix:
+        service: [orchestrator-py, agents-py]
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -49,23 +54,18 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: apps/${{ matrix.service }}/pyproject.toml
 
-      - name: orchestrator-py — lint + tests
-        working-directory: apps/orchestrator-py
+      - name: Install + lint + test
+        working-directory: apps/${{ matrix.service }}
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
           ruff check .
           pytest -q
 
-      - name: agents-py — lint + tests
-        working-directory: apps/agents-py
-        run: |
-          pip install -e ".[dev]"
-          ruff check .
-          pytest -q
-
-  # ─── Job 1: build e push das 5 imagens para o ECR ────────────────────────
+  # ─── Job 1: build e push das 5 imagens para o ECR (paralelo + cache) ─────
   build:
     name: Build & push to ECR
     needs: test
@@ -90,43 +90,22 @@ jobs:
         with:
           registry-type: private
 
+      # Buildx para suporte a cache inline (type=gha)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Builds paralelos via buildx bake. Cada serviço usa a camada de cache
+      # do GitHub Actions — deps inalteradas não são baixadas/compiladas.
       - name: Build and push all images
+        uses: docker/bake-action@v6
         env:
-          ECR: 004177894935.dkr.ecr.sa-east-1.amazonaws.com
           TAG: ${{ github.sha }}
-        run: |
-          set -euo pipefail
-
-          # web — contexto = raiz do repo (Dockerfile usa monorepo root)
-          docker build \
-            -t "$ECR/cerebro-amigo/web:$TAG" \
-            -f apps/web/Dockerfile \
-            .
-          docker push "$ECR/cerebro-amigo/web:$TAG"
-
-          # api-gateway (.NET 10)
-          docker build \
-            -t "$ECR/cerebro-amigo/api-gateway:$TAG" \
-            apps/api-gateway/
-          docker push "$ECR/cerebro-amigo/api-gateway:$TAG"
-
-          # orchestrator-py (LangGraph + caminho de crise)
-          docker build \
-            -t "$ECR/cerebro-amigo/orchestrator-py:$TAG" \
-            apps/orchestrator-py/
-          docker push "$ECR/cerebro-amigo/orchestrator-py:$TAG"
-
-          # agents-py (batch + agentes analíticos)
-          docker build \
-            -t "$ECR/cerebro-amigo/agents-py:$TAG" \
-            apps/agents-py/
-          docker push "$ECR/cerebro-amigo/agents-py:$TAG"
-
-          # notifier-py (web push)
-          docker build \
-            -t "$ECR/cerebro-amigo/notifier-py:$TAG" \
-            apps/notifier-py/
-          docker push "$ECR/cerebro-amigo/notifier-py:$TAG"
+        with:
+          files: .github/docker-bake.hcl
+          push: true
+          set: |
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
 
   # ─── Job 2: deploy via SSM (pull + up, sem build na EC2) ─────────────────
   deploy:
@@ -178,7 +157,8 @@ jobs:
           COMMAND_ID="${{ steps.ssm.outputs.command_id }}"
           INSTANCE_ID="i-057860cd97edafefb"
 
-          for i in $(seq 1 60); do
+          # 80 × 15s = 1200s — alinhado ao --timeout-seconds do SSM
+          for i in $(seq 1 80); do
             STATUS=$(aws ssm get-command-invocation \
               --command-id "$COMMAND_ID" \
               --instance-id "$INSTANCE_ID" \
@@ -186,7 +166,7 @@ jobs:
               --query 'Status' \
               --output text 2>/dev/null || echo "Pending")
 
-            echo "[$i/60] Status: $STATUS"
+            echo "[$i/80] Status: $STATUS"
 
             if [ "$STATUS" = "Success" ]; then
               echo "Deploy succeeded."
