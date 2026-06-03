@@ -1,13 +1,13 @@
 # Build context = monorepo root
 
-FROM node:22-alpine AS deps
+FROM node:24.15.0-alpine AS deps
 WORKDIR /repo
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/web/package.json ./apps/web/
 RUN pnpm install --frozen-lockfile --ignore-scripts --filter "./apps/web..."
 
-FROM node:22-alpine AS builder
+FROM node:24.15.0-alpine AS builder
 WORKDIR /repo
 RUN corepack enable && corepack prepare pnpm@10.33.3 --activate
 COPY --from=deps /repo/node_modules ./node_modules
@@ -19,7 +19,7 @@ ENV NODE_ENV=production
 # Turbopack usa raiz do workspace para resolver o pacote `next`
 RUN cd apps/web && node_modules/.bin/next build
 
-FROM node:22-alpine AS runner
+FROM node:24.15.0-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1

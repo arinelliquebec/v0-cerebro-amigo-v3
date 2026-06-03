@@ -1,9 +1,8 @@
 import { cookies } from "next/headers"
 import { redirect } from "next/navigation"
+import { connection } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
-
-export const dynamic = "force-dynamic"
 
 interface MeResponse {
   id: string
@@ -13,6 +12,7 @@ interface MeResponse {
 }
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
+  await connection()
   const cookieStore = await cookies()
   const token = cookieStore.get("auth_token")?.value
 
