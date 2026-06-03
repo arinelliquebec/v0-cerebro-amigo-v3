@@ -10,8 +10,9 @@ variable "TAG" {
   default = "latest"
 }
 
-// Grupo "all" constrói e pusha os 5 serviços em paralelo.
-group "all" {
+// Grupo "default" constrói e pusha os 5 serviços em paralelo.
+// bake-action sem target explícito resolve este grupo.
+group "default" {
   targets = ["web", "api-gateway", "orchestrator-py", "agents-py", "notifier-py"]
 }
 
