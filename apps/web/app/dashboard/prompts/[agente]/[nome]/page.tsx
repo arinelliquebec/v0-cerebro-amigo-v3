@@ -79,7 +79,7 @@ export default function PromptEditPage() {
     setErro("")
     setSucesso("")
     try {
-      const res = await fetch(`/api/prompts/${id}/ativar`, { method: "POST" })
+      const res = await fetch(`/api/prompts/ativar/${id}`, { method: "POST" })
       if (!res.ok) throw new Error(`Erro ${res.status}`)
       setSucesso("Versão ativada com sucesso.")
       recarregar()

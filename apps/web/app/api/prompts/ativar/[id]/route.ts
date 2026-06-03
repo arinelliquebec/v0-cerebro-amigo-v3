@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
 
+// Ativa uma versão de prompt. 'ativar' é segmento ESTÁTICO (antes de [id]) para
+// não criar dois slugs dinâmicos irmãos sob /api/prompts ([agente] vs [id]),
+// que o Next.js proíbe e fazia o app inteiro retornar 500.
 export async function POST(
   _req: Request,
   { params }: { params: Promise<{ id: string }> }
