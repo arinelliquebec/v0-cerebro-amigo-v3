@@ -15,6 +15,7 @@ from app.core.config import get_settings
 from app.core.db import acquire, close_pool, init_pool
 from app.core.observability import redact_pii_processor
 from app.dispatcher import dispatch_for_patient, dispatch_pending, test_push_to_sub
+from app.medico_notify import despachar_crise_medico
 from app.scheduler import shutdown_scheduler, start_scheduler
 
 
@@ -110,6 +111,12 @@ async def dispatch_for_patient_endpoint(req: DispatchForPatientRequest) -> dict:
 
 class TestPushRequest(BaseModel):
     subscription_id: UUID
+
+
+@app.post("/internal/medico/notificar-crise", dependencies=[Depends(_check_token)])
+async def notificar_crise_medico() -> dict:
+    """Envia e-mail de crise aos médicos opt-in (sem detalhe clínico)."""
+    return await despachar_crise_medico()
 
 
 @app.post("/internal/push/test", dependencies=[Depends(_check_token)])

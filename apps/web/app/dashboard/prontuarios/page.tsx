@@ -1,6 +1,8 @@
 "use client"
 
 import { Header } from "@/components/header"
+import { BannerCrise } from "@/components/crise/banner-crise"
+import { CondutaEditor } from "@/components/conduta/conduta-editor"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -225,6 +227,11 @@ export default function ProntuariosPage() {
                 </CardContent>
               </Card>
 
+              <BannerCrise
+                pacienteId={selected.id}
+                onRetomado={() => fetchTimeline(selected.id)}
+              />
+
               <Tabs defaultValue="timeline" className="space-y-4">
                 <TabsList className="bg-muted/50">
                   <TabsTrigger
@@ -238,6 +245,12 @@ export default function ProntuariosPage() {
                     className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
                     Prescrições
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="conduta"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    Conduta
                   </TabsTrigger>
                   <TabsTrigger
                     value="exames"
@@ -334,6 +347,10 @@ export default function ProntuariosPage() {
                       ))}
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="conduta">
+                  <CondutaEditor pacienteId={selected.id} />
                 </TabsContent>
 
                 <TabsContent value="exames">

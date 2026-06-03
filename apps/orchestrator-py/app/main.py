@@ -123,3 +123,61 @@ async def run_conversation(req: RunConversationRequest) -> dict:
         "conversa_status": final_state.get("conversa_status"),
         "trace_id": final_state.get("trace_id"),
     }
+
+
+# ─── Rascunho de comunicação ADMINISTRATIVA ─────────────────────────────────
+# clinical-safety #1: a IA NUNCA gera conteúdo clínico. Este guard é uma
+# constante imutável (não vive na tabela de prompts editáveis, de propósito —
+# não pode ser alterado para permitir conteúdo clínico). O médico revisa e
+# edita o rascunho antes de qualquer envio.
+
+_GUARD_ADMIN = (
+    "Você redige APENAS comunicação ADMINISTRATIVA de uma clínica de psiquiatria "
+    "para o paciente, em nome da equipe.\n"
+    "Permitido: remarcar/confirmar consulta, lembrar de comparecer, instruções "
+    "logísticas (endereço, horário, documentos), confirmar recebimento.\n"
+    "PROIBIDO ABSOLUTAMENTE qualquer conteúdo clínico — diagnóstico, sintoma, "
+    "medicação, dose, conduta, interpretação de humor/exame, orientação de saúde "
+    "ou aconselhamento emocional. Se o pedido exigir conteúdo clínico, responda "
+    "EXATAMENTE com: [NÃO ADMINISTRATIVO]\n"
+    "Tom cordial, claro, breve, em pt-BR. Não invente datas/horários — use só os "
+    "fornecidos. Não assine como médico; assine 'Equipe Cérebro Amigo'."
+)
+
+_TIPOS_ADMIN = {"remarcar", "confirmar", "lembrete_logistico"}
+
+
+class RascunhoAdminRequest(BaseModel):
+    tipo: str
+    nome_paciente: str = ""
+    contexto: str = ""
+
+
+@app.post(
+    "/internal/comunicacao/rascunho-admin",
+    dependencies=[Depends(_check_internal_token)],
+)
+async def rascunho_admin(req: RascunhoAdminRequest) -> dict:
+    """Gera rascunho de comunicação ADMINISTRATIVA (nunca clínico). O médico
+    revisa e edita antes de enviar — a IA não decide nada clínico."""
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    from app.conversation.llm import haiku
+
+    if req.tipo not in _TIPOS_ADMIN:
+        raise HTTPException(status_code=400, detail="tipo inválido")
+
+    human = (
+        f"Tipo: {req.tipo}\n"
+        f"Paciente: {req.nome_paciente or '(não informado)'}\n"
+        f"Dados administrativos fornecidos pelo médico: {req.contexto or '(nenhum)'}\n\n"
+        "Redija a mensagem administrativa."
+    )
+    resp = await haiku().ainvoke(
+        [SystemMessage(content=_GUARD_ADMIN), HumanMessage(content=human)]
+    )
+    texto = (
+        resp.content if isinstance(resp.content, str) else str(resp.content)
+    ).strip()
+    administrativo = "[NÃO ADMINISTRATIVO]" not in texto
+    return {"rascunho": texto if administrativo else "", "administrativo": administrativo}
