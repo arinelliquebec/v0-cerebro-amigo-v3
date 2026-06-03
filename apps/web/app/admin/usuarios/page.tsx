@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw } from "lucide-react"
+import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Trash2 } from "lucide-react"
 
 interface Usuario {
   id: string
@@ -165,6 +165,59 @@ function RoleDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
   )
 }
 
+function ExcluirDialog({ u, onExcluido }: { u: Usuario; onExcluido: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [excluindo, setExcluindo] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function excluir() {
+    setErro(null)
+    setExcluindo(true)
+    try {
+      const r = await fetch(`/api/admin/usuarios/${u.id}`, { method: "DELETE" })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}))
+        return setErro(d?.error ?? "Erro ao excluir.")
+      }
+      onExcluido()
+      setOpen(false)
+    } catch { setErro("Erro de conexão.") }
+    finally { setExcluindo(false) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); setErro(null) }}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" title="Excluir usuário">
+          <Trash2 className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-destructive">
+            <Trash2 className="h-4 w-4" /> Excluir usuário
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Confirma exclusão de <span className="font-semibold text-foreground">{u.nome}</span>?
+          Esta ação é irreversível.
+        </p>
+        {erro && (
+          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {erro}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button variant="destructive" onClick={excluir} disabled={excluindo}>
+            {excluindo ? <Loader2 className="h-4 w-4 animate-spin" /> : "Excluir"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function SenhaDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
   const [open, setOpen] = useState(false)
   const [senha, setSenha] = useState("")
@@ -215,6 +268,8 @@ function SenhaDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
 export default function UsuariosPage() {
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
+  const [meId, setMeId] = useState<string | null>(null)
+  const [isOwner, setIsOwner] = useState(false)
 
   const carregar = useCallback(async () => {
     const r = await fetch("/api/admin/usuarios")
@@ -222,7 +277,12 @@ export default function UsuariosPage() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { carregar() }, [carregar])
+  useEffect(() => {
+    carregar()
+    fetch("/api/me").then(r => r.ok ? r.json() : null).then(d => {
+      if (d) { setMeId(d.id); setIsOwner(d.role === "owner") }
+    })
+  }, [carregar])
 
   return (
     <div className="p-8 space-y-6">
@@ -286,6 +346,9 @@ export default function UsuariosPage() {
                     <div className="flex items-center gap-1">
                       <RoleDialog u={u} onSalvo={carregar} />
                       <SenhaDialog u={u} onSalvo={carregar} />
+                      {isOwner && u.id !== meId && (
+                        <ExcluirDialog u={u} onExcluido={carregar} />
+                      )}
                     </div>
                   </td>
                 </tr>
