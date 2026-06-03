@@ -1,5 +1,6 @@
 using ApiGateway.Auth;
 using ApiGateway.Data;
+using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -202,6 +203,82 @@ public static class AdminEndpoints
             return ok == 0 ? Results.NotFound() : Results.NoContent();
         });
 
+        // ─── Onboarding de médico ──────────────────────────────────────────────
+        // Cria usuario + medico + assinatura trial + token de convite + envia email.
+        g.MapPost("/onboarding/medico", async (
+            [FromBody] OnboardingMedicoRequest req,
+            AppDbContext db, IPasswordHasher hasher,
+            ResendClient resend, IConfiguration cfg) =>
+        {
+            var email = (req.Email ?? "").Trim().ToLowerInvariant();
+            var nome  = (req.Nome  ?? "").Trim();
+            var crm   = (req.Crm   ?? "").Trim();
+            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(nome) || string.IsNullOrEmpty(crm))
+                return Results.BadRequest(new { error = "nome, email e CRM são obrigatórios" });
+
+            var plano = (req.Plano ?? "trial").ToLowerInvariant();
+            if (!new[] { "trial", "starter", "pro", "enterprise" }.Contains(plano))
+                return Results.BadRequest(new { error = "plano inválido" });
+
+            var existe = await db.Database.ExistsAsync(
+                "SELECT 1 FROM usuarios WHERE email = {0}", email);
+            if (existe) return Results.Conflict(new { error = "email_em_uso" });
+
+            // Usuario com senha placeholder (não pode logar antes de ativar)
+            var usuarioId = Guid.NewGuid();
+            var medicoId  = Guid.NewGuid();
+            var placeholder = "!" + Convert.ToBase64String(
+                System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
+
+            await db.Database.ExecuteSqlRawAsync(
+                "INSERT INTO usuarios (id, email, senha_hash, nome, role) VALUES ({0},{1},{2},{3},'medico')",
+                usuarioId, email, placeholder, nome);
+
+            await db.Database.ExecuteSqlRawAsync(
+                "INSERT INTO medicos (id, usuario_id, nome, crm, especialidade) VALUES ({0},{1},{2},{3},'psiquiatria')",
+                medicoId, usuarioId, nome, crm);
+
+            var assinaturaId = Guid.NewGuid();
+            await db.Database.ExecuteSqlRawAsync(@"
+                INSERT INTO assinaturas (id, medico_id, plano, valor_mensal, status, trial_ate)
+                VALUES ({0},{1},{2},{3},'trial', NOW() + INTERVAL '30 days')",
+                assinaturaId, medicoId, plano, req.ValorMensal ?? 0m);
+
+            // Token de convite (24h)
+            var tokenBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+            var token = Convert.ToBase64String(tokenBytes)
+                .Replace("+", "-").Replace("/", "_").Replace("=", "");
+            var tokenHash = AdminSha256(token);
+            await db.Database.ExecuteSqlRawAsync(
+                "INSERT INTO medico_invite_tokens (usuario_id, token_hash, expira_em) VALUES ({0},{1}, NOW() + INTERVAL '24 hours')",
+                usuarioId, tokenHash);
+
+            // Email com link de ativação
+            var baseUrl = cfg["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
+            var link = $"{baseUrl}/ativar-conta?token={token}";
+            var html = $"""
+                <p>Olá, {nome}!</p>
+                <p>Você foi convidado(a) para acessar o <strong>Cérebro Amigo</strong>.</p>
+                <p><a href="{link}">Clique aqui para criar sua senha</a></p>
+                <p>O link é válido por 24 horas.</p>
+                <p>Se você não esperava este convite, pode ignorar este e-mail.</p>
+                """;
+            var txt = $"Olá, {nome}!\n\nCrie sua senha de acesso ao Cérebro Amigo:\n{link}\n\nVálido por 24 horas.";
+
+            SendEmailResult emailResult;
+            try { emailResult = await resend.SendAsync(email, "Convite — Cérebro Amigo", html, txt); }
+            catch (Exception ex) { emailResult = new SendEmailResult(false, null, ex.Message); }
+
+            return Results.Created($"/api/v1/admin/medicos/{medicoId}", new
+            {
+                usuarioId,
+                medicoId,
+                emailEnviado = emailResult.Success,
+                emailErro = emailResult.Error,
+                ativarContaUrl = emailResult.Success ? null : link,
+            });
+        });
+
         // ─── Assinaturas / Billing ────────────────────────────────────────────
 
         g.MapGet("/assinaturas", async (AppDbContext db) =>
@@ -304,9 +381,19 @@ public static class AdminEndpoints
             return Results.Ok(rows);
         });
     }
+
+    private static string AdminSha256(string input)
+    {
+        var bytes = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(input));
+        return Convert.ToHexString(bytes).ToLowerInvariant();
+    }
 }
 
 // ─── DTOs ──────────────────────────────────────────────────────────────────────
+
+public record OnboardingMedicoRequest(
+    string Nome, string Email, string Crm, string? Plano, decimal? ValorMensal);
 
 public record CustoMes(
     DateOnly Mes, string Agente,
@@ -339,3 +426,4 @@ public record AtualizarAssinaturaRequest(
 public record RegistrarPagamentoRequest(
     decimal Valor, string? Moeda, string? Referencia,
     string? Metodo, DateTime? PagoEm, string? Notas);
+
