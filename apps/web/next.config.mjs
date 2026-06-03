@@ -6,9 +6,6 @@ const nextConfig = {
   /* React Compiler: memoização automática de componentes (React 19) */
   reactCompiler: true,
 
-  /* Cache Components: explicit caching model (Next.js 16) */
-  cacheComponents: true,
-
   /* Segurança: remove header X-Powered-By */
   poweredByHeader: false,
 
