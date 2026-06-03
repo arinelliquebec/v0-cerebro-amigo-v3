@@ -202,8 +202,9 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [ok, setOk] = useState(false)
+  const [ativarUrl, setAtivarUrl] = useState<string | null>(null)
 
-  function reset() { setNome(""); setEmail(""); setCrm(""); setPlano("trial"); setValor("0"); setErro(null); setOk(false) }
+  function reset() { setNome(""); setEmail(""); setCrm(""); setPlano("trial"); setValor("0"); setErro(null); setOk(false); setAtivarUrl(null) }
 
   async function submeter(e: React.FormEvent) {
     e.preventDefault(); setErro(null)
@@ -222,6 +223,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
       const d = await r.json().catch(() => ({}))
       if (!r.ok) return setErro(d?.error === "email_em_uso" ? "E-mail já cadastrado." : "Erro ao criar convite.")
       setOk(true)
+      if (!d?.emailEnviado && d?.ativarContaUrl) setAtivarUrl(d.ativarContaUrl)
       onCriado()
     } catch { setErro("Erro de conexão.") }
     finally { setEnviando(false) }
@@ -240,9 +242,34 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
           </p>
         </DialogHeader>
         {ok ? (
-          <div className="py-4 text-center space-y-2">
-            <p className="text-success font-medium">Convite enviado!</p>
-            <p className="text-sm text-muted-foreground">O médico receberá um e-mail com link válido por 30 minutos para criar a senha.</p>
+          <div className="py-4 space-y-3">
+            <p className="text-success font-medium text-center">
+              {ativarUrl ? "Conta criada!" : "Convite enviado!"}
+            </p>
+            {ativarUrl ? (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  E-mail não enviado (domínio não verificado no Resend). Copie o link e envie manualmente ao médico — válido por 24h.
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    readOnly
+                    value={ativarUrl}
+                    className="flex-1 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-xs font-mono text-foreground truncate"
+                  />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => navigator.clipboard?.writeText(ativarUrl)}
+                    className="shrink-0 text-xs"
+                  >
+                    Copiar
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center">O médico receberá um e-mail com link válido por 24h para criar a senha.</p>
+            )}
             <DialogFooter className="pt-2">
               <Button variant="outline" onClick={() => { setOpen(false) }}>Fechar</Button>
             </DialogFooter>
