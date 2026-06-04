@@ -136,6 +136,7 @@ jobs:
               "cd /opt/cerebro-amigo-v3",
               "git pull origin main",
               "aws ecr get-login-password --region sa-east-1 | docker login --username AWS --password-stdin 004177894935.dkr.ecr.sa-east-1.amazonaws.com",
+              "docker image prune -af",
               "docker compose pull",
               "docker compose up -d --remove-orphans",
               "for i in $(seq 1 30); do curl -sf http://localhost:5050/health | grep -q ok && curl -sf http://localhost:5050/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo api-gateway nao saudavel; exit 1; }; done && echo api-gateway ok",

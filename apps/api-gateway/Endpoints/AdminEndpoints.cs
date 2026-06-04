@@ -138,7 +138,7 @@ public static class AdminEndpoints
                     COUNT(*) FILTER (WHERE concluido_em IS NULL)::int AS em_aberto,
                     ROUND(AVG(EXTRACT(EPOCH FROM (concluido_em - iniciado_em)) * 1000)::numeric, 0) AS latencia_media_ms,
                     ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
-                        ORDER BY EXTRACT(EPOCH FROM (concluido_em - iniciado_em)) * 1000)::numeric, 0) AS latencia_p95_ms,
+                        ORDER BY EXTRACT(EPOCH FROM (concluido_em - iniciado_em)) * 1000)::numeric, 0) AS latencia_p95ms,
                     ROUND(COALESCE(SUM(custo_usd), 0)::numeric, 4)    AS custo_usd_total,
                     MAX(iniciado_em)                                  AS ultimo_run
                 FROM agente_execucoes
