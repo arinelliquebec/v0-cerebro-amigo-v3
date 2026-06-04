@@ -114,25 +114,31 @@ public sealed class CfmClient
                     Nome: null, Especialidade: null, Erro: "resposta inválida");
             }
 
-            // code 200 = encontrado; code 600 = não encontrado; outros = erro
-            if (body?.Code == 600 || body?.Data == null || body.Data.Count == 0)
+            // Semântica Infosimples:
+            //   600 = consulta não encontrou registro → CRM realmente não existe (→ 422).
+            //   612 = "site de origem não retornou dados" = portal CFM instável/indisponível.
+            //   Só (200 COM dados) é "encontrado". Qualquer outra coisa NÃO é "CRM inválido"
+            //   — é "não deu pra confirmar" → Erro (503/retry), p/ NUNCA rejeitar médico
+            //   válido por hiccup do CFM.
+            if (body is null)
             {
-                _logger.LogInformation(
-                    "CRM {Crm}/{Uf} não encontrado no CFM (Infosimples code {Code})",
-                    crm, uf, body?.Code);
-                return new CrmValidationResult(
-                    Encontrado: false, Situacao: null,
-                    Nome: null, Especialidade: null, Erro: null);
+                _logger.LogWarning("Infosimples: corpo nulo para CRM {Crm}/{Uf}", crm, uf);
+                return new CrmValidationResult(false, null, null, null, "resposta inválida");
             }
 
-            if (body.Code != 200)
+            if (body.Code == 600)
+            {
+                _logger.LogInformation("CRM {Crm}/{Uf} não encontrado no CFM (code 600)", crm, uf);
+                return new CrmValidationResult(false, null, null, null, Erro: null);
+            }
+
+            if (body.Code != 200 || body.Data is null || body.Data.Count == 0)
             {
                 _logger.LogWarning(
-                    "Infosimples code {Code} inesperado para CRM {Crm}/{Uf}", body.Code, crm, uf);
+                    "Infosimples não confirmou CRM {Crm}/{Uf} (code {Code}: {Msg}) — tratado como indisponível",
+                    crm, uf, body.Code, body.CodeMessage);
                 return new CrmValidationResult(
-                    Encontrado: false, Situacao: null,
-                    Nome: null, Especialidade: null,
-                    Erro: $"Infosimples code {body.Code}");
+                    false, null, null, null, Erro: $"Infosimples code {body.Code}");
             }
 
             var dado = body.Data[0];
