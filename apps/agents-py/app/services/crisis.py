@@ -118,16 +118,21 @@ def _gatilho_principal(gatilhos: list[str], nivel: str) -> str:
 # ─── Protocolo (SEM LLM) ────────────────────────────────────────────────────
 
 
-async def acionar_protocolo_diario(
+async def acionar_protocolo(
     conn,
     paciente_id: uuid.UUID,
     crise: CrisisDetectionOutput,
-    origem: Literal["diario_audio", "diario_texto"],
+    origem: str,
+    titulo: str,
+    mensagem: str,
 ) -> str:
-    """Grava trilha, notifica médico, pausa automação. Retorna texto fixo.
+    """Núcleo do protocolo de crise (SEM LLM). Numa transação: grava trilha
+    append-only, notifica o médico e pausa a automação. O texto de acolhimento
+    vem de crisis_copy — nunca gerado. Reutilizado pelo diário e por gatilhos
+    determinísticos (ex.: item 9 do PHQ-9). `conn` é asyncpg já adquirida.
 
-    Tudo numa transação. Texto vem de crisis_copy — nunca gerado.
-    `conn` é uma conexão asyncpg já adquirida pelo chamador.
+    Crise é sempre real-action (registro + notificação + pausa), independente de
+    SHADOW_MODE — o gate de shadow vale para automação proativa, não para crise.
     """
     texto = texto_protocolo()
 
@@ -135,15 +140,6 @@ async def acionar_protocolo_diario(
         "SELECT medico_responsavel_id FROM pacientes WHERE cliente_id = $1",
         paciente_id,
     )
-
-    metadata = {  # noqa: F841
-        "nivel": crise.nivel,
-        "confianca": crise.confianca,
-        "gatilhos": crise.gatilhos,
-        "origem": origem,
-        "copy_versao": CRISIS_COPY.versao,
-        "copy_hash": CRISIS_COPY.hash_sha256,
-    }
 
     async with conn.transaction():
         # 1. Trilha de auditoria (append-only). mensagem_id NULL (não é conversa).
@@ -174,14 +170,8 @@ async def acionar_protocolo_diario(
                 """,
                 medico_id,
                 paciente_id,
-                f"Protocolo de crise acionado no diário (nível: {crise.nivel})",
-                (
-                    f"O paciente registrou no diário ({origem}) um conteúdo "
-                    f"classificado como risco {crise.nivel} "
-                    f"(confiança {crise.confianca:.2f}). A automação foi "
-                    f"suspensa. Resposta padrão de crise (v{CRISIS_COPY.versao}) "
-                    f"foi exibida ao paciente."
-                ),
+                titulo,
+                mensagem,
             )
 
         # 3. Pausa automação do paciente (defesa em camadas).
@@ -190,14 +180,30 @@ async def acionar_protocolo_diario(
             paciente_id,
         )
 
-    # Crise é sempre real-action (registro + notificação + pausa), independente
-    # de SHADOW_MODE — o gate de shadow vale para automação proativa, não para
-    # o protocolo de crise. Por isso não há flag de shadow aqui.
     logger.warning(
-        "diario.crise.protocolo_executado",
+        "crise.protocolo_executado",
         paciente_id=str(paciente_id),
         nivel=crise.nivel,
         origem=origem,
         copy_versao=CRISIS_COPY.versao,
     )
     return texto
+
+
+async def acionar_protocolo_diario(
+    conn,
+    paciente_id: uuid.UUID,
+    crise: CrisisDetectionOutput,
+    origem: Literal["diario_audio", "diario_texto"],
+) -> str:
+    """Crise disparada pelo diário (áudio/texto). Delega o núcleo a
+    acionar_protocolo, preservando o texto histórico da notificação."""
+    titulo = f"Protocolo de crise acionado no diário (nível: {crise.nivel})"
+    mensagem = (
+        f"O paciente registrou no diário ({origem}) um conteúdo "
+        f"classificado como risco {crise.nivel} "
+        f"(confiança {crise.confianca:.2f}). A automação foi "
+        f"suspensa. Resposta padrão de crise (v{CRISIS_COPY.versao}) "
+        f"foi exibida ao paciente."
+    )
+    return await acionar_protocolo(conn, paciente_id, crise, origem, titulo, mensagem)

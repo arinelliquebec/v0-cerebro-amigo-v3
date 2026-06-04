@@ -235,6 +235,13 @@ export default function AgendaPage() {
                           Confirmar
                         </Button>
                       )}
+                      {!cancelada && c.modalidade === "teleconsulta" && (
+                        <Button size="sm" asChild className="gap-1 text-xs">
+                          <Link href={`/dashboard/consultas/${c.id}/teleconsulta`}>
+                            <Video className="h-3.5 w-3.5" /> Iniciar
+                          </Link>
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" asChild className="gap-1 text-xs">
                         <Link href={`/dashboard/consultas/${c.id}/briefing`}>
                           <FileText className="h-3.5 w-3.5" /> Briefing

@@ -108,6 +108,13 @@ def _build_agent_schedules() -> dict[str, _Schedule]:
             # e descartam via dedup. Implementar dedup-no-SQL em
             # _listar_candidatos para eliminar esse desperdício.
         ),
+        # Desfecho (Measurement-Based Care, ADR-027): determinístico, sem LLM.
+        # Cadência diária; dedup_window=168h limita a 1 insight/paciente/semana.
+        "desfecho": _Schedule(
+            interval_hours=24,
+            start_offset_s=240,   # após os demais analíticos
+            jitter_s=120,
+        ),
     }
 
 

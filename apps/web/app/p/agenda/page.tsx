@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -10,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CalendarClock, Loader2, AlertTriangle, Check, X } from "lucide-react"
+import { CalendarClock, Loader2, AlertTriangle, Check, X, Video } from "lucide-react"
 
 interface Consulta {
   id: string
@@ -42,6 +43,14 @@ function quando(iso: string) {
 }
 function horaLocal(iso: string) {
   return new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+}
+// Janela de entrada na teleconsulta: de 10 min antes até o fim previsto + 30 min.
+function podeEntrarVideo(c: Consulta): boolean {
+  if (c.modalidade !== "teleconsulta" || c.status === "cancelada") return false
+  const ini = new Date(c.iniciaEm).getTime()
+  const fim = ini + (c.duracaoMin || 30) * 60000 + 30 * 60000
+  const agora = Date.now()
+  return agora >= ini - 10 * 60000 && agora <= fim
 }
 
 export default function AgendaPacientePage() {
@@ -234,6 +243,13 @@ export default function AgendaPacientePage() {
                     Cancelar
                   </Button>
                 </div>
+                {podeEntrarVideo(c) && (
+                  <Button asChild size="sm" className="mt-3 w-full gap-1.5">
+                    <Link href={`/p/consulta/${c.id}`}>
+                      <Video className="h-4 w-4" /> Entrar na consulta
+                    </Link>
+                  </Button>
+                )}
               </div>
             )
           })

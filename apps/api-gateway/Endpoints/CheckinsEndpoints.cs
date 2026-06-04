@@ -1,6 +1,7 @@
 using ApiGateway.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Net.Http.Headers;
 using System.Security.Claims;
 using System.Text.Json;
 
@@ -60,7 +61,8 @@ public static class CheckinsEndpoints
         // Responder check-in
         c.MapPost("/{id:guid}/responder", async (
             Guid id, [FromBody] ResponderCheckinRequest req,
-            AppDbContext db, ClaimsPrincipal user) =>
+            AppDbContext db, ClaimsPrincipal user,
+            IHttpClientFactory httpFactory, IConfiguration cfg) =>
         {
             var pid = PacienteAuthEndpoints.GetPacienteId(user);
             if (pid is null) return Results.Unauthorized();
@@ -90,7 +92,11 @@ public static class CheckinsEndpoints
                     break;
                 case "questionario_phq9":
                 case "questionario_gad7":
-                    await ProcessarRespostaQuestionario(db, pid.Value, tipo, req.Resposta);
+                    var rq = await ProcessarRespostaQuestionario(
+                        db, pid.Value, tipo, req.Resposta, httpFactory, cfg);
+                    // Crise (item 9 do PHQ-9): devolve o acolhimento fixo p/ o portal.
+                    if (rq.Crise)
+                        return Results.Ok(new { crise = true, criseTexto = rq.CriseTexto });
                     break;
             }
 
@@ -187,24 +193,23 @@ public static class CheckinsEndpoints
             pacienteId, humor, ansiedade, sono, energia, nota);
     }
 
-    private static async Task ProcessarRespostaQuestionario(AppDbContext db,
-        Guid pacienteId, string tipo, Dictionary<string, object> resposta)
+    private static async Task<QuestionarioResultado> ProcessarRespostaQuestionario(
+        AppDbContext db, Guid pacienteId, string tipo, Dictionary<string, object> resposta,
+        IHttpClientFactory httpFactory, IConfiguration cfg)
     {
-        // Resposta tipo: { "respostas": { "q1": 2, "q2": 3, ... } }
+        // Resposta tipo: { "respostas": { "q1": 2, "q2": 3, ... } } (valores 0-3)
         var codigo = tipo.Replace("questionario_", "");
-        var respostasObj = resposta.GetValueOrDefault("respostas");
-        if (respostasObj is null) return;
+        if (resposta.GetValueOrDefault("respostas") is not JsonElement el
+            || el.ValueKind != JsonValueKind.Object)
+            return new QuestionarioResultado(false, null);
 
-        // Calcula score
+        // Score determinístico (soma 0-3 por item). Interpretação pelo catálogo.
         int score = 0;
-        if (respostasObj is JsonElement el && el.ValueKind == JsonValueKind.Object)
-        {
-            foreach (var prop in el.EnumerateObject())
-                if (prop.Value.TryGetInt32(out var v)) score += v;
-        }
+        foreach (var prop in el.EnumerateObject())
+            if (prop.Value.TryGetInt32(out var v)) score += v;
 
-        var interpretacao = codigo == "phq9" ? InterpretarPHQ9(score) : InterpretarGAD7(score);
-        var respostasJson = JsonSerializer.Serialize(respostasObj);
+        var interpretacao = EscalasCatalogo.Interpretar(codigo, score);
+        var respostasJson = JsonSerializer.Serialize(el);
 
         await db.Database.ExecuteSqlRawAsync(@"
             INSERT INTO questionarios_respostas
@@ -212,14 +217,64 @@ public static class CheckinsEndpoints
             SELECT {0}, q.id, {1}::jsonb, {2}, {3}
             FROM questionarios q WHERE q.codigo = {4}",
             pacienteId, respostasJson, score, interpretacao, codigo);
+
+        // Gate de crise: item de ideação (PHQ-9 item 9) > 0 → protocolo fixo.
+        // O score JÁ foi gravado (é dado clínico que o médico precisa ver no MBC).
+        var chaveIdeacao = EscalasCatalogo.ChaveItemIdeacao(codigo);
+        if (chaveIdeacao is not null
+            && el.TryGetProperty(chaveIdeacao, out var itemIdeacao)
+            && itemIdeacao.TryGetInt32(out var valor) && valor > 0)
+        {
+            var texto = await DispararCriseAsync(httpFactory, cfg, pacienteId, valor);
+            return new QuestionarioResultado(true, texto);
+        }
+
+        return new QuestionarioResultado(false, null);
     }
 
-    private static string InterpretarPHQ9(int s) => s switch {
-        < 5 => "minima", < 10 => "leve", < 15 => "moderada", < 20 => "moderadamente_grave", _ => "grave"
-    };
-    private static string InterpretarGAD7(int s) => s switch {
-        < 5 => "minima", < 10 => "leve", < 15 => "moderada", _ => "grave"
-    };
+    /// <summary>
+    /// Aciona o protocolo de crise no agents-py (texto fixo de crisis_copy, trilha
+    /// append-only, notifica médico, pausa automação). Determinístico — sem LLM.
+    /// Mesma dependência gateway→agents-py do diário. Em falha, devolve null: o
+    /// portal exibe o acolhimento mínimo de emergência (paciente nunca fica sem
+    /// recurso). O score já está gravado independentemente.
+    /// </summary>
+    private static async Task<string?> DispararCriseAsync(
+        IHttpClientFactory httpFactory, IConfiguration cfg, Guid pacienteId, int valorItemIdeacao)
+    {
+        // PHQ-9 item 9: 1=vários dias, 2=mais da metade, 3=quase todos os dias.
+        var nivel = valorItemIdeacao >= 3 ? "critico" : valorItemIdeacao == 2 ? "alto" : "moderado";
+        var internalToken = cfg["INTERNAL_API_TOKEN"]
+            ?? throw new InvalidOperationException("INTERNAL_API_TOKEN missing");
+
+        try
+        {
+            var http = httpFactory.CreateClient("agents-py");
+            var payload = JsonSerializer.Serialize(new
+            {
+                paciente_id = pacienteId,
+                motivo = "ideacao_suicida_phq9",
+                nivel,
+            });
+            using var msg = new HttpRequestMessage(HttpMethod.Post, "/internal/crise/trigger")
+            {
+                Content = new StringContent(payload, System.Text.Encoding.UTF8, "application/json"),
+            };
+            msg.Headers.Authorization = new AuthenticationHeaderValue("Bearer", internalToken);
+
+            using var resp = await http.SendAsync(msg);
+            if (!resp.IsSuccessStatusCode) return null;
+
+            var json = await resp.Content.ReadAsStringAsync();
+            using var doc = JsonDocument.Parse(json);
+            return doc.RootElement.TryGetProperty("crise_texto", out var t) ? t.GetString() : null;
+        }
+        catch
+        {
+            // Falha de rede/serviço não engole o sinal — o portal mostra acolhimento mínimo.
+            return null;
+        }
+    }
 
     private static int? TryInt(Dictionary<string, object> d, string k)
     {
@@ -242,6 +297,8 @@ public record CheckinDto(
     DateTime AgendadoPara, DateTime? EnviadoEm);
 
 public record ResponderCheckinRequest(Dictionary<string, object> Resposta);
+
+public record QuestionarioResultado(bool Crise, string? CriseTexto);
 
 public record PushSubscribeRequest(string Endpoint, string P256dhKey, string AuthKey);
 public record PushUnsubscribeRequest(string Endpoint);

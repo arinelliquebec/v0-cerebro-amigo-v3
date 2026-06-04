@@ -55,6 +55,14 @@ services:
     ports:
       - "5050:5000"
     env_file: .env
+    # Override das URLs internas para a rede do compose. O .env traz valores
+    # `localhost` (corretos p/ dev NATIVO); dentro do container, o gateway
+    # precisa alcançar os serviços Python pelos nomes de serviço — senão
+    # localhost:8082/8081 não resolve (quebra diário, gate de crise e SSE).
+    environment:
+      ORCHESTRATOR_PY_URL: http://orchestrator-py:8081
+      AGENTS_PY_URL: http://agents-py:8082
+      NOTIFIER_PY_URL: http://notifier-py:8083
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:5000/health"]
       interval: 10s
@@ -122,3 +130,25 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+  # TURN/STUN (coturn) para a teleconsulta P2P (ADR-026). Só RELAYA mídia quando
+  # o P2P direto é bloqueado por NAT — no caminho feliz a mídia vai
+  # browser↔browser e não passa por aqui. Sem mídia clínica armazenada.
+  #
+  # network_mode: host → o relay precisa do range de portas UDP + o IP público
+  # real (external-ip). Ativar só onde houver IP público (prod):
+  #   COMPOSE_PROFILES=turn docker compose up -d
+  # Security group / firewall: abrir UDP 3478, TCP 3478 e UDP 49152-49251.
+  # TURN_SECRET é o MESMO valor lido pelo gateway (HMAC da credencial efêmera).
+  coturn:
+    image: coturn/coturn:4.6
+    profiles: ["turn"]
+    network_mode: host
+    restart: unless-stopped
+    command: >
+      -n --log-file=stdout --no-cli --no-tls --no-dtls
+      --realm=${TURN_REALM:-cerebro-amigo}
+      --use-auth-secret --static-auth-secret=${TURN_SECRET}
+      --listening-port=3478
+      --min-port=49152 --max-port=49251
+      --external-ip=${TURN_EXTERNAL_IP}

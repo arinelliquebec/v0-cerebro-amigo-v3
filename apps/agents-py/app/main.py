@@ -23,7 +23,13 @@ from app.scheduler import (
     shutdown_scheduler,
     start_scheduler,
 )
-from app.services.crisis import acionar_protocolo_diario, detectar_crise
+from app.services.crisis import (
+    CrisisDetectionOutput,
+    acionar_protocolo,
+    acionar_protocolo_diario,
+    detectar_crise,
+)
+from app.services.crisis_copy import CRISIS_COPY
 from app.services.transcricao import transcrever_audio
 
 
@@ -208,6 +214,40 @@ async def triar_texto_diario(req: TriarTextoRequest) -> dict:
     async with acquire() as conn:
         texto = await acionar_protocolo_diario(
             conn, req.paciente_id, crise, origem="diario_texto"
+        )
+    return {"crise": True, "crise_texto": texto}
+
+
+class TriggerCriseRequest(BaseModel):
+    paciente_id: UUID
+    motivo: str           # categoria do gatilho (ex.: "ideacao_suicida_phq9")
+    nivel: str = "alto"   # nenhum|baixo|moderado|alto|critico
+
+
+@app.post("/internal/crise/trigger", dependencies=[Depends(_check_internal_token)])
+async def trigger_crise(req: TriggerCriseRequest) -> dict:
+    """Aciona o protocolo de crise por um gatilho DETERMINÍSTICO (não-conversa):
+    ex. item 9 do PHQ-9 (ideação) > 0. NÃO usa LLM — o gatilho já é certo, então
+    construímos um CrisisDetectionOutput sintético (confiança 1.0). Reusa o núcleo
+    (texto fixo de crisis_copy, trilha append-only, notifica médico, pausa
+    automação). Idempotência não é exigida: cada acionamento é um evento de
+    auditoria legítimo (append-only).
+    """
+    crise = CrisisDetectionOutput(
+        crise_detectada=True,
+        confianca=1.0,
+        nivel=req.nivel,  # type: ignore[arg-type]
+        gatilhos=[req.motivo],
+    )
+    titulo = "Protocolo de crise acionado (questionário PHQ-9)"
+    mensagem = (
+        f"O paciente sinalizou risco no item de ideação do PHQ-9 "
+        f"(gatilho: {req.motivo}, nível {req.nivel}). A automação foi suspensa. "
+        f"Resposta padrão de crise (v{CRISIS_COPY.versao}) foi exibida ao paciente."
+    )
+    async with acquire() as conn:
+        texto = await acionar_protocolo(
+            conn, req.paciente_id, crise, "questionario", titulo, mensagem
         )
     return {"crise": True, "crise_texto": texto}
 

@@ -2,6 +2,7 @@
 
 from app.agents.adesao import AdesaoAgent
 from app.agents.base import AgentPayload, BaseAgent, InsightOutput
+from app.agents.desfecho import DesfechoAgent
 from app.agents.diario import DiarioAgent
 from app.agents.padroes import PadroesAgent
 from app.agents.resumidor import ResumidorAgent
@@ -15,6 +16,7 @@ AGENT_REGISTRY: dict[str, type[BaseAgent]] = {
     RiscoSilenciosoAgent.name: RiscoSilenciosoAgent,
     PadroesAgent.name: PadroesAgent,
     DiarioAgent.name: DiarioAgent,
+    DesfechoAgent.name: DesfechoAgent,
 }
 
 

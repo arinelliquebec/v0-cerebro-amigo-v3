@@ -143,6 +143,12 @@ builder.Services.AddSingleton<LoginRateLimiter>();
 builder.Services.AddSingleton<CryptoService>();
 builder.Services.AddScoped<ITenantContext, TenantContext>();
 
+// Teleconsulta (vídeo P2P): credencial TURN efêmera + relay de sinalização
+// em memória (singleton — pareia os 2 peers por consulta_id). Não trafega
+// mídia nem persiste sinalização (SDP/ICE têm IP = PII).
+builder.Services.AddSingleton<TurnCredentialService>();
+builder.Services.AddSingleton<TeleconsultaSignalingHub>();
+
 // HTTP clients
 builder.Services.AddHttpClient(); // factory genérico
 
@@ -271,8 +277,10 @@ PortalPacienteEndpoints.Map(app);
 PortalAgendaEndpoints.Map(app);
 app.MapPortalConversation();
 CheckinsEndpoints.Map(app);
+EscalasEndpoints.Map(app);
 InsightsEndpoints.Map(app);
 ConsultasEndpoints.Map(app);
+TeleconsultaEndpoints.Map(app);
 CriseEndpoints.Map(app);
 FilaAtencaoEndpoints.Map(app);
 EvolucaoEndpoints.Map(app);

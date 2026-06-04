@@ -4,6 +4,7 @@ import { Header } from "@/components/header"
 import { BannerCrise } from "@/components/crise/banner-crise"
 import { CondutaEditor } from "@/components/conduta/conduta-editor"
 import { BotaoReceitaMemed } from "@/components/memed/botao-receita-memed"
+import { EvolucaoEscalasPanel } from "@/components/escalas/EvolucaoEscalasPanel"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -248,6 +249,12 @@ export default function ProntuariosPage() {
                     Prescrições
                   </TabsTrigger>
                   <TabsTrigger
+                    value="escalas"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    Escalas
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="conduta"
                     className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
@@ -349,6 +356,10 @@ export default function ProntuariosPage() {
                       ))}
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="escalas">
+                  <EvolucaoEscalasPanel pacienteId={selected.id} />
                 </TabsContent>
 
                 <TabsContent value="conduta">

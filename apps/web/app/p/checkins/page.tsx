@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ClipboardCheck, Loader2, Check, Smile } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { QuestionarioEscala } from "@/components/portal/QuestionarioEscala"
 
 interface Checkin {
   id: string
@@ -111,9 +112,15 @@ export default function CheckinsPage() {
                     <Smile className="h-4 w-4" /> Registrar humor
                   </Link>
                 </Button>
+              ) : c.tipo.startsWith("questionario_") ? (
+                <QuestionarioEscala
+                  checkinId={c.id}
+                  codigo={c.tipo.replace("questionario_", "")}
+                  onConcluido={(id) => setFeitos((f) => ({ ...f, [id]: true }))}
+                />
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Responda este questionário com sua psiquiatra na próxima consulta.
+                  Responda este check-in com sua psiquiatra na próxima consulta.
                 </p>
               )}
             </li>

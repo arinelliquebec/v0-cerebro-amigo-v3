@@ -16,6 +16,8 @@ import {
   Loader2,
   Sparkles,
   Check,
+  Video,
+  Link2,
 } from "lucide-react"
 
 interface Consulta {
@@ -95,6 +97,7 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
   const [notas, setNotas] = useState("")
   const [salvandoDesfecho, setSalvandoDesfecho] = useState(false)
   const [desfechoSalvo, setDesfechoSalvo] = useState(false)
+  const [linkCopiado, setLinkCopiado] = useState(false)
 
   useEffect(() => {
     let vivo = true
@@ -156,6 +159,16 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
     }
   }
 
+  async function copiarLink() {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/p/consulta/${id}`)
+      setLinkCopiado(true)
+      setTimeout(() => setLinkCopiado(false), 2000)
+    } catch {
+      /* navegador sem clipboard — ignora */
+    }
+  }
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center text-muted-foreground">
@@ -214,6 +227,24 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
             </p>
           </div>
         </div>
+
+        {consulta.modalidade === "teleconsulta" && consulta.status !== "cancelada" && (
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <Video className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-primary">Teleconsulta por vídeo</span>
+            <div className="ml-auto flex gap-2">
+              <Button size="sm" asChild className="gap-1.5">
+                <Link href={`/dashboard/consultas/${id}/teleconsulta`}>
+                  <Video className="h-4 w-4" /> Iniciar teleconsulta
+                </Link>
+              </Button>
+              <Button size="sm" variant="outline" onClick={copiarLink} className="gap-1.5">
+                {linkCopiado ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
+                {linkCopiado ? "Link copiado" : "Copiar link do paciente"}
+              </Button>
+            </div>
+          </div>
+        )}
 
         {semHistorico ? (
           <div className="rounded-2xl border border-dashed border-border p-10 text-center">
