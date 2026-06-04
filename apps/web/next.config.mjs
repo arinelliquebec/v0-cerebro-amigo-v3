@@ -1,3 +1,5 @@
+import { withSentryConfig } from "@sentry/nextjs";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* Standalone output só para Docker; Vercel ignora/usa seu próprio modelo */
@@ -52,4 +54,25 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+export default withSentryConfig(nextConfig, {
+  // Source map upload
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+
+  // Só envia source maps em build de produção
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  sourcemaps: {
+    deleteSourcemapsAfterUpload: true,
+  },
+
+  // Create a proxy API route to bypass ad-blockers
+  tunnelRoute: "/monitoring",
+
+  // Oculta código-fonte nos bundles do cliente
+  hideSourceMaps: true,
+
+  // Turbopack: removeDebugLogging não é suportado;
+  // deixamos logs do SDK ativos para debug.
+});

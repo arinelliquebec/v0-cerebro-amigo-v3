@@ -39,3 +39,8 @@ _v2-ref/
 
 # Docker compose local override (creds AWS injetadas — nunca commitar)
 docker-compose.override.yml
+
+# Sentry
+.sentryclirc
+.sentry/
+.env.sentry-build-plugin
