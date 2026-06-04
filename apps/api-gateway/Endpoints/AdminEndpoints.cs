@@ -234,9 +234,11 @@ public static class AdminEndpoints
                 "INSERT INTO usuarios (id, email, senha_hash, nome, role) VALUES ({0},{1},{2},{3},'medico')",
                 usuarioId, email, placeholder, nome);
 
+            var crmUf = (req.CrmUf ?? "").Trim().ToUpperInvariant();
+            var cpf = new string((req.Cpf ?? "").Where(char.IsDigit).ToArray());
             await db.Database.ExecuteSqlRawAsync(
-                "INSERT INTO medicos (id, usuario_id, nome, crm, especialidade) VALUES ({0},{1},{2},{3},'psiquiatria')",
-                medicoId, usuarioId, nome, crm);
+                "INSERT INTO medicos (id, usuario_id, nome, crm, crm_uf, cpf, especialidade) VALUES ({0},{1},{2},{3},NULLIF({4},''),NULLIF({5},''),'psiquiatria')",
+                medicoId, usuarioId, nome, crm, crmUf, cpf);
 
             var assinaturaId = Guid.NewGuid();
             await db.Database.ExecuteSqlRawAsync(@"
@@ -393,7 +395,8 @@ public static class AdminEndpoints
 // ─── DTOs ──────────────────────────────────────────────────────────────────────
 
 public record OnboardingMedicoRequest(
-    string Nome, string Email, string Crm, string? Plano, decimal? ValorMensal);
+    string Nome, string Email, string Crm, string? Plano, decimal? ValorMensal,
+    string? CrmUf, string? Cpf);
 
 public record CustoMes(
     DateOnly Mes, string Agente,

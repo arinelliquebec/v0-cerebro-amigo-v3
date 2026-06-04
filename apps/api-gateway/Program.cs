@@ -149,6 +149,9 @@ builder.Services.AddHttpClient(); // factory genérico
 builder.Services.AddHttpClient<ResendClient>()
     .AddStandardResilienceHandler();
 
+builder.Services.AddHttpClient<MemedClient>()
+    .AddStandardResilienceHandler();
+
 // OrchestratorStreamClient — proxy SSE para o orchestrator-py
 builder.Services.AddOrchestratorStreamClient(builder.Configuration);
 
@@ -255,6 +258,7 @@ AuthEndpoints.Map(app);
 AgentesEndpoints.Map(app);
 PacientesPsiqEndpoints.Map(app);
 PrescricoesEndpoints.Map(app);
+MemedEndpoints.Map(app);
 MedicamentosEndpoints.Map(app);
 NotificacoesEndpoints.Map(app);
 PacienteAuthEndpoints.Map(app);
