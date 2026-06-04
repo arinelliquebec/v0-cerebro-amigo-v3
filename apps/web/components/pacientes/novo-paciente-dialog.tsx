@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import Link from "next/link"
 import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -162,7 +162,7 @@ const AUTH_MSG: Record<string, { titulo: string; desc: string; link?: string }> 
 }
 
 // ── Componente principal ──────────────────────────────────────────────────────
-export function NovoPacienteDialog({ onConcluido }: { onConcluido: () => void }) {
+export function NovoPacienteDialog({ onConcluido, trigger }: { onConcluido: () => void; trigger?: ReactNode }) {
   const [aberto, setAberto] = useState(false)
   const [resultado, setResultado] = useState<ResultadoCriacao | null>(null)
   const [erroServidor, setErroServidor] = useState<string | null>(null)
@@ -235,10 +235,12 @@ export function NovoPacienteDialog({ onConcluido }: { onConcluido: () => void })
       }}
     >
       <DialogTrigger asChild>
-        <Button className="bg-primary hover:bg-purple-dark text-primary-foreground gap-2">
-          <Plus className="h-4 w-4" />
-          Novo Paciente
-        </Button>
+        {trigger ?? (
+          <Button className="bg-primary hover:bg-purple-dark text-primary-foreground gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Paciente
+          </Button>
+        )}
       </DialogTrigger>
 
       <DialogContent className="max-w-lg">
