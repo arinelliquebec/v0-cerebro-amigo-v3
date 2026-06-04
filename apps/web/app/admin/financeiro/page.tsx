@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { CreditCard, Plus, Loader2, AlertTriangle, RefreshCw, DollarSign, TrendingUp } from "lucide-react"
+import { cpfMask, cpfValido, cpfDigits } from "@/lib/cpf"
 
 interface Assinatura {
   id: string
@@ -213,6 +214,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
     if (!nome.trim()) return setErro("Informe o nome do médico")
     if (!email.trim()) return setErro("Informe o e-mail")
     if (!crm.trim()) return setErro("Informe o CRM")
+    if (cpf && !cpfValido(cpf)) return setErro("CPF inválido")
     const v = parseFloat(valor.replace(",", "."))
     if (isNaN(v)) return setErro("Valor inválido")
     setEnviando(true)
@@ -220,7 +222,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
       const r = await fetch("/api/admin/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, crm, crmUf, cpf, plano, valorMensal: v }),
+        body: JSON.stringify({ nome, email, crm, crmUf, cpf: cpfDigits(cpf), plano, valorMensal: v }),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) return setErro(d?.error === "email_em_uso" ? "E-mail já cadastrado." : "Erro ao criar convite.")
@@ -285,7 +287,18 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
               <div className="col-span-2 space-y-1.5"><Label>CRM (número)</Label><Input value={crm} onChange={(e) => setCrm(e.target.value)} placeholder="123456" required /></div>
               <div className="space-y-1.5"><Label>UF</Label><Input value={crmUf} onChange={(e) => setCrmUf(e.target.value.toUpperCase().slice(0, 2))} maxLength={2} placeholder="SP" /></div>
             </div>
-            <div className="space-y-1.5"><Label>CPF do médico</Label><Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" inputMode="numeric" /></div>
+            <div className="space-y-1.5">
+              <Label>CPF do médico</Label>
+              <Input
+                value={cpf}
+                onChange={(e) => setCpf(cpfMask(e.target.value))}
+                placeholder="000.000.000-00"
+                inputMode="numeric"
+                maxLength={14}
+                className={cpf && !cpfValido(cpf) ? "border-destructive" : ""}
+              />
+              {cpf && !cpfValido(cpf) && <p className="text-xs text-destructive">CPF inválido</p>}
+            </div>
             <div className="space-y-1.5">
               <Label>Plano</Label>
               <Select value={plano} onValueChange={setPlano}>

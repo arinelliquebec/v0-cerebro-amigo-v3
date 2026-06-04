@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Loader2, Check } from "lucide-react"
+import { cpfMask, cpfValido, cpfDigits } from "@/lib/cpf"
 
 interface Config {
   timezone: string
@@ -30,6 +31,7 @@ export default function ConfiguracoesPage() {
   const [crm, setCrm] = useState("")
   const [crmUf, setCrmUf] = useState("")
   const [cpf, setCpf] = useState("")
+  const cpfErr = cpf && !cpfValido(cpf) ? "CPF inválido" : ""
 
   useEffect(() => {
     fetch("/api/configuracoes")
@@ -48,7 +50,8 @@ export default function ConfiguracoesPage() {
         } catch {}
         setCrm(c.crm || "")
         setCrmUf(c.crmUf || "")
-        setCpf(c.cpf || "")
+        // guarda com máscara p/ exibição; envia só dígitos
+        setCpf(c.cpf ? cpfMask(c.cpf) : "")
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -57,6 +60,7 @@ export default function ConfiguracoesPage() {
   async function salvar() {
     setSaving(true)
     setSaved(false)
+    if (cpf && !cpfValido(cpf)) return
     try {
       const r = await fetch("/api/configuracoes", {
         method: "PATCH",
@@ -66,7 +70,7 @@ export default function ConfiguracoesPage() {
           horarioTrabalho: { inicio, fim },
           notifPrefs: { crise_email: criseEmail },
           crmUf,
-          cpf,
+          cpf: cpfDigits(cpf), // envia só dígitos
         }),
       })
       if (r.ok) {
@@ -159,16 +163,19 @@ export default function ConfiguracoesPage() {
                   <Label className="text-sm">CPF</Label>
                   <Input
                     value={cpf}
-                    onChange={(e) => setCpf(e.target.value)}
+                    onChange={(e) => setCpf(cpfMask(e.target.value))}
                     placeholder="000.000.000-00"
                     inputMode="numeric"
+                    maxLength={14}
+                    className={cpfErr ? "border-destructive" : ""}
                   />
+                  {cpfErr && <p className="text-xs text-destructive">{cpfErr}</p>}
                 </div>
               </CardContent>
             </Card>
 
             <div className="flex items-center gap-3">
-              <Button onClick={salvar} disabled={saving}>
+              <Button onClick={salvar} disabled={saving || !!cpfErr}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar alterações"}
               </Button>
               {saved && (
