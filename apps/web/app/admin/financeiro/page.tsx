@@ -197,6 +197,8 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
   const [nome, setNome] = useState("")
   const [email, setEmail] = useState("")
   const [crm, setCrm] = useState("")
+  const [crmUf, setCrmUf] = useState("")
+  const [cpf, setCpf] = useState("")
   const [plano, setPlano] = useState("trial")
   const [valor, setValor] = useState("0")
   const [enviando, setEnviando] = useState(false)
@@ -204,7 +206,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
   const [ok, setOk] = useState(false)
   const [ativarUrl, setAtivarUrl] = useState<string | null>(null)
 
-  function reset() { setNome(""); setEmail(""); setCrm(""); setPlano("trial"); setValor("0"); setErro(null); setOk(false); setAtivarUrl(null) }
+  function reset() { setNome(""); setEmail(""); setCrm(""); setCrmUf(""); setCpf(""); setPlano("trial"); setValor("0"); setErro(null); setOk(false); setAtivarUrl(null) }
 
   async function submeter(e: React.FormEvent) {
     e.preventDefault(); setErro(null)
@@ -218,7 +220,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
       const r = await fetch("/api/admin/onboarding", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nome, email, crm, plano, valorMensal: v }),
+        body: JSON.stringify({ nome, email, crm, crmUf, cpf, plano, valorMensal: v }),
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) return setErro(d?.error === "email_em_uso" ? "E-mail já cadastrado." : "Erro ao criar convite.")
@@ -279,7 +281,11 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
             {erro && <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive"><AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" /> {erro}</div>}
             <div className="space-y-1.5"><Label>Nome completo</Label><Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Dr. João Silva" required /></div>
             <div className="space-y-1.5"><Label>E-mail</Label><Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="joao@clinica.com" required /></div>
-            <div className="space-y-1.5"><Label>CRM</Label><Input value={crm} onChange={(e) => setCrm(e.target.value)} placeholder="CRM/SP 123456" required /></div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="col-span-2 space-y-1.5"><Label>CRM (número)</Label><Input value={crm} onChange={(e) => setCrm(e.target.value)} placeholder="123456" required /></div>
+              <div className="space-y-1.5"><Label>UF</Label><Input value={crmUf} onChange={(e) => setCrmUf(e.target.value.toUpperCase().slice(0, 2))} maxLength={2} placeholder="SP" /></div>
+            </div>
+            <div className="space-y-1.5"><Label>CPF do médico</Label><Input value={cpf} onChange={(e) => setCpf(e.target.value)} placeholder="000.000.000-00" inputMode="numeric" /></div>
             <div className="space-y-1.5">
               <Label>Plano</Label>
               <Select value={plano} onValueChange={setPlano}>
