@@ -1,11 +1,19 @@
+import { Suspense } from "react"
 import { AdminSidebar } from "@/components/admin/admin-sidebar"
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="theme-noir min-h-screen bg-background text-foreground">
-      <AdminSidebar />
+      {/* Cache Components (Next 16): sidebar lê usePathname e as páginas
+          dinâmicas leem useParams — dados de request. Cada um precisa de um
+          limite de Suspense para o prerender gerar o shell estático. */}
+      <Suspense>
+        <AdminSidebar />
+      </Suspense>
       <main className="pl-60 min-h-screen">
-        <div className="relative">{children}</div>
+        <div className="relative">
+          <Suspense>{children}</Suspense>
+        </div>
       </main>
     </div>
   )

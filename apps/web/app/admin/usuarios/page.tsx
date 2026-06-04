@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
+import Link from "next/link"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
@@ -10,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Trash2 } from "lucide-react"
+import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Trash2, Stethoscope } from "lucide-react"
 
 // Schemas Zod para validação
 const novoUsuarioSchema = z.object({
@@ -404,6 +405,13 @@ export default function UsuariosPage() {
                   </td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-1">
+                      {u.medicoId && (
+                        <Link href={`/admin/medicos/${u.medicoId}`} title="Ver perfil do médico">
+                          <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <Stethoscope className="h-4 w-4" />
+                          </Button>
+                        </Link>
+                      )}
                       <RoleDialog u={u} onSalvo={carregar} />
                       <SenhaDialog u={u} onSalvo={carregar} />
                       {isOwner && u.id !== meId && (

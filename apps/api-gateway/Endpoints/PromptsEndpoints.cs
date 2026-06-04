@@ -18,9 +18,11 @@ public static class PromptsEndpoints
 {
     public static void Map(WebApplication app)
     {
+        // Editor de prompts = poder de plataforma. Só owner/admin.
+        // (Os serviços Python leem o prompt ativo direto do banco, não por aqui.)
         var g = app.MapGroup("/api/v1/prompts")
             .WithTags("prompts")
-            .RequireAuthorization();
+            .RequireAuthorization("admin_geral");
 
         // ─── LISTAR prompts ativos (todas as versões ativas) ────────────────────
         g.MapGet("/", async (AppDbContext db) =>
@@ -58,7 +60,7 @@ public static class PromptsEndpoints
             AppDbContext db,
             ClaimsPrincipal user) =>
         {
-            if (!user.IsInRole("admin"))
+            if (!user.IsInRole("admin") && !user.IsInRole("owner"))
                 return Results.Forbid();
 
             var criadoPor = user.FindFirst("sub")?.Value
@@ -93,7 +95,7 @@ public static class PromptsEndpoints
             AppDbContext db,
             ClaimsPrincipal user) =>
         {
-            if (!user.IsInRole("admin"))
+            if (!user.IsInRole("admin") && !user.IsInRole("owner"))
                 return Results.Forbid();
 
             var row = await db.Database.SqlQueryRaw<PromptAtivarTarget>(@"
