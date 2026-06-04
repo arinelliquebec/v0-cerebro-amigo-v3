@@ -311,7 +311,7 @@ public static class AdminEndpoints
 
             // Valida CRM contra o CFM via Infosimples (hard gate) — ANTES de gravar
             // qualquer coisa, senão um CFM fora do ar deixava o usuário órfão no banco.
-            var val = await cfm.ValidarAsync(crm, crmUf);
+            var val = await cfm.ValidarAsync(crm, crmUf, nome);
             if (val.Erro is not null)
                 return Results.Json(new { error = "cfm_indisponivel" }, statusCode: 503);
             // "NaoValidado" = bypass (CRM_VALIDATION_ENABLED=false) — não bloquear

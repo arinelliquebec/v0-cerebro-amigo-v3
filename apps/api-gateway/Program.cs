@@ -152,8 +152,10 @@ builder.Services.AddHttpClient<ResendClient>()
 builder.Services.AddHttpClient<MemedClient>()
     .AddStandardResilienceHandler();
 
-builder.Services.AddHttpClient<CfmClient>()
-    .AddStandardResilienceHandler();
+// CfmClient: SEM StandardResilienceHandler — o scrape do CFM pela Infosimples
+// leva até ~60s (o total-timeout padrão de 30s mataria) e é uma chamada PAGA
+// (retries automáticos = consultas duplicadas). Timeout próprio no CfmClient (100s).
+builder.Services.AddHttpClient<CfmClient>();
 
 // OrchestratorStreamClient — proxy SSE para o orchestrator-py
 builder.Services.AddOrchestratorStreamClient(builder.Configuration);
