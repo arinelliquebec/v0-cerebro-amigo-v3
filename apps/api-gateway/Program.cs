@@ -266,6 +266,7 @@ MedicamentosEndpoints.Map(app);
 NotificacoesEndpoints.Map(app);
 PacienteAuthEndpoints.Map(app);
 PortalPacienteEndpoints.Map(app);
+PortalAgendaEndpoints.Map(app);
 app.MapPortalConversation();
 CheckinsEndpoints.Map(app);
 InsightsEndpoints.Map(app);
