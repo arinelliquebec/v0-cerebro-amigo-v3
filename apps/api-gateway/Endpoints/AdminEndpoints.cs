@@ -124,6 +124,40 @@ public static class AdminEndpoints
             return Results.Ok(rows);
         });
 
+        // ─── Saúde / execução dos agentes analíticos (últimos 30 dias) ─────────
+        // Read-only sobre agente_execucoes (append-only). Só metadados técnicos —
+        // sem conteúdo clínico. paciente_id não é exposto aqui.
+        g.MapGet("/agentes-saude", async (AppDbContext db) =>
+        {
+            var agentes = await db.Database.SqlQueryRaw<AgenteSaude>(@"
+                SELECT
+                    agente,
+                    COUNT(*)::int                                     AS total,
+                    COUNT(*) FILTER (WHERE sucesso IS TRUE)::int      AS sucessos,
+                    COUNT(*) FILTER (WHERE sucesso IS FALSE)::int     AS falhas,
+                    COUNT(*) FILTER (WHERE concluido_em IS NULL)::int AS em_aberto,
+                    ROUND(AVG(EXTRACT(EPOCH FROM (concluido_em - iniciado_em)) * 1000)::numeric, 0) AS latencia_media_ms,
+                    ROUND(PERCENTILE_CONT(0.95) WITHIN GROUP (
+                        ORDER BY EXTRACT(EPOCH FROM (concluido_em - iniciado_em)) * 1000)::numeric, 0) AS latencia_p95_ms,
+                    ROUND(COALESCE(SUM(custo_usd), 0)::numeric, 4)    AS custo_usd_total,
+                    MAX(iniciado_em)                                  AS ultimo_run
+                FROM agente_execucoes
+                WHERE iniciado_em >= NOW() - INTERVAL '30 days'
+                GROUP BY agente
+                ORDER BY total DESC").ToListAsync();
+
+            // Erros técnicos recentes (exceções do runner — não conteúdo de paciente).
+            var errosRecentes = await db.Database.SqlQueryRaw<AgenteErro>(@"
+                SELECT agente, erro, iniciado_em
+                FROM agente_execucoes
+                WHERE sucesso IS FALSE AND erro IS NOT NULL
+                  AND iniciado_em >= NOW() - INTERVAL '30 days'
+                ORDER BY iniciado_em DESC
+                LIMIT 20").ToListAsync();
+
+            return Results.Ok(new { agentes, errosRecentes });
+        });
+
         // ─── Usuários ─────────────────────────────────────────────────────────
 
         g.MapGet("/usuarios", async (AppDbContext db) =>
@@ -296,6 +330,43 @@ public static class AdminEndpoints
             });
         });
 
+        // ─── Perfil 360° do médico (drill-down) ───────────────────────────────
+        // Visão de plataforma (owner/admin vê todos). Só metadados e contagens —
+        // NUNCA conteúdo clínico (mensagem/sintoma/diário). clinical-safety regra 4.
+        g.MapGet("/medicos/{id:guid}", async (Guid id, AppDbContext db) =>
+        {
+            var perfil = await db.Database.SqlQueryRaw<MedicoPerfil>(@"
+                SELECT
+                    m.id, m.nome, m.crm, m.crm_uf, m.cpf, m.especialidade, m.timezone,
+                    m.crm_situacao, m.crm_validado_em, m.crm_nome_cfm, m.criado_em,
+                    u.email, u.ultimo_login,
+                    a.plano, a.valor_mensal, a.moeda, a.status AS status_assinatura, a.trial_ate, a.inicio_em,
+                    (SELECT COUNT(*)::int FROM pacientes p WHERE p.medico_responsavel_id = m.id) AS total_pacientes,
+                    (SELECT COUNT(*)::int FROM pacientes p
+                        JOIN conversas c  ON c.cliente_id = p.cliente_id
+                        JOIN mensagens ms ON ms.conversa_id = c.id
+                        WHERE p.medico_responsavel_id = m.id
+                          AND ms.criada_em >= NOW() - INTERVAL '30 days') AS mensagens_recentes,
+                    (SELECT COUNT(*)::int FROM consultas co WHERE co.medico_id = m.id) AS total_consultas,
+                    (SELECT COUNT(*)::int FROM protocolos_crise_acionados pc WHERE pc.medico_id = m.id) AS crises_total,
+                    (SELECT COUNT(*)::int FROM checkins ck
+                        JOIN pacientes p ON p.cliente_id = ck.paciente_id
+                        WHERE p.medico_responsavel_id = m.id AND ck.respondido_em IS NOT NULL) AS checkins_respondidos,
+                    COALESCE((SELECT SUM(ms.custo_usd) FROM pacientes p
+                        JOIN conversas c  ON c.cliente_id = p.cliente_id
+                        JOIN mensagens ms ON ms.conversa_id = c.id
+                        WHERE p.medico_responsavel_id = m.id), 0)::numeric AS custo_conversa_usd,
+                    COALESCE((SELECT SUM(ae.custo_usd) FROM pacientes p
+                        JOIN agente_execucoes ae ON ae.paciente_id = p.cliente_id
+                        WHERE p.medico_responsavel_id = m.id), 0)::numeric AS custo_agentes_usd
+                FROM medicos m
+                JOIN usuarios u ON u.id = m.usuario_id
+                LEFT JOIN assinaturas a ON a.medico_id = m.id
+                WHERE m.id = {0}", id).FirstOrDefaultAsync();
+
+            return perfil is null ? Results.NotFound() : Results.Ok(perfil);
+        });
+
         // ─── Assinaturas / Billing ────────────────────────────────────────────
 
         g.MapGet("/assinaturas", async (AppDbContext db) =>
@@ -416,6 +487,20 @@ public record OnboardingMedicoRequest(
 public record CustoMes(
     DateOnly Mes, string Agente,
     int Execucoes, int? TokensInTotal, int? TokensOutTotal, decimal CustoTotalUsd);
+
+public record AgenteSaude(
+    string Agente, int Total, int Sucessos, int Falhas, int EmAberto,
+    decimal? LatenciaMediaMs, decimal? LatenciaP95Ms, decimal CustoUsdTotal, DateTime? UltimoRun);
+
+public record AgenteErro(string Agente, string? Erro, DateTime IniciadoEm);
+
+public record MedicoPerfil(
+    Guid Id, string Nome, string? Crm, string? CrmUf, string? Cpf, string? Especialidade, string? Timezone,
+    string? CrmSituacao, DateTime? CrmValidadoEm, string? CrmNomeCfm, DateTime CriadoEm,
+    string Email, DateTime? UltimoLogin,
+    string? Plano, decimal? ValorMensal, string? Moeda, string? StatusAssinatura, DateTime? TrialAte, DateTime? InicioEm,
+    int TotalPacientes, int MensagensRecentes, int TotalConsultas, int CrisesTotal, int CheckinsRespondidos,
+    decimal CustoConversaUsd, decimal CustoAgentesUsd);
 
 public record UsuarioAdmin(
     Guid Id, string Nome, string Email, string Role, DateTime? UltimoLogin,

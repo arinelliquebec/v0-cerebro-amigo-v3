@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Heart,
   TrendingUp,
-  Terminal,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -34,7 +33,6 @@ const navigation = [
 
 const secondaryNavigation = [
   { name: "Lembretes", href: "/dashboard/lembretes", icon: Bell },
-  { name: "Editor de Prompts", href: "/dashboard/prompts", icon: Terminal },
   { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
 ]
 
