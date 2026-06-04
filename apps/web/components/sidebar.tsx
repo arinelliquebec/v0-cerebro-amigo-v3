@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/logo"
+import { useMe } from "@/lib/use-me"
 import {
   LayoutDashboard,
   Users,
@@ -36,9 +37,17 @@ const secondaryNavigation = [
   { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
 ]
 
+function iniciais(nome?: string) {
+  if (!nome) return "·"
+  const partes = nome.trim().split(/\s+/).filter(Boolean)
+  const ini = (partes[0]?.[0] ?? "") + (partes.length > 1 ? partes[partes.length - 1][0] : "")
+  return ini.toUpperCase() || "·"
+}
+
 export function Sidebar() {
   const pathname = usePathname()
   const [collapsed, setCollapsed] = useState(false)
+  const me = useMe()
 
   return (
     <aside
@@ -155,14 +164,14 @@ export function Sidebar() {
         <div className="px-4 py-4 border-t border-border/40">
           <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-secondary/30">
             <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-purple-dark flex items-center justify-center text-primary-foreground font-semibold text-xs shadow-sm">
-              DR
+              {iniciais(me?.nome)}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">
-                Dra. Ana Silva
+                {me?.nome ?? "—"}
               </p>
-              <p className="text-[11px] text-muted-foreground/70 truncate">
-                Psiquiatra
+              <p className="text-[11px] text-muted-foreground/70 truncate capitalize">
+                {me?.especialidade ?? "Médico(a)"}
               </p>
             </div>
           </div>

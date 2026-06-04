@@ -1,8 +1,11 @@
 "use client"
 
 import { Bell, Search, Plus } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { NovoPacienteDialog } from "@/components/pacientes/novo-paciente-dialog"
+import { useMe } from "@/lib/use-me"
 
 interface HeaderProps {
   title: string
@@ -10,12 +13,16 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle }: HeaderProps) {
+  const router = useRouter()
+  const me = useMe()
   const today = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     year: 'numeric'
   })
+  const primeiroNome = me?.nome?.trim().split(/\s+/)[0]
+  const saudacao = primeiroNome ? `Olá, ${primeiroNome}! ${today}` : `Olá! ${today}`
 
   return (
     <header className="sticky top-0 z-30 border-b border-border/40 bg-background/85 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70">
@@ -23,7 +30,7 @@ export function Header({ title, subtitle }: HeaderProps) {
         <div className="min-w-0">
           <h1 className="truncate text-xl font-semibold tracking-tight text-foreground">{title}</h1>
           <p className="truncate text-sm text-muted-foreground/70 mt-0.5">
-            {subtitle ?? `Olá, Dra. Ana! ${today}`}
+            {subtitle ?? saudacao}
           </p>
         </div>
 
@@ -38,14 +45,19 @@ export function Header({ title, subtitle }: HeaderProps) {
             />
           </div>
 
-          {/* Quick Add */}
-          <Button
-            size="sm"
-            className="gap-2 rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-purple-dark hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
-          >
-            <Plus className="h-4 w-4" />
-            <span className="hidden sm:inline font-medium">Novo Paciente</span>
-          </Button>
+          {/* Quick Add — abre o mesmo dialog que funciona em /dashboard/pacientes */}
+          <NovoPacienteDialog
+            onConcluido={() => router.refresh()}
+            trigger={
+              <Button
+                size="sm"
+                className="gap-2 rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/20 transition-all duration-200 hover:bg-purple-dark hover:shadow-lg hover:shadow-primary/25 hover:-translate-y-0.5 active:scale-[0.97] focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden sm:inline font-medium">Novo Paciente</span>
+              </Button>
+            }
+          />
 
           {/* Notifications */}
           <Button
