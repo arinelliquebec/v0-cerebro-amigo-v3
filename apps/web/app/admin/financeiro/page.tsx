@@ -312,15 +312,22 @@ export default function FinanceiroPage() {
   const [loading, setLoading] = useState(true)
 
   const carregar = useCallback(async () => {
-    const r = await fetch("/api/admin/assinaturas")
-    if (r.ok) setAssinaturas(await r.json())
-    setLoading(false)
+    try {
+      const r = await fetch("/api/admin/assinaturas")
+      const data = await r.json()
+      if (Array.isArray(data)) setAssinaturas(data)
+      else setAssinaturas([])
+    } catch {
+      setAssinaturas([])
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { carregar() }, [carregar])
 
-  const mrr = assinaturas.filter((a) => a.status === "ativa").reduce((s, a) => s + a.valorMensal, 0)
-  const receitaTotal = assinaturas.reduce((s, a) => s + a.totalPago, 0)
+  const mrr = assinaturas.filter((a) => a.status === "ativa").reduce((s, a) => s + (a.valorMensal ?? 0), 0)
+  const receitaTotal = assinaturas.reduce((s, a) => s + (a.totalPago ?? 0), 0)
 
   return (
     <div className="p-8 space-y-6">
@@ -371,17 +378,17 @@ export default function FinanceiroPage() {
                   <td className="px-5 py-3 font-medium text-foreground">{a.medicoNome ?? "—"}</td>
                   <td className="px-5 py-3 text-muted-foreground text-xs">{a.medicoEmail ?? "—"}</td>
                   <td className="px-5 py-3">
-                    <Badge className={`border font-mono text-[10px] uppercase ${PLANO_COR[a.plano] ?? ""}`}>{a.plano}</Badge>
+                    <Badge className={`border font-mono text-[10px] uppercase ${PLANO_COR[a.plano ?? ""] ?? ""}`}>{a.plano ?? "—"}</Badge>
                   </td>
                   <td className="px-5 py-3 text-foreground">
-                    R$ {a.valorMensal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    R$ {(a.valorMensal ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`text-xs font-medium ${STATUS_COR[a.status] ?? ""}`}>{a.status}</span>
+                    <span className={`text-xs font-medium ${STATUS_COR[a.status ?? ""] ?? ""}`}>{a.status ?? "—"}</span>
                   </td>
                   <td className="px-5 py-3 text-foreground">
-                    R$ {a.totalPago.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    {a.pagamentosConfirmados > 0 && (
+                    R$ {(a.totalPago ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    {(a.pagamentosConfirmados ?? 0) > 0 && (
                       <span className="ml-1.5 text-[10px] text-muted-foreground">({a.pagamentosConfirmados}x)</span>
                     )}
                   </td>
