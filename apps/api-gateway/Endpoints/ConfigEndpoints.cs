@@ -25,7 +25,8 @@ public static class ConfigEndpoints
             var cfg = await db.Database.SqlQueryRaw<MedicoConfigDto>(@"
                 SELECT timezone,
                        horario_trabalho::text AS horario_trabalho,
-                       notif_prefs::text AS notif_prefs
+                       notif_prefs::text AS notif_prefs,
+                       crm, crm_uf, cpf
                 FROM medicos WHERE id = {0}",
                 medicoId.Value).FirstOrDefaultAsync();
 
@@ -45,9 +46,12 @@ public static class ConfigEndpoints
                 UPDATE medicos SET
                     timezone         = COALESCE(NULLIF({1}, ''), timezone),
                     horario_trabalho = COALESCE(NULLIF({2}, '')::jsonb, horario_trabalho),
-                    notif_prefs      = COALESCE(NULLIF({3}, '')::jsonb, notif_prefs)
+                    notif_prefs      = COALESCE(NULLIF({3}, '')::jsonb, notif_prefs),
+                    crm_uf           = COALESCE(NULLIF({4}, ''), crm_uf),
+                    cpf              = COALESCE(NULLIF({5}, ''), cpf)
                 WHERE id = {0}",
-                medicoId.Value, req.Timezone ?? "", horario, prefs);
+                medicoId.Value, req.Timezone ?? "", horario, prefs,
+                req.CrmUf ?? "", req.Cpf ?? "");
 
             return Results.NoContent();
         });
@@ -62,7 +66,10 @@ public static class ConfigEndpoints
     }
 }
 
-public record MedicoConfigDto(string Timezone, string HorarioTrabalho, string NotifPrefs);
+public record MedicoConfigDto(
+    string Timezone, string HorarioTrabalho, string NotifPrefs,
+    string? Crm, string? CrmUf, string? Cpf);
 
 public record MedicoConfigPatchRequest(
-    string? Timezone, JsonElement? HorarioTrabalho, JsonElement? NotifPrefs);
+    string? Timezone, JsonElement? HorarioTrabalho, JsonElement? NotifPrefs,
+    string? CrmUf, string? Cpf);

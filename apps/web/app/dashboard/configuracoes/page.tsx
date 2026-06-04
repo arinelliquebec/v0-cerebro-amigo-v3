@@ -13,6 +13,9 @@ interface Config {
   timezone: string
   horarioTrabalho: string // JSON string
   notifPrefs: string // JSON string
+  crm?: string | null
+  crmUf?: string | null
+  cpf?: string | null
 }
 
 export default function ConfiguracoesPage() {
@@ -24,6 +27,9 @@ export default function ConfiguracoesPage() {
   const [inicio, setInicio] = useState("08:00")
   const [fim, setFim] = useState("18:00")
   const [criseEmail, setCriseEmail] = useState(false)
+  const [crm, setCrm] = useState("")
+  const [crmUf, setCrmUf] = useState("")
+  const [cpf, setCpf] = useState("")
 
   useEffect(() => {
     fetch("/api/configuracoes")
@@ -40,6 +46,9 @@ export default function ConfiguracoesPage() {
           const p = JSON.parse(c.notifPrefs || "{}")
           setCriseEmail(Boolean(p.crise_email))
         } catch {}
+        setCrm(c.crm || "")
+        setCrmUf(c.crmUf || "")
+        setCpf(c.cpf || "")
       })
       .catch(() => {})
       .finally(() => setLoading(false))
@@ -56,6 +65,8 @@ export default function ConfiguracoesPage() {
           timezone,
           horarioTrabalho: { inicio, fim },
           notifPrefs: { crise_email: criseEmail },
+          crmUf,
+          cpf,
         }),
       })
       if (r.ok) {
@@ -117,6 +128,41 @@ export default function ConfiguracoesPage() {
                     </p>
                   </div>
                   <Switch checked={criseEmail} onCheckedChange={setCriseEmail} />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-border/50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold">Dados profissionais (receita MEMED)</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-xs text-muted-foreground">
+                  Necessários para emitir receita digital via MEMED (CRM com número + UF, e CPF).
+                </p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">CRM</Label>
+                    <Input value={crm} disabled placeholder="—" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-sm">UF do CRM</Label>
+                    <Input
+                      value={crmUf}
+                      onChange={(e) => setCrmUf(e.target.value.toUpperCase().slice(0, 2))}
+                      maxLength={2}
+                      placeholder="SP"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-sm">CPF</Label>
+                  <Input
+                    value={cpf}
+                    onChange={(e) => setCpf(e.target.value)}
+                    placeholder="000.000.000-00"
+                    inputMode="numeric"
+                  />
                 </div>
               </CardContent>
             </Card>
