@@ -37,7 +37,8 @@ public sealed class CfmClient
             ?? "https://api.infosimples.com/api/v2/consultas/cfm/cadastro";
 
         _http.BaseAddress ??= new Uri(baseUrl);
-        _http.Timeout = TimeSpan.FromSeconds(20);
+        // O scrape do portal CFM pela Infosimples é lento (até ~60s). Timeout folgado.
+        _http.Timeout = TimeSpan.FromSeconds(100);
     }
 
     /// <summary>
@@ -45,6 +46,9 @@ public sealed class CfmClient
     /// </summary>
     /// <param name="crm">Número do CRM (só dígitos/alfanumérico).</param>
     /// <param name="uf">UF de inscrição (2 letras, ex.: "SP").</param>
+    /// <param name="nome">Nome do médico — a consulta CFM/Infosimples usa o nome
+    ///   além da inscrição (a busca do portal CFM é por nome). Sem ele, a origem
+    ///   pode não retornar dados (code 612).</param>
     /// <param name="ct">CancellationToken.</param>
     /// <returns>
     ///   <c>Erro != null</c> → serviço indisponível (não é "não encontrado").<br/>
@@ -52,7 +56,7 @@ public sealed class CfmClient
     ///   <c>Situacao != "Regular"</c> → médico suspenso/cancelado.
     /// </returns>
     public async Task<CrmValidationResult> ValidarAsync(
-        string crm, string uf, CancellationToken ct = default)
+        string crm, string uf, string? nome = null, CancellationToken ct = default)
     {
         if (!_enabled)
         {
@@ -71,88 +75,84 @@ public sealed class CfmClient
                 Nome: null, Especialidade: null, Erro: "INFOSIMPLES_TOKEN ausente");
         }
 
-        var payload = new InfosimplesRequest(
-            Token: _token,
-            Inscricao: crm.Replace(" ", ""),
-            Uf: uf.ToUpperInvariant());
+        // A consulta CFM/cadastro da Infosimples só retorna dados buscando por NOME (+uf);
+        // busca por inscrição devolve vazio (code 612). Então: nome é obrigatório.
+        if (string.IsNullOrWhiteSpace(nome))
+        {
+            _logger.LogWarning("CRM {Crm}/{Uf}: nome ausente — CFM só consulta por nome", crm, uf);
+            return new CrmValidationResult(false, null, null, null, "nome ausente");
+        }
+
+        var crmDigits = SoDigitos(crm).TrimStart('0');
 
         try
         {
-            // Infosimples espera POST com parâmetros form-encoded
+            // POST form-encoded: busca por nome + uf. A inscrição é casada localmente
+            // nos resultados (o CFM pode ter homônimos → escolhemos pela inscrição).
             var content = new FormUrlEncodedContent(new[]
             {
-                new KeyValuePair<string, string>("token",    payload.Token),
-                new KeyValuePair<string, string>("inscricao", payload.Inscricao),
-                new KeyValuePair<string, string>("uf",       payload.Uf),
+                new KeyValuePair<string, string>("token", _token),
+                new KeyValuePair<string, string>("nome",  nome.Trim()),
+                new KeyValuePair<string, string>("uf",    uf.ToUpperInvariant()),
             });
 
             var resp = await _http.PostAsync("", content, ct);
             var statusCode = (int)resp.StatusCode;
-
-            // Infosimples retorna 200 mesmo p/ "não encontrado" (code 600 no body)
             if (!resp.IsSuccessStatusCode)
             {
                 _logger.LogWarning(
                     "Infosimples HTTP {Status} ao consultar CRM {Crm}/{Uf}", statusCode, crm, uf);
-                return new CrmValidationResult(
-                    Encontrado: false, Situacao: null,
-                    Nome: null, Especialidade: null,
-                    Erro: $"Infosimples HTTP {statusCode}");
+                return new CrmValidationResult(false, null, null, null, $"Infosimples HTTP {statusCode}");
             }
 
             InfosimplesResponse? body;
             try
             {
-                body = await resp.Content.ReadFromJsonAsync<InfosimplesResponse>(
-                    cancellationToken: ct);
+                body = await resp.Content.ReadFromJsonAsync<InfosimplesResponse>(cancellationToken: ct);
             }
             catch
             {
                 _logger.LogWarning("Infosimples: resposta não-parsável para CRM {Crm}/{Uf}", crm, uf);
-                return new CrmValidationResult(
-                    Encontrado: false, Situacao: null,
-                    Nome: null, Especialidade: null, Erro: "resposta inválida");
-            }
-
-            // Semântica Infosimples:
-            //   600 = consulta não encontrou registro → CRM realmente não existe (→ 422).
-            //   612 = "site de origem não retornou dados" = portal CFM instável/indisponível.
-            //   Só (200 COM dados) é "encontrado". Qualquer outra coisa NÃO é "CRM inválido"
-            //   — é "não deu pra confirmar" → Erro (503/retry), p/ NUNCA rejeitar médico
-            //   válido por hiccup do CFM.
-            if (body is null)
-            {
-                _logger.LogWarning("Infosimples: corpo nulo para CRM {Crm}/{Uf}", crm, uf);
                 return new CrmValidationResult(false, null, null, null, "resposta inválida");
             }
 
+            // Semântica Infosimples:
+            //   600 = nome não encontrado → trata como não-encontrado (→ 422).
+            //   612 / não-200 = origem (portal CFM) instável → indisponível (→ 503, retry),
+            //                   p/ NUNCA rejeitar médico válido por hiccup do CFM.
+            if (body is null)
+                return new CrmValidationResult(false, null, null, null, "resposta inválida");
+
             if (body.Code == 600)
             {
-                _logger.LogInformation("CRM {Crm}/{Uf} não encontrado no CFM (code 600)", crm, uf);
+                _logger.LogInformation("CFM: nome não encontrado p/ CRM {Crm}/{Uf} (code 600)", crm, uf);
                 return new CrmValidationResult(false, null, null, null, Erro: null);
             }
 
             if (body.Code != 200 || body.Data is null || body.Data.Count == 0)
             {
                 _logger.LogWarning(
-                    "Infosimples não confirmou CRM {Crm}/{Uf} (code {Code}: {Msg}) — tratado como indisponível",
+                    "Infosimples não confirmou CRM {Crm}/{Uf} (code {Code}: {Msg}) — indisponível",
                     crm, uf, body.Code, body.CodeMessage);
-                return new CrmValidationResult(
-                    false, null, null, null, Erro: $"Infosimples code {body.Code}");
+                return new CrmValidationResult(false, null, null, null, Erro: $"Infosimples code {body.Code}");
             }
 
-            var dado = body.Data[0];
-            var situacao = dado.Situacao ?? "";
-            // LGPD: logar só situação, nunca conteúdo clínico/PII desnecessária
-            _logger.LogInformation(
-                "CRM {Crm}/{Uf} consultado — situação: {Situacao}", crm, uf, situacao);
+            // Casa a inscrição informada (CRM) com algum registro retornado pelo nome.
+            var match = body.Data.FirstOrDefault(d =>
+                crmDigits.Length > 0 && SoDigitos(d.Inscricao ?? "").TrimStart('0') == crmDigits);
 
-            return new CrmValidationResult(
-                Encontrado: true,
-                Situacao: situacao,
-                Nome: dado.Nome,
-                Especialidade: dado.Especialidade,
-                Erro: null);
+            if (match is null)
+            {
+                _logger.LogInformation(
+                    "CFM: nome encontrado mas CRM {Crm}/{Uf} não confere ({Count} registro(s))",
+                    crm, uf, body.Data.Count);
+                return new CrmValidationResult(false, null, null, null, Erro: null); // → 422 (não confere)
+            }
+
+            var situacao = match.Situacao ?? "";
+            // LGPD: logar só situação, nunca PII desnecessária
+            _logger.LogInformation("CRM {Crm}/{Uf} consultado — situação: {Situacao}", crm, uf, situacao);
+            return new CrmValidationResult(true, situacao, match.Nome, match.Especialidade, null);
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
         {
@@ -164,9 +164,9 @@ public sealed class CfmClient
         }
     }
 
-    // ─── DTOs ────────────────────────────────────────────────────────────────
+    private static string SoDigitos(string s) => new(s.Where(char.IsDigit).ToArray());
 
-    private sealed record InfosimplesRequest(string Token, string Inscricao, string Uf);
+    // ─── DTOs ────────────────────────────────────────────────────────────────
 
     private sealed class InfosimplesResponse
     {
