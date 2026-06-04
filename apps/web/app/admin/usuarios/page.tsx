@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Trash2, Stethoscope } from "lucide-react"
+import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Stethoscope, Pencil, UserX } from "lucide-react"
 
 // Schemas Zod para validação
 const novoUsuarioSchema = z.object({
@@ -226,6 +226,64 @@ function RoleDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
   )
 }
 
+function EditarDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [nome, setNome] = useState(u.nome)
+  const [email, setEmail] = useState(u.email)
+  const [enviando, setEnviando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function salvar() {
+    setErro(null)
+    if (nome.trim().length < 3) return setErro("Nome mínimo 3 caracteres.")
+    if (!email.includes("@")) return setErro("E-mail inválido.")
+    setEnviando(true)
+    try {
+      const r = await fetch(`/api/admin/usuarios/${u.id}?action=perfil`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nome: nome.trim(), email: email.trim() }),
+      })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}))
+        return setErro(d?.error === "email_em_uso" ? "E-mail já cadastrado." : "Erro ao salvar.")
+      }
+      onSalvo(); setOpen(false)
+    } catch { setErro("Erro de conexão.") }
+    finally { setEnviando(false) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setErro(null); setNome(u.nome); setEmail(u.email) } }}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" title="Editar nome/e-mail">
+          <Pencil className="h-3.5 w-3.5" />
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-xs">
+        <DialogHeader><DialogTitle>Editar — {u.nome}</DialogTitle></DialogHeader>
+        {erro && <p className="text-sm text-destructive">{erro}</p>}
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label>Nome</Label>
+            <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>E-mail</Label>
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button variant="coral" onClick={salvar} disabled={enviando}>
+            {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 function ExcluirDialog({ u, onExcluido }: { u: Usuario; onExcluido: () => void }) {
   const [open, setOpen] = useState(false)
   const [excluindo, setExcluindo] = useState(false)
@@ -238,7 +296,11 @@ function ExcluirDialog({ u, onExcluido }: { u: Usuario; onExcluido: () => void }
       const r = await fetch(`/api/admin/usuarios/${u.id}`, { method: "DELETE" })
       if (!r.ok) {
         const d = await r.json().catch(() => ({}))
-        return setErro(d?.error ?? "Erro ao excluir.")
+        const map: Record<string, string> = {
+          nao_pode_desativar_propria_conta: "Você não pode desativar a própria conta.",
+          nao_pode_desativar_owner: "Não é possível desativar um owner.",
+        }
+        return setErro(map[d?.error] ?? d?.error ?? "Erro ao desativar.")
       }
       onExcluido()
       setOpen(false)
@@ -249,19 +311,19 @@ function ExcluirDialog({ u, onExcluido }: { u: Usuario; onExcluido: () => void }
   return (
     <Dialog open={open} onOpenChange={(o) => { setOpen(o); setErro(null) }}>
       <DialogTrigger asChild>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" title="Excluir usuário">
-          <Trash2 className="h-3.5 w-3.5" />
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" title="Desativar usuário">
+          <UserX className="h-3.5 w-3.5" />
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-destructive">
-            <Trash2 className="h-4 w-4" /> Excluir usuário
+            <UserX className="h-4 w-4" /> Desativar usuário
           </DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Confirma exclusão de <span className="font-semibold text-foreground">{u.nome}</span>?
-          Esta ação é irreversível.
+          Desativar <span className="font-semibold text-foreground">{u.nome}</span>? O usuário não poderá
+          mais entrar e sairá da lista. Os dados clínicos são preservados; dá para reativar depois.
         </p>
         {erro && (
           <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -271,7 +333,7 @@ function ExcluirDialog({ u, onExcluido }: { u: Usuario; onExcluido: () => void }
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
           <Button variant="destructive" onClick={excluir} disabled={excluindo}>
-            {excluindo ? <Loader2 className="h-4 w-4 animate-spin" /> : "Excluir"}
+            {excluindo ? <Loader2 className="h-4 w-4 animate-spin" /> : "Desativar"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -412,9 +474,10 @@ export default function UsuariosPage() {
                           </Button>
                         </Link>
                       )}
-                      <RoleDialog u={u} onSalvo={carregar} />
+                      <EditarDialog u={u} onSalvo={carregar} />
+                      {isOwner && <RoleDialog u={u} onSalvo={carregar} />}
                       <SenhaDialog u={u} onSalvo={carregar} />
-                      {isOwner && u.id !== meId && (
+                      {u.id !== meId && u.role !== "owner" && (
                         <ExcluirDialog u={u} onExcluido={carregar} />
                       )}
                     </div>

@@ -49,6 +49,13 @@ public static class AuthEndpoints
                 return Results.Unauthorized();
             }
 
+            // Usuário desativado (soft delete) não loga.
+            if (user.DesativadoEm is not null)
+            {
+                rateLimiter.RecordFailure(emailNorm);
+                return Results.Unauthorized();
+            }
+
             rateLimiter.RecordSuccess(emailNorm);
             user.UltimoLogin = DateTime.UtcNow;
 

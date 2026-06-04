@@ -169,6 +169,7 @@ public static class AdminEndpoints
                 FROM usuarios u
                 LEFT JOIN medicos m ON m.usuario_id = u.id
                 LEFT JOIN assinaturas a ON a.medico_id = m.id
+                WHERE u.desativado_em IS NULL
                 ORDER BY u.role DESC, u.nome").ToListAsync();
             return Results.Ok(rows);
         });
@@ -237,6 +238,51 @@ public static class AdminEndpoints
             return ok == 0 ? Results.NotFound() : Results.NoContent();
         });
 
+        // Editar dados básicos (nome + e-mail). Qualquer admin (policy do grupo).
+        // Role tem rota própria (owner-only); senha idem.
+        g.MapPatch("/usuarios/{id:guid}", async (
+            Guid id, [FromBody] EditarUsuarioRequest req, AppDbContext db) =>
+        {
+            var nome = (req.Nome ?? "").Trim();
+            var email = (req.Email ?? "").Trim().ToLowerInvariant();
+            if (nome.Length < 3) return Results.BadRequest(new { error = "nome invalido" });
+            if (string.IsNullOrEmpty(email) || !email.Contains('@'))
+                return Results.BadRequest(new { error = "email invalido" });
+
+            var emailEmUso = await db.Database.ExistsAsync(
+                "SELECT 1 FROM usuarios WHERE email = {0} AND id <> {1}", email, id);
+            if (emailEmUso) return Results.Conflict(new { error = "email_em_uso" });
+
+            var ok = await db.Database.ExecuteSqlRawAsync(
+                "UPDATE usuarios SET nome = {1}, email = {2} WHERE id = {0}", id, nome, email);
+            if (ok == 0) return Results.NotFound();
+            // Mantém medicos.nome (denormalizado) em sincronia.
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE medicos SET nome = {1} WHERE usuario_id = {0}", id, nome);
+            return Results.NoContent();
+        });
+
+        // Desativar usuário (SOFT delete). Qualquer admin (policy do grupo).
+        // Não apaga: preserva dados clínicos + auditoria (FK RESTRICT). Bloqueia
+        // login + some da lista. Reversível (limpar desativado_em).
+        g.MapDelete("/usuarios/{id:guid}", async (
+            Guid id, AppDbContext db, ClaimsPrincipal caller) =>
+        {
+            var callerSub = caller.FindFirst("sub")?.Value;
+            if (Guid.TryParse(callerSub, out var cId) && cId == id)
+                return Results.BadRequest(new { error = "nao_pode_desativar_propria_conta" });
+
+            var alvoRole = await db.Database.ExecuteScalarAsync<string?>(
+                "SELECT role FROM usuarios WHERE id = {0}", id);
+            if (alvoRole is null) return Results.NotFound();
+            if (string.Equals(alvoRole, "owner", StringComparison.OrdinalIgnoreCase))
+                return Results.BadRequest(new { error = "nao_pode_desativar_owner" });
+
+            var ok = await db.Database.ExecuteSqlRawAsync(
+                "UPDATE usuarios SET desativado_em = NOW() WHERE id = {0} AND desativado_em IS NULL", id);
+            return ok == 0 ? Results.NotFound() : Results.NoContent();
+        });
+
         // ─── Onboarding de médico ──────────────────────────────────────────────
         // Cria usuario + medico + assinatura trial + token de convite + envia email.
         g.MapPost("/onboarding/medico", async (
@@ -254,25 +300,17 @@ public static class AdminEndpoints
             if (!new[] { "trial", "starter", "pro", "enterprise" }.Contains(plano))
                 return Results.BadRequest(new { error = "plano inválido" });
 
-            var existe = await db.Database.ExistsAsync(
-                "SELECT 1 FROM usuarios WHERE email = {0}", email);
-            if (existe) return Results.Conflict(new { error = "email_em_uso" });
-
-            // Usuario com senha placeholder (não pode logar antes de ativar)
-            var usuarioId = Guid.NewGuid();
-            var medicoId  = Guid.NewGuid();
-            var placeholder = "!" + Convert.ToBase64String(
-                System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
-
-            await db.Database.ExecuteSqlRawAsync(
-                "INSERT INTO usuarios (id, email, senha_hash, nome, role) VALUES ({0},{1},{2},{3},'medico')",
-                usuarioId, email, placeholder, nome);
-
+            // UF obrigatória p/ validar CRM.
             var crmUf = (req.CrmUf ?? "").Trim().ToUpperInvariant();
             if (string.IsNullOrEmpty(crmUf))
                 return Results.BadRequest(new { error = "crm_uf_obrigatorio" });
 
-            // Valida CRM contra o CFM via Infosimples (hard gate)
+            var existe = await db.Database.ExistsAsync(
+                "SELECT 1 FROM usuarios WHERE email = {0}", email);
+            if (existe) return Results.Conflict(new { error = "email_em_uso" });
+
+            // Valida CRM contra o CFM via Infosimples (hard gate) — ANTES de gravar
+            // qualquer coisa, senão um CFM fora do ar deixava o usuário órfão no banco.
             var val = await cfm.ValidarAsync(crm, crmUf);
             if (val.Erro is not null)
                 return Results.Json(new { error = "cfm_indisponivel" }, statusCode: 503);
@@ -282,29 +320,44 @@ public static class AdminEndpoints
                  !string.Equals(val.Situacao, "NaoValidado", StringComparison.OrdinalIgnoreCase)))
                 return Results.Json(new { error = "crm_invalido", situacao = val.Situacao }, statusCode: 422);
 
+            // Tudo validado → grava de forma ATÔMICA (usuario + medico + assinatura + token).
+            // Senha placeholder: não loga antes de ativar.
+            var usuarioId = Guid.NewGuid();
+            var medicoId  = Guid.NewGuid();
+            var placeholder = "!" + Convert.ToBase64String(
+                System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
             var cpf = new string((req.Cpf ?? "").Where(char.IsDigit).ToArray());
-            await db.Database.ExecuteSqlRawAsync(
-                "INSERT INTO medicos (id, usuario_id, nome, crm, crm_uf, cpf, especialidade, crm_situacao, crm_validado_em, crm_fonte, crm_nome_cfm) " +
-                "VALUES ({0},{1},{2},{3},NULLIF({4},''),NULLIF({5},''),'psiquiatria',{6},NOW(),'infosimples',NULLIF({7},''))",
-                medicoId, usuarioId, nome, crm, crmUf, cpf,
-                val.Situacao ?? "NaoValidado", val.Nome ?? "");
-
             var assinaturaId = Guid.NewGuid();
-            await db.Database.ExecuteSqlRawAsync(@"
-                INSERT INTO assinaturas (id, medico_id, plano, valor_mensal, status, trial_ate)
-                VALUES ({0},{1},{2},{3},'trial', NOW() + INTERVAL '30 days')",
-                assinaturaId, medicoId, plano, req.ValorMensal ?? 0m);
-
-            // Token de convite (24h)
             var tokenBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
             var token = Convert.ToBase64String(tokenBytes)
                 .Replace("+", "-").Replace("/", "_").Replace("=", "");
             var tokenHash = AdminSha256(token);
-            await db.Database.ExecuteSqlRawAsync(
-                "INSERT INTO medico_invite_tokens (usuario_id, token_hash, expira_em) VALUES ({0},{1}, NOW() + INTERVAL '24 hours')",
-                usuarioId, tokenHash);
 
-            // Email com link de ativação
+            await using (var tx = await db.Database.BeginTransactionAsync())
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "INSERT INTO usuarios (id, email, senha_hash, nome, role) VALUES ({0},{1},{2},{3},'medico')",
+                    usuarioId, email, placeholder, nome);
+
+                await db.Database.ExecuteSqlRawAsync(
+                    "INSERT INTO medicos (id, usuario_id, nome, crm, crm_uf, cpf, especialidade, crm_situacao, crm_validado_em, crm_fonte, crm_nome_cfm) " +
+                    "VALUES ({0},{1},{2},{3},NULLIF({4},''),NULLIF({5},''),'psiquiatria',{6},NOW(),'infosimples',NULLIF({7},''))",
+                    medicoId, usuarioId, nome, crm, crmUf, cpf,
+                    val.Situacao ?? "NaoValidado", val.Nome ?? "");
+
+                await db.Database.ExecuteSqlRawAsync(@"
+                    INSERT INTO assinaturas (id, medico_id, plano, valor_mensal, status, trial_ate)
+                    VALUES ({0},{1},{2},{3},'trial', NOW() + INTERVAL '30 days')",
+                    assinaturaId, medicoId, plano, req.ValorMensal ?? 0m);
+
+                await db.Database.ExecuteSqlRawAsync(
+                    "INSERT INTO medico_invite_tokens (usuario_id, token_hash, expira_em) VALUES ({0},{1}, NOW() + INTERVAL '24 hours')",
+                    usuarioId, tokenHash);
+
+                await tx.CommitAsync();
+            }
+
+            // Email com link de ativação (fora da transação — falha não desfaz a conta)
             var baseUrl = cfg["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
             var link = $"{baseUrl}/ativar-conta?token={token}";
             var html = $"""
@@ -483,6 +536,8 @@ public static class AdminEndpoints
 public record OnboardingMedicoRequest(
     string Nome, string Email, string Crm, string? Plano, decimal? ValorMensal,
     string? CrmUf, string? Cpf);
+
+public record EditarUsuarioRequest(string? Nome, string? Email);
 
 public record CustoMes(
     DateOnly Mes, string Agente,

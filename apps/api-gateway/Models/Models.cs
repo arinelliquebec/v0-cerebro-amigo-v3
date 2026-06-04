@@ -25,6 +25,7 @@ public class Usuario
     public string Role { get; set; } = "admin";
     public DateTime CriadoEm { get; set; }
     public DateTime? UltimoLogin { get; set; }
+    public DateTime? DesativadoEm { get; set; }
 }
 
 public class Medico
