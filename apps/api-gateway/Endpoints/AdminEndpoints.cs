@@ -208,7 +208,7 @@ public static class AdminEndpoints
         g.MapPost("/onboarding/medico", async (
             [FromBody] OnboardingMedicoRequest req,
             AppDbContext db, IPasswordHasher hasher,
-            ResendClient resend, IConfiguration cfg) =>
+            ResendClient resend, CfmClient cfm, IConfiguration cfg) =>
         {
             var email = (req.Email ?? "").Trim().ToLowerInvariant();
             var nome  = (req.Nome  ?? "").Trim();
@@ -235,10 +235,25 @@ public static class AdminEndpoints
                 usuarioId, email, placeholder, nome);
 
             var crmUf = (req.CrmUf ?? "").Trim().ToUpperInvariant();
+            if (string.IsNullOrEmpty(crmUf))
+                return Results.BadRequest(new { error = "crm_uf_obrigatorio" });
+
+            // Valida CRM contra o CFM via Infosimples (hard gate)
+            var val = await cfm.ValidarAsync(crm, crmUf);
+            if (val.Erro is not null)
+                return Results.Json(new { error = "cfm_indisponivel" }, statusCode: 503);
+            // "NaoValidado" = bypass (CRM_VALIDATION_ENABLED=false) — não bloquear
+            if (!val.Encontrado ||
+                (!string.Equals(val.Situacao, "Regular", StringComparison.OrdinalIgnoreCase) &&
+                 !string.Equals(val.Situacao, "NaoValidado", StringComparison.OrdinalIgnoreCase)))
+                return Results.Json(new { error = "crm_invalido", situacao = val.Situacao }, statusCode: 422);
+
             var cpf = new string((req.Cpf ?? "").Where(char.IsDigit).ToArray());
             await db.Database.ExecuteSqlRawAsync(
-                "INSERT INTO medicos (id, usuario_id, nome, crm, crm_uf, cpf, especialidade) VALUES ({0},{1},{2},{3},NULLIF({4},''),NULLIF({5},''),'psiquiatria')",
-                medicoId, usuarioId, nome, crm, crmUf, cpf);
+                "INSERT INTO medicos (id, usuario_id, nome, crm, crm_uf, cpf, especialidade, crm_situacao, crm_validado_em, crm_fonte, crm_nome_cfm) " +
+                "VALUES ({0},{1},{2},{3},NULLIF({4},''),NULLIF({5},''),'psiquiatria',{6},NOW(),'infosimples',NULLIF({7},''))",
+                medicoId, usuarioId, nome, crm, crmUf, cpf,
+                val.Situacao ?? "NaoValidado", val.Nome ?? "");
 
             var assinaturaId = Guid.NewGuid();
             await db.Database.ExecuteSqlRawAsync(@"

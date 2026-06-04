@@ -152,6 +152,9 @@ builder.Services.AddHttpClient<ResendClient>()
 builder.Services.AddHttpClient<MemedClient>()
     .AddStandardResilienceHandler();
 
+builder.Services.AddHttpClient<CfmClient>()
+    .AddStandardResilienceHandler();
+
 // OrchestratorStreamClient — proxy SSE para o orchestrator-py
 builder.Services.AddOrchestratorStreamClient(builder.Configuration);
 

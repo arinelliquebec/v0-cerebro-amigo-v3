@@ -10,6 +10,8 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     if (err instanceof GatewayError) {
       if (err.status === 409) return NextResponse.json({ error: "email_em_uso" }, { status: 409 })
+      if (err.status === 422) return NextResponse.json(err.body, { status: 422 }) // crm_invalido
+      if (err.status === 503) return NextResponse.json(err.body, { status: 503 }) // cfm_indisponivel
       if (err.status === 400) return NextResponse.json(err.body, { status: 400 })
       if (err.status === 401 || err.status === 403)
         return NextResponse.json({ error: "não autorizado" }, { status: err.status })

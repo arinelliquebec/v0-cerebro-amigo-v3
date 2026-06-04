@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { CreditCard, Plus, Loader2, AlertTriangle, RefreshCw, DollarSign, TrendingUp } from "lucide-react"
 import { cpfMask, cpfValido, cpfDigits } from "@/lib/cpf"
+import { crmMask, crmValido } from "@/lib/crm"
 
 // Máscara de moeda BRL
 function moedaBrlMask(valor: string): string {
@@ -54,7 +55,7 @@ const editarAssinaturaSchema = z.object({
 const novaAssinaturaSchema = z.object({
   nome: z.string().min(3, "Nome deve ter pelo menos 3 caracteres").max(100, "Nome muito longo"),
   email: z.string().min(1, "E-mail é obrigatório").email("E-mail inválido"),
-  crm: z.string().min(1, "CRM é obrigatório").max(20, "CRM muito longo"),
+  crm: z.string().min(1, "CRM é obrigatório").refine((v) => crmValido(v), "CRM inválido (4-10 caracteres alfanuméricos)"),
   crmUf: z.string().length(2, "UF deve ter 2 caracteres").regex(/^[A-Z]{2}$/, "UF inválida"),
   cpf: z.string().refine((v) => {
     if (!v) return true
@@ -345,6 +346,15 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
         if (d?.error === "email_em_uso") {
           setError("email", { message: "E-mail já cadastrado" })
           setErro("E-mail já cadastrado.")
+        } else if (d?.error === "crm_invalido") {
+          const sit = d?.situacao ? ` (situação: ${d.situacao})` : ""
+          setError("crm", { message: `CRM não encontrado no CFM ou inativo${sit}. Confira número e UF.` })
+          setErro(`CRM não encontrado no CFM ou inativo${sit}. Confira número e UF.`)
+        } else if (d?.error === "cfm_indisponivel") {
+          setErro("Não foi possível validar o CRM agora (CFM indisponível). Tente novamente em instantes.")
+        } else if (d?.error === "crm_uf_obrigatorio") {
+          setError("crmUf", { message: "UF é obrigatória para validar o CRM" })
+          setErro("UF do CRM é obrigatória.")
         } else {
           setErro("Erro ao criar convite.")
         }
@@ -419,7 +429,13 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
             <div className="grid grid-cols-3 gap-2">
               <div className="col-span-2 space-y-1.5">
                 <Label>CRM (número)</Label>
-                <Input {...register("crm")} placeholder="123456" />
+                <Input
+                  value={watch("crm")}
+                  onChange={(e) => setValue("crm", crmMask(e.target.value))}
+                  placeholder="123456"
+                  maxLength={10}
+                  className={errors.crm ? "border-destructive" : ""}
+                />
                 {errors.crm && <p className="text-xs text-destructive">{errors.crm.message}</p>}
               </div>
               <div className="space-y-1.5">
