@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0021 — Rede Social Cérebro Amigo (médicos verificados) — Onda 0 + feed básico
+-- 0024 — Rede Social Cérebro Amigo (médicos verificados) — Onda 0 + feed básico
 -- =============================================================================
 --
 -- Rede social exclusiva para médicos verificados por CRM. Esta migration cobre:
@@ -13,7 +13,7 @@
 --   - NUNCA armazenar PII de paciente aqui (regra reforçada na aplicação).
 --   - Só médico com `medicos.crm_situacao = 'Regular'` pode escrever (gate na app).
 --
--- Aplicar: psql $POSTGRES_DSN_URL -f infra/migrations/0021_social.sql
+-- Aplicar: psql $POSTGRES_DSN_URL -f infra/migrations/0024_social.sql
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------

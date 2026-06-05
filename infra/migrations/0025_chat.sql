@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0022 — Chat da Rede Social (DM + grupos) — Onda 2
+-- 0025 — Chat da Rede Social (DM + grupos) — Onda 2
 -- =============================================================================
 --
 -- Chat em tempo real entre médicos verificados. Suporta:
@@ -11,7 +11,7 @@
 --   - Mensagens NÃO são logadas em aplicação (LGPD).
 --   - PII guard aplica antes de INSERT (mesmo guard do feed).
 --
--- Aplicar: psql $POSTGRES_DSN_URL -f infra/migrations/0022_chat.sql
+-- Aplicar: psql $POSTGRES_DSN_URL -f infra/migrations/0025_chat.sql
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
