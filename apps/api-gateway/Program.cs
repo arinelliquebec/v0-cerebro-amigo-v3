@@ -164,6 +164,11 @@ builder.Services.AddHttpClient<MemedClient>()
 // (retries automáticos = consultas duplicadas). Timeout próprio no CfmClient (100s).
 builder.Services.AddHttpClient<CfmClient>();
 
+// AsaasClient: SEM StandardResilienceHandler — retry automático em POST /payments
+// criaria COBRANÇA DUPLICADA (mesmo motivo do CfmClient). Idempotência fica a
+// cargo do fluxo (1 cobrança por chamada do médico).
+builder.Services.AddHttpClient<AsaasClient>();
+
 // OrchestratorStreamClient — proxy SSE para o orchestrator-py
 builder.Services.AddOrchestratorStreamClient(builder.Configuration);
 
@@ -294,6 +299,8 @@ EscalasEndpoints.Map(app);
 ExamesEndpoints.Map(app);
 RenovacoesEndpoints.Map(app);
 InteracoesEndpoints.Map(app);
+CobrancasEndpoints.Map(app);
+BlindagemEndpoints.Map(app);
 RagEndpoints.Map(app);
 InsightsEndpoints.Map(app);
 ConsultasEndpoints.Map(app);
