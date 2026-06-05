@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Heart, MessageCircle, Trash2, BadgeCheck } from "lucide-react"
+import { Heart, MessageCircle, Trash2, BadgeCheck, Flag } from "lucide-react"
+import { DenunciarDialog } from "@/components/rede/denunciar-dialog"
 import type { Comentario, Post } from "@/lib/rede"
 import { iniciais } from "@/lib/rede"
 import { tempoRelativo } from "@/lib/tempo"
@@ -139,7 +140,7 @@ export function PostCard({ post, podeInteragir, onRemoved }: Props) {
               {post.comunidadeNome && (
                 <Badge variant="secondary" className="ml-1 text-[10px]">{post.comunidadeNome}</Badge>
               )}
-              {post.meu && (
+              {post.meu ? (
                 <Button
                   variant="ghost"
                   size="icon-sm"
@@ -149,6 +150,21 @@ export function PostCard({ post, podeInteragir, onRemoved }: Props) {
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
+              ) : (
+                <DenunciarDialog
+                  alvoTipo="post"
+                  alvoId={post.id}
+                  trigger={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="ml-auto text-muted-foreground/30 hover:text-destructive"
+                      aria-label="Denunciar publicação"
+                    >
+                      <Flag className="h-3.5 w-3.5" />
+                    </Button>
+                  }
+                />
               )}
             </div>
             {post.autorEspecialidade && (

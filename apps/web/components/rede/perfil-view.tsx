@@ -8,9 +8,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { PerfilEditDialog } from "@/components/rede/perfil-edit-dialog"
-import { ArrowLeft, BadgeCheck, MapPin, Building2, Pencil } from "lucide-react"
+import { ArrowLeft, BadgeCheck, MapPin, Building2, Pencil, Crown } from "lucide-react"
 import type { PerfilPublico } from "@/lib/rede"
-import { iniciais } from "@/lib/rede"
+import { iniciais, isPremium } from "@/lib/rede"
 
 export function PerfilView({ handle }: { handle: string }) {
   const [perfil, setPerfil] = useState<PerfilPublico | null>(null)
@@ -120,6 +120,7 @@ export function PerfilView({ handle }: { handle: string }) {
                 <div className="flex items-center gap-2">
                   <h2 className="text-lg font-semibold text-foreground">{perfil.nome}</h2>
                   {perfil.verificado && <BadgeCheck className="h-5 w-5 text-primary" aria-label="CRM verificado" />}
+                  {isPremium(perfil.plano) && <Crown className="h-4.5 w-4.5 text-amber-500" aria-label={`Plano ${perfil.plano}`} />}
                 </div>
                 <p className="text-sm text-muted-foreground/80">@{perfil.handle}</p>
                 {perfil.especialidade && (

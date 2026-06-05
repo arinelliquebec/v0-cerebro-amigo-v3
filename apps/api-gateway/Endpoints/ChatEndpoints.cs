@@ -98,6 +98,10 @@ public static class ChatEndpoints
             if (tipo == "grupo" && string.IsNullOrWhiteSpace(req.Nome))
                 return Results.BadRequest(new { error = "nome_obrigatorio_para_grupo" });
 
+            // Premium gate: criar grupo requer plano pro ou enterprise.
+            if (tipo == "grupo" && !await PlanoPremium(db, me.MedicoId))
+                return Results.Json(new { error = "plano_insuficiente", minimo = "pro" }, statusCode: 403);
+
             var conversaId = Guid.NewGuid();
             await db.Database.ExecuteSqlRawAsync(@"
                 INSERT INTO social_conversas (id, tipo, nome)
@@ -286,6 +290,11 @@ public static class ChatEndpoints
 
     private static bool ContemPii(string texto) =>
         CpfRegex.IsMatch(texto) || TelefoneRegex.IsMatch(texto);
+
+    private static async Task<bool> PlanoPremium(AppDbContext db, Guid medicoId) =>
+        await db.Database.SqlQueryRaw<int>(
+            "SELECT 1 FROM assinaturas WHERE medico_id = {0} AND status = 'ativa' AND plano IN ('pro', 'enterprise') LIMIT 1",
+            medicoId).AnyAsync();
 }
 
 // ─── DTOs do Chat ────────────────────────────────────────────────────────────

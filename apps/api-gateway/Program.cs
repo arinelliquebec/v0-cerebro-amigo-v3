@@ -287,6 +287,7 @@ PromptsEndpoints.Map(app);
 AdminEndpoints.Map(app);
 SocialEndpoints.Map(app);
 ChatEndpoints.Map(app);
+ModeracaoEndpoints.Map(app);
 app.MapHub<ApiGateway.Hubs.ChatHub>("/hubs/chat");
 SeedEndpoint.Map(app);
 

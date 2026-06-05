@@ -31,11 +31,13 @@ public static class SocialEndpoints
                 SELECT m.id AS medico_id, sp.handle, m.nome, m.crm, m.especialidade,
                        sp.bio, sp.foto_url, sp.capa_url, sp.cidade, sp.instituicao,
                        (m.crm_situacao = 'Regular') AS verificado,
+                       COALESCE(a.plano, 'trial') AS plano,
                        (SELECT count(*) FROM social_follows f WHERE f.seguido_id = m.id)  AS seguidores,
                        (SELECT count(*) FROM social_follows f WHERE f.seguidor_id = m.id) AS seguindo,
                        (SELECT count(*) FROM social_posts p WHERE p.autor_medico_id = m.id AND p.status = 'ativo') AS posts
                 FROM medicos m
                 JOIN social_perfis sp ON sp.medico_id = m.id
+                LEFT JOIN assinaturas a ON a.medico_id = m.id AND a.status IN ('ativa', 'trial')
                 WHERE m.id = {0}",
                 me.MedicoId).FirstOrDefaultAsync();
 
@@ -91,6 +93,7 @@ public static class SocialEndpoints
                 SELECT m.id AS medico_id, sp.handle, m.nome, m.especialidade,
                        sp.bio, sp.foto_url, sp.capa_url, sp.cidade, sp.instituicao,
                        (m.crm_situacao = 'Regular') AS verificado,
+                       COALESCE(a.plano, 'trial') AS plano,
                        (SELECT count(*) FROM social_follows f WHERE f.seguido_id = m.id)  AS seguidores,
                        (SELECT count(*) FROM social_follows f WHERE f.seguidor_id = m.id) AS seguindo,
                        (SELECT count(*) FROM social_posts p WHERE p.autor_medico_id = m.id AND p.status = 'ativo') AS posts,
@@ -98,6 +101,7 @@ public static class SocialEndpoints
                        (m.id = {1}) AS sou_eu
                 FROM social_perfis sp
                 JOIN medicos m ON m.id = sp.medico_id
+                LEFT JOIN assinaturas a ON a.medico_id = m.id AND a.status IN ('ativa', 'trial')
                 WHERE sp.handle = {0} AND sp.visivel = TRUE",
                 handle.ToLowerInvariant(), me.MedicoId).FirstOrDefaultAsync();
 
@@ -404,12 +408,12 @@ internal record MedicoCtx(Guid MedicoId, string Nome, string? Crm, string? Espec
 public record PerfilDto(
     Guid MedicoId, string Handle, string Nome, string? Crm, string? Especialidade,
     string? Bio, string? FotoUrl, string? CapaUrl, string? Cidade, string? Instituicao,
-    bool Verificado, long Seguidores, long Seguindo, long Posts);
+    bool Verificado, string Plano, long Seguidores, long Seguindo, long Posts);
 
 public record PerfilPublicoDto(
     Guid MedicoId, string Handle, string Nome, string? Especialidade,
     string? Bio, string? FotoUrl, string? CapaUrl, string? Cidade, string? Instituicao,
-    bool Verificado, long Seguidores, long Seguindo, long Posts,
+    bool Verificado, string Plano, long Seguidores, long Seguindo, long Posts,
     bool SeguindoEu, bool SouEu);
 
 public record ComunidadeDto(Guid Id, string Nome, string Slug, string? Descricao, string? Especialidade);

@@ -13,9 +13,14 @@ export interface PerfilMe {
   cidade: string | null
   instituicao: string | null
   verificado: boolean
+  plano: string
   seguidores: number
   seguindo: number
   posts: number
+}
+
+export function isPremium(plano?: string): boolean {
+  return plano === "pro" || plano === "enterprise"
 }
 
 export interface PerfilPublico extends Omit<PerfilMe, "crm"> {
