@@ -17,6 +17,7 @@ using ApiGateway.Data;
 using ApiGateway.Endpoints;
 using ApiGateway.Features.Portal.Conversation;
 using ApiGateway.Services;
+using Amazon.S3;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -182,6 +183,12 @@ builder.Services.AddHttpClient("agents-py", client =>
 // -----------------------------------------------------------------------------
 builder.Services.AddSignalR();
 
+// S3 (rede social — fotos dos posts). Credenciais: IAM role (prod) / mount
+// ~/.aws (dev). Bucket privado em S3_BUCKET_SOCIAL.
+builder.Services.AddSingleton<IAmazonS3>(_ =>
+    new AmazonS3Client(Amazon.RegionEndpoint.GetBySystemName(
+        builder.Configuration["AWS_REGION"] ?? "sa-east-1")));
+
 builder.Services.AddOpenApi("v1", options =>
 {
     options.AddDocumentTransformer((document, _, _) =>
@@ -269,6 +276,7 @@ app.MapGet("/ready", async (AppDbContext db) =>
 // Endpoints
 AuthEndpoints.Map(app);
 RedeAuthEndpoints.Map(app);
+RedeFotoEndpoints.Map(app);
 AgentesEndpoints.Map(app);
 PacientesPsiqEndpoints.Map(app);
 PrescricoesEndpoints.Map(app);
