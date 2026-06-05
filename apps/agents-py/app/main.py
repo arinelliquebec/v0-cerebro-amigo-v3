@@ -17,6 +17,8 @@ from app.agents.resumidor import ResumidorAgent
 from app.core.config import get_settings
 from app.core.db import acquire, close_pool, init_pool
 from app.core.observability import configure_observability, redact_pii_processor
+from app.jobs.indexador_rag import reindexar_kb, reindexar_paciente
+from app.services.retrieval import buscar as rag_buscar_service
 from app.scheduler import (
     run_for_patient,
     run_once,
@@ -293,3 +295,52 @@ async def run_resumo_on_demand(req: RunForPatientRequest) -> dict:
         "insight_id": str(insight_id) if insight_id else None,
         "on_demand": True,
     }
+
+
+# ─── RAG (ADR-028) — indexação ─────────────────────────────────────────────
+
+
+@app.post("/internal/rag/index/kb", dependencies=[Depends(_check_internal_token)])
+async def rag_index_kb() -> dict:
+    """Reindexa o catálogo de medicamentos (base de conhecimento global)."""
+    return await reindexar_kb()
+
+
+@app.post(
+    "/internal/rag/index/paciente/{paciente_id}",
+    dependencies=[Depends(_check_internal_token)],
+)
+async def rag_index_paciente(paciente_id: UUID) -> dict:
+    """Reindexa o prontuário de um paciente (incremental por fonte_hash)."""
+    try:
+        return await reindexar_paciente(paciente_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+class RagBuscarRequest(BaseModel):
+    # medico_id DEVE vir do JWT validado no gateway (tenant), NUNCA do browser.
+    medico_id: UUID
+    query: str
+    paciente_id: UUID | None = None
+    k: int | None = None
+    fontes: list[str] | None = None
+    incluir_kb: bool = True
+
+
+@app.post("/internal/rag/buscar", dependencies=[Depends(_check_internal_token)])
+async def rag_buscar(req: RagBuscarRequest) -> dict:
+    """Busca semântica doctor-facing: devolve trechos citados (sem conduta gerada).
+
+    Retrieval-only (regra #1). Tenant (`medico_id`) é a primeira cláusula do filtro
+    e é responsabilidade do gateway derivá-lo do JWT — este endpoint é interno.
+    """
+    trechos = await rag_buscar_service(
+        req.medico_id,
+        query=req.query,
+        paciente_id=req.paciente_id,
+        k=req.k,
+        fontes=req.fontes,
+        incluir_kb=req.incluir_kb,
+    )
+    return {"trechos": [t.as_dict() for t in trechos]}

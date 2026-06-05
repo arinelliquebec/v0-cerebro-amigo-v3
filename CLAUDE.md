@@ -71,6 +71,7 @@ web `:3000` · api-gateway `:5050`→`:5000` · orchestrator-py `:8081` · agent
 `POSTGRES_DSN` · `JWT_SECRET` · `INTERNAL_API_TOKEN` · `RESEND_API_KEY`/`EMAIL_FROM` · `VAPID_*`/`NEXT_PUBLIC_VAPID_PUBLIC_KEY` · `API_GATEWAY_URL` (dev `http://localhost:5050`; docker `http://api-gateway:5000`) · `ORCHESTRATOR_PY_URL` · `LANGSMITH_*`/`PII_REDACTION_ENABLED=true` · `SHADOW_MODE` · `AGENTS_MODE`/`NOTIFIER_MODE`/`SCHEDULER_INTERVAL_SECONDS`.
 **Bedrock:** `AWS_REGION=sa-east-1` · `BEDROCK_REGION=sa-east-1` · `BEDROCK_MODEL_HAIKU` · `BEDROCK_MODEL_SONNET` · `BEDROCK_MODEL_OPUS` · credenciais via IAM role (prod) ou `AWS_PROFILE` (dev).
 **Teleconsulta (vídeo P2P, ADR-026):** `STUN_URLS` · `TURN_URLS` · `TURN_SECRET` · `TURN_TTL_SECONDS` · `TURN_REALM` · `TURN_EXTERNAL_IP`; coturn no compose sob `profiles: ["turn"]` (prod: `COMPOSE_PROFILES=turn`). Mídia E2E, sem gravação.
+**RAG / embeddings (ADR-028):** `EMBEDDINGS_ENABLED` · `BEDROCK_EMBED_MODEL=cohere.embed-multilingual-v3` (on-demand in-region 1024-dim; **NÃO** usar `cohere.embed-v4` = profile global cross-region) · `RAG_TOP_K` · `RAG_INDEX_INTERVAL_HOURS`. Embedding é sempre Bedrock in-region (LGPD), independente de `LLM_PROVIDER`. Decifra fonte com `ENCRYPTION_KEY` antes de indexar (ADR-018).
 **NÃO existem mais:** `ANTHROPIC_API_KEY`, `MODEL_HAIKU`/`MODEL_SONNET` (Anthropic), nenhum `AZURE_*`.
 
 ## Estado da migração

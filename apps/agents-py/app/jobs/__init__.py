@@ -9,10 +9,12 @@ são tarefas operacionais agendadas:
 Sem LLM, sem `insights`. Apenas SQL + lógica de agendamento.
 """
 
+from app.jobs.alerta_exames_vencidos import AlertaExamesVencidosJob
 from app.jobs.alerta_nao_adesao import AlertaNaoAdesaoJob
 from app.jobs.base import BaseJob, JobStats
 from app.jobs.gerador_checkin_humor import GeradorCheckinHumorJob
 from app.jobs.gerador_checkins_medicacao import GeradorCheckinsMedicacaoJob
+from app.jobs.gerador_exames import GeradorExamesJob
 from app.jobs.gerador_questionarios import GeradorQuestionariosJob
 
 # Registry: cada novo job é adicionado aqui e ganha slot no scheduler.
@@ -23,6 +25,8 @@ JOB_REGISTRY: dict[str, type[BaseJob]] = {
     GeradorQuestionariosJob.name: GeradorQuestionariosJob,
     GeradorCheckinHumorJob.name: GeradorCheckinHumorJob,
     AlertaNaoAdesaoJob.name: AlertaNaoAdesaoJob,
+    GeradorExamesJob.name: GeradorExamesJob,
+    AlertaExamesVencidosJob.name: AlertaExamesVencidosJob,
 }
 
 

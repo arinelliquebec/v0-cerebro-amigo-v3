@@ -71,6 +71,19 @@ class Settings(BaseSettings):
     bedrock_model_sonnet: str = "global.anthropic.claude-sonnet-4-6"
     bedrock_model_opus: str = "global.anthropic.claude-opus-4-8"
 
+    # ─── Embeddings / RAG (ADR-028) ───
+    # Embedding é SEMPRE Bedrock in-region, independente de LLM_PROVIDER: Anthropic
+    # não tem API de embedding e a LGPD exige inferência no Brasil. O modelo
+    # cohere.embed-multilingual-v3 roda ON-DEMAND em sa-east-1 (sem profile global.*,
+    # que rotearia cross-region). Em dev sem credenciais AWS, EMBEDDINGS_ENABLED=false.
+    embeddings_enabled: bool = True            # EMBEDDINGS_ENABLED
+    bedrock_embed_model: str = "cohere.embed-multilingual-v3"
+    embed_dim: int = 1024                      # casa com vector(1024) da migration 0022
+    rag_top_k: int = 8                         # RAG_TOP_K — resultados por busca
+    rag_index_interval_hours: int = 12         # RAG_INDEX_INTERVAL_HOURS — cadência reindex
+    rag_chunk_max_chars: int = 1600            # ~400 tokens — split de texto longo
+    rag_chunk_overlap_chars: int = 200
+
     # LangSmith
     langsmith_tracing: bool = True
     langsmith_api_key: SecretStr | None = None
@@ -84,6 +97,11 @@ class Settings(BaseSettings):
 
     # Auth interna
     internal_api_token: SecretStr
+
+    # Cifra de aplicação (ADR-018). Ausente ⇒ crypto vira no-op (modo legacy).
+    # O indexador RAG e o hydration decifram a fonte com esta chave antes de
+    # embeddar/exibir; sem ela, leem plaintext (estado atual, cifra não-ligada).
+    encryption_key: SecretStr | None = None  # ENCRYPTION_KEY
 
     # Resumidor
     resumidor_lead_min_min: int = 30

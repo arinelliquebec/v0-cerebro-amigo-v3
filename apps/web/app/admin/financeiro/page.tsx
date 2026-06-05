@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
 import { CreditCard, Plus, Loader2, AlertTriangle, RefreshCw, DollarSign, TrendingUp } from "lucide-react"
 import { cpfMask, cpfValido, cpfDigits } from "@/lib/cpf"
 import { crmMask, crmValido } from "@/lib/crm"
@@ -119,7 +119,7 @@ function PagamentoDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: () => voi
   } = useForm<PagamentoFormData>({
     resolver: zodResolver(pagamentoSchema),
     defaultValues: {
-      valor: String(asn.valorMensal),
+      valor: (asn.valorMensal ?? 0).toString(),
       referencia: new Date().toISOString().slice(0, 7),
       metodo: "pix",
     },
@@ -152,7 +152,10 @@ function PagamentoDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: () => voi
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Pagamento — {asn.medicoNome}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Pagamento — {asn.medicoNome}</DialogTitle>
+          <DialogDescription>Registre um novo pagamento manualmente.</DialogDescription>
+        </DialogHeader>
         {erro && <p className="text-sm text-destructive">{erro}</p>}
         {ok && <p className="text-sm text-success">Pagamento registrado!</p>}
         <form onSubmit={handleSubmit(salvar)} className="space-y-3">
@@ -207,7 +210,7 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
     resolver: zodResolver(editarAssinaturaSchema),
     defaultValues: {
       plano: asn.plano as any,
-      valor: String(asn.valorMensal),
+      valor: (asn.valorMensal ?? 0).toString(),
       status: asn.status as any,
       notas: asn.notas ?? "",
     },
@@ -240,7 +243,10 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Assinatura — {asn.medicoNome}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Assinatura — {asn.medicoNome}</DialogTitle>
+          <DialogDescription>Edite o plano, valor ou status da assinatura.</DialogDescription>
+        </DialogHeader>
         {erro && <p className="text-sm text-destructive">{erro}</p>}
         <form onSubmit={handleSubmit(salvar)} className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
@@ -315,7 +321,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
       crmUf: "",
       cpf: "",
       plano: "trial",
-      valor: "0",
+      valor: "",
     },
   })
 
@@ -376,9 +382,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Convidar médico</DialogTitle>
-          <p className="text-sm text-muted-foreground mt-1">
-            Cria a conta e envia e-mail para o médico criar a senha.
-          </p>
+          <DialogDescription>Cria a conta e envia e-mail para o médico criar a senha.</DialogDescription>
         </DialogHeader>
         {ok ? (
           <div className="py-4 space-y-3">
@@ -399,7 +403,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => navigator.clipboard?.writeText(ativarUrl)}
+                    onClick={() => { if (ativarUrl) navigator.clipboard?.writeText(ativarUrl) }}
                     className="shrink-0 text-xs"
                   >
                     Copiar
@@ -514,8 +518,8 @@ export default function FinanceiroPage() {
 
   useEffect(() => { carregar() }, [carregar])
 
-  const mrr = assinaturas.filter((a) => a.status === "ativa").reduce((s, a) => s + (a.valorMensal ?? 0), 0)
-  const receitaTotal = assinaturas.reduce((s, a) => s + (a.totalPago ?? 0), 0)
+  const mrr = assinaturas.filter((a) => a.status === "ativa").reduce((s, a) => s + (typeof a.valorMensal === "number" ? a.valorMensal : 0), 0)
+  const receitaTotal = assinaturas.reduce((s, a) => s + (typeof a.totalPago === "number" ? a.totalPago : 0), 0)
 
   return (
     <div className="p-8 space-y-6">
