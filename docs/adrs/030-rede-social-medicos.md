@@ -1,4 +1,4 @@
-# ADR-026: Rede Social Cérebro Amigo (médicos verificados)
+# ADR-030: Rede Social Cérebro Amigo (médicos verificados)
 
 **Status:** Proposed
 **Data:** 2026-06-04
@@ -38,7 +38,7 @@ completa por **ondas**, começando pela fundação + feed.
    O conteúdo **não é logado**. A UI orienta anonimização. Moderação completa
    (denúncias, audit log) fica para a Onda 4.
 
-## Schema (migration `0021_social.sql`)
+## Schema (migration `0024_social.sql`)
 
 `social_perfis` (perfil 1:1 com handle único), `social_follows` (grafo),
 `social_comunidades` (espaços por tema, com seed inicial), `social_posts`,
