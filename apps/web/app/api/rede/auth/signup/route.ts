@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
     })
     return res
   } catch (err) {
-    if (err instanceof GatewayError && [400, 409, 422, 503].includes(err.status)) {
+    if (err instanceof GatewayError && [400, 409, 422, 500, 503].includes(err.status)) {
       return NextResponse.json(err.body, { status: err.status })
     }
     return NextResponse.json({ error: "erro interno" }, { status: 500 })

@@ -42,7 +42,11 @@ public static class RedeAuthEndpoints
             // Gate de CRM (CFM via Infosimples). Erro de serviço ≠ CRM inválido.
             var v = await cfm.ValidarAsync(crm, uf, nome);
             if (v.Erro is not null)
+            {
+                if (v.Erro.StartsWith("INFOSIMPLES_TOKEN"))
+                    return Results.Json(new { error = "crm_validacao_nao_configurada" }, statusCode: 500);
                 return Results.Json(new { error = "cfm_indisponivel" }, statusCode: 503);
+            }
             if (!v.Encontrado)
                 return Results.Json(new { error = "crm_nao_confere" }, statusCode: 422);
             // Exige Regular. 'NaoValidado' só aparece quando CRM_VALIDATION_ENABLED=false (dev).

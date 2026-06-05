@@ -150,6 +150,8 @@ builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddSingleton<TurnCredentialService>();
 builder.Services.AddSingleton<TeleconsultaSignalingHub>();
 
+builder.Services.AddMemoryCache();
+
 // HTTP clients
 builder.Services.AddHttpClient(); // factory genérico
 
@@ -160,8 +162,8 @@ builder.Services.AddHttpClient<MemedClient>()
     .AddStandardResilienceHandler();
 
 // CfmClient: SEM StandardResilienceHandler — o scrape do CFM pela Infosimples
-// leva até ~60s (o total-timeout padrão de 30s mataria) e é uma chamada PAGA
-// (retries automáticos = consultas duplicadas). Timeout próprio no CfmClient (100s).
+// leva até ~60s (o total-timeout padrão de 30s mataria). Retries MANUAIS (3x, 1s)
+// controlados no CfmClient — o StandardResilienceHandler duplicaria chamadas PAGAS.
 builder.Services.AddHttpClient<CfmClient>();
 
 // AsaasClient: SEM StandardResilienceHandler — retry automático em POST /payments

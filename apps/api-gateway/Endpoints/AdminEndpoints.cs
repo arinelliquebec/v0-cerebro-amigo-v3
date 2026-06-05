@@ -313,11 +313,19 @@ public static class AdminEndpoints
             // qualquer coisa, senão um CFM fora do ar deixava o usuário órfão no banco.
             var val = await cfm.ValidarAsync(crm, crmUf, nome);
             if (val.Erro is not null)
-                return Results.Json(new { error = "cfm_indisponivel" }, statusCode: 503);
-            // "NaoValidado" = bypass (CRM_VALIDATION_ENABLED=false) — não bloquear
+            {
+                if (val.Erro.StartsWith("INFOSIMPLES_TOKEN"))
+                    return Results.Json(new { error = "crm_validacao_nao_configurada" }, statusCode: 500);
+                // Soft-fail: CFM indisponível após 3 tentativas → cria conta pendente de
+                // verificação manual. Não bloqueia o admin — médico entra, CRM fica como
+                // PendenteVerificacao p/ revisão posterior.
+                val = new CrmValidationResult(true, "PendenteVerificacao", null, null, null);
+            }
+            // "NaoValidado" = bypass (CRM_VALIDATION_ENABLED=false). "PendenteVerificacao" = soft-fail.
             if (!val.Encontrado ||
                 (!string.Equals(val.Situacao, "Regular", StringComparison.OrdinalIgnoreCase) &&
-                 !string.Equals(val.Situacao, "NaoValidado", StringComparison.OrdinalIgnoreCase)))
+                 !string.Equals(val.Situacao, "NaoValidado", StringComparison.OrdinalIgnoreCase) &&
+                 !string.Equals(val.Situacao, "PendenteVerificacao", StringComparison.OrdinalIgnoreCase)))
                 return Results.Json(new { error = "crm_invalido", situacao = val.Situacao }, statusCode: 422);
 
             // Tudo validado → grava de forma ATÔMICA (usuario + medico + assinatura + token).
@@ -380,6 +388,8 @@ public static class AdminEndpoints
                 emailEnviado = emailResult.Success,
                 emailErro = emailResult.Error,
                 ativarContaUrl = emailResult.Success ? null : link,
+                crmPendente = string.Equals(val.Situacao, "PendenteVerificacao",
+                    StringComparison.OrdinalIgnoreCase),
             });
         });
 

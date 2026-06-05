@@ -303,6 +303,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
   const [erro, setErro] = useState<string | null>(null)
   const [ok, setOk] = useState(false)
   const [ativarUrl, setAtivarUrl] = useState<string | null>(null)
+  const [crmPendente, setCrmPendente] = useState(false)
 
   const {
     register,
@@ -335,6 +336,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
     setErro(null)
     setOk(false)
     setAtivarUrl(null)
+    setCrmPendente(false)
   }
 
   async function submeter(data: NovaAssinaturaFormData) {
@@ -358,6 +360,8 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
           setErro(`CRM não encontrado no CFM ou inativo${sit}. Confira número e UF.`)
         } else if (d?.error === "cfm_indisponivel") {
           setErro("Não foi possível validar o CRM agora (CFM indisponível). Tente novamente em instantes.")
+        } else if (d?.error === "crm_validacao_nao_configurada") {
+          setErro("INFOSIMPLES_TOKEN não configurado no servidor. Defina a variável de ambiente no EC2 ou set CRM_VALIDATION_ENABLED=false para bypass.")
         } else if (d?.error === "crm_uf_obrigatorio") {
           setError("crmUf", { message: "UF é obrigatória para validar o CRM" })
           setErro("UF do CRM é obrigatória.")
@@ -368,6 +372,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
         return
       }
       setOk(true)
+      if (d?.crmPendente) setCrmPendente(true)
       if (!d?.emailEnviado && d?.ativarContaUrl) setAtivarUrl(d.ativarContaUrl)
       onCriado()
     } catch { setErro("Erro de conexão.") }
@@ -389,6 +394,12 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
             <p className="text-success font-medium text-center">
               {ativarUrl ? "Conta criada!" : "Convite enviado!"}
             </p>
+            {crmPendente && (
+              <div className="flex items-start gap-2 rounded-lg bg-yellow-500/10 px-3 py-2 text-sm text-yellow-700 dark:text-yellow-400">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                CRM pendente de verificação — CFM estava indisponível. Verifique a situação do médico depois em Usuários.
+              </div>
+            )}
             {ativarUrl ? (
               <div className="space-y-2">
                 <p className="text-sm text-muted-foreground">
