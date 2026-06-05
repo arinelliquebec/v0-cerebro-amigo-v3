@@ -146,6 +146,30 @@ public static class SocialEndpoints
         })
         .WithSummary("Lista de comunidades");
 
+        // ── Sugestões de quem seguir ──────────────────────────────────────────
+        g.MapGet("/sugestoes", async (AppDbContext db, ClaimsPrincipal user, int? limite) =>
+        {
+            var me = await ResolveMedico(db, user);
+            if (me is null) return Results.Forbid();
+
+            var top = Math.Clamp(limite ?? 5, 1, 20);
+            var rows = await db.Database.SqlQueryRaw<SugestaoDto>(@"
+                SELECT m.id AS medico_id, COALESCE(sp.handle, '') AS handle,
+                       m.nome, m.especialidade,
+                       sp.foto_url, (m.crm_situacao = 'Regular') AS verificado,
+                       (SELECT count(*) FROM social_follows f WHERE f.seguido_id = m.id) AS seguidores
+                FROM medicos m
+                LEFT JOIN social_perfis sp ON sp.medico_id = m.id
+                WHERE m.crm_situacao = 'Regular'
+                  AND m.id <> {0}
+                  AND m.id NOT IN (SELECT seguido_id FROM social_follows WHERE seguidor_id = {0})
+                ORDER BY seguidores DESC
+                LIMIT {1}",
+                me.MedicoId, top).ToListAsync();
+            return Results.Ok(rows);
+        })
+        .WithSummary("Sugestões de médicos para seguir");
+
         // ── Feed ─────────────────────────────────────────────────────────────
         // escopo = descobrir (tudo) | seguindo (de quem o médico segue + ele mesmo)
         g.MapGet("/feed", async (
@@ -389,6 +413,10 @@ public record PerfilPublicoDto(
     bool SeguindoEu, bool SouEu);
 
 public record ComunidadeDto(Guid Id, string Nome, string Slug, string? Descricao, string? Especialidade);
+
+public record SugestaoDto(
+    Guid MedicoId, string Handle, string Nome, string? Especialidade,
+    string? FotoUrl, bool Verificado, long Seguidores);
 
 public record PostDto(
     Guid Id, string Corpo, DateTime CriadoEm,

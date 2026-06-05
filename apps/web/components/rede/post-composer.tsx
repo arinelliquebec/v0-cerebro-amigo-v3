@@ -23,11 +23,12 @@ interface Props {
   me: PerfilMe | null
   comunidades: Comunidade[]
   onCreated: () => void
+  comunidadePadrao?: string
 }
 
-export function PostComposer({ me, comunidades, onCreated }: Props) {
+export function PostComposer({ me, comunidades, onCreated, comunidadePadrao }: Props) {
   const [corpo, setCorpo] = useState("")
-  const [comunidadeId, setComunidadeId] = useState<string>(SEM_COMUNIDADE)
+  const [comunidadeId, setComunidadeId] = useState<string>(comunidadePadrao ?? SEM_COMUNIDADE)
   const [enviando, setEnviando] = useState(false)
 
   const verificado = me?.verificado ?? false

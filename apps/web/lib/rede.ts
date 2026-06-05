@@ -31,6 +31,16 @@ export interface Comunidade {
   especialidade: string | null
 }
 
+export interface Sugestao {
+  medicoId: string
+  handle: string
+  nome: string
+  especialidade: string | null
+  fotoUrl: string | null
+  verificado: boolean
+  seguidores: number
+}
+
 export interface Post {
   id: string
   corpo: string
