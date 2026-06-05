@@ -1,0 +1,16 @@
+{
+  "CORSRules": [
+    {
+      "AllowedOrigins": [
+        "http://localhost:3000",
+        "https://app.cerebroamigo.com.br",
+        "https://cerebroamigo.com.br",
+        "https://www.cerebroamigo.com.br",
+        "https://web-mu-khaki-85.vercel.app"
+      ],
+      "AllowedMethods": ["PUT", "GET"],
+      "AllowedHeaders": ["Content-Type"],
+      "MaxAgeSeconds": 3000
+    }
+  ]
+}
