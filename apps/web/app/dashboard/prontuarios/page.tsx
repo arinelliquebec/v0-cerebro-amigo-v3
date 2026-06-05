@@ -5,6 +5,8 @@ import { BannerCrise } from "@/components/crise/banner-crise"
 import { CondutaEditor } from "@/components/conduta/conduta-editor"
 import { BotaoReceitaMemed } from "@/components/memed/botao-receita-memed"
 import { EvolucaoEscalasPanel } from "@/components/escalas/EvolucaoEscalasPanel"
+import { ExamesPanel } from "@/components/exames/ExamesPanel"
+import { BuscaSemantica } from "@/components/rag/BuscaSemantica"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -255,6 +257,12 @@ export default function ProntuariosPage() {
                     Escalas
                   </TabsTrigger>
                   <TabsTrigger
+                    value="busca"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    Busca
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="conduta"
                     className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
@@ -362,19 +370,16 @@ export default function ProntuariosPage() {
                   <EvolucaoEscalasPanel pacienteId={selected.id} />
                 </TabsContent>
 
+                <TabsContent value="busca">
+                  <BuscaSemantica pacienteId={selected.id} />
+                </TabsContent>
+
                 <TabsContent value="conduta">
                   <CondutaEditor pacienteId={selected.id} />
                 </TabsContent>
 
                 <TabsContent value="exames">
-                  <Card className="border-border/50">
-                    <CardContent className="p-6 text-center py-8">
-                      <Activity className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground">
-                        Exames em breve.
-                      </p>
-                    </CardContent>
-                  </Card>
+                  <ExamesPanel pacienteId={selected.id} />
                 </TabsContent>
               </Tabs>
             </div>

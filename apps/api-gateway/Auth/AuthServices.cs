@@ -43,8 +43,12 @@ public class PasswordHasher : IPasswordHasher
     public bool Verify(string password, string hash)
     {
         // 1. Tentativa bcrypt (algoritmo novo, mais comum no futuro)
-        if (BCrypt.Net.BCrypt.Verify(password, hash))
-            return true;
+        // Só tenta bcrypt se o hash começar com '$2' (formato bcrypt)
+        if (hash.StartsWith("$2"))
+        {
+            if (BCrypt.Net.BCrypt.Verify(password, hash))
+                return true;
+        }
 
         // 2. Fallback PBKDF2 (hash legado — dados antigos ainda não re-hashed)
         return _verifyLegacyPbkdf2(password, hash);

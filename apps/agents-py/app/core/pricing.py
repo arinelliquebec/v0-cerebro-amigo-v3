@@ -78,3 +78,23 @@ def compute_cost(
     ti = tokens_in or 0
     to = tokens_out or 0
     return round((ti / 1_000_000) * in_rate + (to / 1_000_000) * out_rate, 6)
+
+
+# Embeddings (ADR-028) — preço por MILHÃO de tokens (list price Bedrock — confirmar).
+# Só input (embedding não tem output tokens).
+EMBED_PRICE_PER_MTOK: dict[str, float] = {
+    "cohere.embed-multilingual-v3": 0.10,
+    "cohere.embed-english-v3": 0.10,
+    "amazon.titan-embed-text-v2:0": 0.02,
+    "cohere.embed-v4:0": 0.12,
+}
+
+
+def compute_embedding_cost(model_id: str | None, tokens: int | None) -> float | None:
+    """Estima o custo de uma chamada de embedding. None se faltar dado. Não levanta."""
+    if not model_id or not tokens:
+        return None
+    rate = EMBED_PRICE_PER_MTOK.get(model_id)
+    if rate is None:
+        return None
+    return round((tokens / 1_000_000) * rate, 6)

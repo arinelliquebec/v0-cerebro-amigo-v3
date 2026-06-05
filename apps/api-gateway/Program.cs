@@ -278,6 +278,8 @@ PortalAgendaEndpoints.Map(app);
 app.MapPortalConversation();
 CheckinsEndpoints.Map(app);
 EscalasEndpoints.Map(app);
+ExamesEndpoints.Map(app);
+RagEndpoints.Map(app);
 InsightsEndpoints.Map(app);
 ConsultasEndpoints.Map(app);
 TeleconsultaEndpoints.Map(app);

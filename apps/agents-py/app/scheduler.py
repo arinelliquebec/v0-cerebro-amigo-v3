@@ -142,6 +142,18 @@ async def _tick_job(name: str) -> None:
         log.exception("scheduler.job_tick.failed", error=str(exc))
 
 
+async def _tick_rag_index() -> None:
+    """Reindexação RAG (ADR-028) — cadência longa, fora do JOB_REGISTRY curto."""
+    log = logger.bind(job="indexador_rag")
+    try:
+        from app.jobs.indexador_rag import IndexadorRagJob
+
+        stats = await IndexadorRagJob().run_once()
+        log.info("scheduler.rag_tick.done", **stats)
+    except Exception as exc:
+        log.exception("scheduler.rag_tick.failed", error=str(exc))
+
+
 # ─── Ciclo de vida ─────────────────────────────────────────────────────────
 
 def start_scheduler() -> AsyncIOScheduler:
@@ -200,6 +212,28 @@ def start_scheduler() -> AsyncIOScheduler:
             job=job_name,
             cadencia=job_schedule.describe(),
             start_offset_s=job_offset,
+        )
+
+    # Indexador RAG (ADR-028) — cadência longa (RAG_INDEX_INTERVAL_HOURS), reindex
+    # incremental do corpus. Fora do loop de jobs (que é de cadência curta).
+    if settings.embeddings_enabled:
+        rag_schedule = _Schedule(
+            interval_hours=settings.rag_index_interval_hours,
+            start_offset_s=300,   # bem após os demais no boot
+            jitter_s=120,
+        )
+        sched.add_job(
+            _tick_rag_index,
+            trigger=rag_schedule.trigger(),
+            id="tick:rag_index",
+            replace_existing=True,
+            coalesce=True,
+            max_instances=1,
+        )
+        logger.info(
+            "scheduler.rag_index.registered",
+            cadencia=rag_schedule.describe(),
+            start_offset_s=300,
         )
 
     sched.start()
