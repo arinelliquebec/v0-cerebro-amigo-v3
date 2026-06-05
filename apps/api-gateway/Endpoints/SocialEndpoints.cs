@@ -213,8 +213,8 @@ public static class SocialEndpoints
             var id = Guid.NewGuid();
             await db.Database.ExecuteSqlRawAsync(@"
                 INSERT INTO social_posts (id, autor_medico_id, comunidade_id, corpo)
-                VALUES ({0}, {1}, {2}, {3})",
-                id, me.MedicoId, (object?)req.ComunidadeId ?? DBNull.Value, corpo);
+                VALUES ({0}, {1}, NULLIF({2}, '')::uuid, {3})",
+                id, me.MedicoId, req.ComunidadeId?.ToString() ?? "", corpo);
 
             return Results.Created($"/api/v1/rede/posts/{id}", new { id });
         })
@@ -308,8 +308,8 @@ public static class SocialEndpoints
             var novoId = Guid.NewGuid();
             await db.Database.ExecuteSqlRawAsync(@"
                 INSERT INTO social_comentarios (id, post_id, autor_medico_id, corpo, parent_id)
-                VALUES ({0}, {1}, {2}, {3}, {4})",
-                novoId, id, me.MedicoId, corpo, (object?)req.ParentId ?? DBNull.Value);
+                VALUES ({0}, {1}, {2}, {3}, NULLIF({4}, '')::uuid)",
+                novoId, id, me.MedicoId, corpo, req.ParentId?.ToString() ?? "");
 
             return Results.Created($"/api/v1/rede/posts/{id}/comentarios/{novoId}", new { id = novoId });
         })
