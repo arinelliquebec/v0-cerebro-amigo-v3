@@ -16,6 +16,7 @@ from app.jobs.gerador_checkin_humor import GeradorCheckinHumorJob
 from app.jobs.gerador_checkins_medicacao import GeradorCheckinsMedicacaoJob
 from app.jobs.gerador_exames import GeradorExamesJob
 from app.jobs.gerador_questionarios import GeradorQuestionariosJob
+from app.jobs.gerador_renovacao_receita import GeradorRenovacaoReceitaJob
 
 # Registry: cada novo job é adicionado aqui e ganha slot no scheduler.
 # Os dirigidos por conduta (checkin_humor, alerta_nao_adesao) respeitam
@@ -27,6 +28,7 @@ JOB_REGISTRY: dict[str, type[BaseJob]] = {
     AlertaNaoAdesaoJob.name: AlertaNaoAdesaoJob,
     GeradorExamesJob.name: GeradorExamesJob,
     AlertaExamesVencidosJob.name: AlertaExamesVencidosJob,
+    GeradorRenovacaoReceitaJob.name: GeradorRenovacaoReceitaJob,
 }
 
 

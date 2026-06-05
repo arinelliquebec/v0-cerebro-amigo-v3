@@ -40,6 +40,9 @@ class Settings(BaseSettings):
     alerta_nao_adesao_limiar_default: int = 2
     alerta_nao_adesao_dedup_horas: int = 24
 
+    # gerador_renovacao_receita (A4) — antecedência do alerta de vencimento.
+    renovacao_antecedencia_dias: int = 7  # RENOVACAO_ANTECEDENCIA_DIAS
+
     # Agentes sensíveis à janela de consulta — precisam de resposta rápida.
     resumidor_interval_seconds: int = 300   # RESUMIDOR_INTERVAL_SECONDS
     diario_interval_seconds: int = 300      # DIARIO_INTERVAL_SECONDS

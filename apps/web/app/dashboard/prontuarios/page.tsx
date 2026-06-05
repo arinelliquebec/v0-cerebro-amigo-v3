@@ -4,6 +4,7 @@ import { Header } from "@/components/header"
 import { BannerCrise } from "@/components/crise/banner-crise"
 import { CondutaEditor } from "@/components/conduta/conduta-editor"
 import { BotaoReceitaMemed } from "@/components/memed/botao-receita-memed"
+import { VerificadorInteracoes } from "@/components/memed/verificador-interacoes"
 import { EvolucaoEscalasPanel } from "@/components/escalas/EvolucaoEscalasPanel"
 import { ExamesPanel } from "@/components/exames/ExamesPanel"
 import { BuscaSemantica } from "@/components/rag/BuscaSemantica"
@@ -325,6 +326,7 @@ export default function ProntuariosPage() {
                 {/* Prescrições */}
                 <TabsContent value="prescricoes" className="space-y-3">
                   <BotaoReceitaMemed pacienteId={selected.id} pacienteNome={selected.nome} />
+                  <VerificadorInteracoes pacienteId={selected.id} />
                   {loadingPrescricoes ? (
                     <div className="flex justify-center py-10">
                       <Loader2 className="h-6 w-6 animate-spin text-primary" />
