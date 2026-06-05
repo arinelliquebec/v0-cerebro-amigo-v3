@@ -19,6 +19,7 @@ import {
   Heart,
   TrendingUp,
   Globe,
+  MessageCircle,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -32,6 +33,7 @@ const navigation = [
   { name: "Evolução", href: "/dashboard/evolucao", icon: TrendingUp },
   { name: "Check-ins", href: "/dashboard/checkins", icon: Heart },
   { name: "Comunidade", href: "/rede", icon: Globe },
+  { name: "Chat", href: "/rede/chat", icon: MessageCircle },
 ]
 
 const secondaryNavigation = [
