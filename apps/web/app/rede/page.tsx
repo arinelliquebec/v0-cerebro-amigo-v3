@@ -3,6 +3,7 @@ import { Feed } from "@/components/rede/feed"
 import { Sugestoes } from "@/components/rede/sugestoes"
 import { ComunidadesList } from "@/components/rede/comunidades-list"
 import { BotaoAdmin } from "@/components/rede/botao-admin"
+import { OnlineAgora } from "@/components/rede/online-agora"
 
 export const metadata = {
   title: "Comunidade",
@@ -16,6 +17,7 @@ export default function RedePage() {
         <Feed />
         <aside className="hidden space-y-5 lg:block">
           <BotaoAdmin />
+          <OnlineAgora />
           <Sugestoes />
           <ComunidadesList />
         </aside>

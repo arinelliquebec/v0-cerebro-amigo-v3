@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { headers } from "next/headers"
 import { Sidebar } from "@/components/sidebar"
+import { PresencaHeartbeat } from "@/components/rede/presenca-heartbeat"
 import { Toaster } from "@/components/ui/sonner"
 
 function SidebarWrapper() {
@@ -33,6 +34,7 @@ export default async function RedeLayout({ children }: { children: React.ReactNo
           <Suspense fallback={<div className="min-h-[60vh]" />}>{children}</Suspense>
         </div>
       </main>
+      <PresencaHeartbeat />
       <Toaster />
     </div>
   )
