@@ -196,7 +196,7 @@ public static class SocialEndpoints
                 : "AND c.slug = {3}";
 
             var sql = $@"
-                SELECT p.id, p.corpo, p.criado_em,
+                SELECT p.id, p.corpo, p.midias::text AS midias, p.criado_em,
                        m.id AS autor_id, COALESCE(sp.handle, '') AS autor_handle,
                        m.nome AS autor_nome, sp.foto_url AS autor_foto,
                        m.especialidade AS autor_especialidade,
@@ -427,7 +427,7 @@ public record PostDto(
     Guid AutorId, string AutorHandle, string AutorNome, string? AutorFoto,
     string? AutorEspecialidade, bool AutorVerificado,
     string? ComunidadeNome, string? ComunidadeSlug,
-    long Curtidas, long Comentarios, bool Curtido, bool Meu);
+    long Curtidas, long Comentarios, bool Curtido, bool Meu, string? Midias);
 
 public record ComentarioDto(
     Guid Id, string Corpo, DateTime CriadoEm, Guid? ParentId,

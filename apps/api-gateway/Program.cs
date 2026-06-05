@@ -277,6 +277,7 @@ app.MapGet("/ready", async (AppDbContext db) =>
 AuthEndpoints.Map(app);
 RedeAuthEndpoints.Map(app);
 RedeFotoEndpoints.Map(app);
+RedePostsExtraEndpoints.Map(app);
 AgentesEndpoints.Map(app);
 PacientesPsiqEndpoints.Map(app);
 PrescricoesEndpoints.Map(app);
