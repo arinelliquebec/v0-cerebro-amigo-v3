@@ -1,5 +1,5 @@
 -- =============================================================================
--- 0023 — Moderação da Rede Social — Onda 4
+-- 0026 — Moderação da Rede Social — Onda 4
 -- =============================================================================
 --
 -- Sistema de denúncias + ações de moderação. Regras:
@@ -8,7 +8,7 @@
 --   - social_moderacao_acoes é APPEND-ONLY (regra #5: nunca DELETE/UPDATE).
 --   - Ações possíveis: ocultar, remover, avisar, banir_comunidade.
 --
--- Aplicar: psql $POSTGRES_DSN_URL -f infra/migrations/0023_moderacao.sql
+-- Aplicar: psql $POSTGRES_DSN_URL -f infra/migrations/0026_moderacao.sql
 -- =============================================================================
 
 -- -----------------------------------------------------------------------------
