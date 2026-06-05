@@ -28,10 +28,17 @@ export function BotaoAdmin() {
   if (!isAdmin) return null
 
   return (
-    <Button asChild className="w-full gap-2">
-      <Link href="/admin">
-        <ShieldCheck className="h-4 w-4" /> Admin
-      </Link>
-    </Button>
+    <div className="space-y-2">
+      <Button asChild className="w-full gap-2">
+        <Link href="/admin">
+          <ShieldCheck className="h-4 w-4" /> Admin
+        </Link>
+      </Button>
+      <Button asChild variant="outline" className="w-full gap-2">
+        <Link href="/rede/moderacao">
+          <ShieldCheck className="h-4 w-4" /> Moderar posts
+        </Link>
+      </Button>
+    </div>
   )
 }
