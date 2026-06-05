@@ -1,4 +1,5 @@
 import { Suspense } from "react"
+import { headers } from "next/headers"
 import { Sidebar } from "@/components/sidebar"
 import { Toaster } from "@/components/ui/sonner"
 
@@ -10,7 +11,18 @@ function SidebarWrapper() {
   )
 }
 
-export default function RedeLayout({ children }: { children: React.ReactNode }) {
+export default async function RedeLayout({ children }: { children: React.ReactNode }) {
+  // Páginas públicas de auth da rede (médico ainda não logado) não têm sidebar.
+  const pathname = (await headers()).get("x-pathname") ?? ""
+  if (pathname === "/rede/login" || pathname === "/rede/cadastro") {
+    return (
+      <div className="theme-noir min-h-screen bg-background text-foreground">
+        {children}
+        <Toaster />
+      </div>
+    )
+  }
+
   return (
     <div className="theme-noir min-h-screen bg-background text-foreground">
       <div className="print:hidden">
