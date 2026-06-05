@@ -278,6 +278,7 @@ AuthEndpoints.Map(app);
 RedeAuthEndpoints.Map(app);
 RedeFotoEndpoints.Map(app);
 RedePostsExtraEndpoints.Map(app);
+RedePresencaEndpoints.Map(app);
 AgentesEndpoints.Map(app);
 PacientesPsiqEndpoints.Map(app);
 PrescricoesEndpoints.Map(app);
