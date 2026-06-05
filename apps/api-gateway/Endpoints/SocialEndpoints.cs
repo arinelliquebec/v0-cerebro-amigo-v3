@@ -47,7 +47,7 @@ public static class SocialEndpoints
 
         // ── Atualiza o próprio perfil ────────────────────────────────────────
         g.MapPut("/perfil", async (
-            [FromBody] AtualizarPerfilRequest req,
+            [FromBody] AtualizarPerfilSocialRequest req,
             AppDbContext db, ClaimsPrincipal user) =>
         {
             var me = await ResolveMedico(db, user);
@@ -433,7 +433,7 @@ public record ComentarioDto(
     Guid Id, string Corpo, DateTime CriadoEm, Guid? ParentId,
     Guid AutorId, string AutorHandle, string AutorNome, string? AutorFoto, bool AutorVerificado);
 
-public record AtualizarPerfilRequest(
+public record AtualizarPerfilSocialRequest(
     string? Handle, string? Bio, string? FotoUrl, string? CapaUrl, string? Cidade, string? Instituicao);
 
 public record CriarPostRequest(string? Corpo, Guid? ComunidadeId);
