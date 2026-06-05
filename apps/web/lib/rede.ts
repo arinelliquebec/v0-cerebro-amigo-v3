@@ -62,6 +62,7 @@ export interface Post {
   comentarios: number
   curtido: boolean
   meu: boolean
+  midias?: string | null
 }
 
 export interface Comentario {
@@ -74,6 +75,18 @@ export interface Comentario {
   autorNome: string
   autorFoto: string | null
   autorVerificado: boolean
+}
+
+// URLs de exibição das fotos de um post. `midias` vem do feed como JSON
+// (string) tipo [{tipo:"foto", key:"posts/..."}]; servimos via BFF /api/rede/midia.
+export function fotosDoPost(midias?: string | null): string[] {
+  if (!midias) return []
+  try {
+    const arr = JSON.parse(midias) as Array<{ tipo?: string; key?: string }>
+    return arr.filter((m) => m?.key).map((m) => `/api/rede/midia/${m.key}`)
+  } catch {
+    return []
+  }
 }
 
 export function iniciais(nome?: string | null): string {

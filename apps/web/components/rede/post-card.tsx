@@ -12,7 +12,7 @@ import { Separator } from "@/components/ui/separator"
 import { Heart, MessageCircle, Trash2, BadgeCheck, Flag } from "lucide-react"
 import { DenunciarDialog } from "@/components/rede/denunciar-dialog"
 import type { Comentario, Post } from "@/lib/rede"
-import { iniciais } from "@/lib/rede"
+import { fotosDoPost, iniciais } from "@/lib/rede"
 import { tempoRelativo } from "@/lib/tempo"
 import { cn } from "@/lib/utils"
 
@@ -31,6 +31,7 @@ export function PostCard({ post, podeInteragir, onRemoved }: Props) {
   const [totalComentarios, setTotalComentarios] = useState(post.comentarios)
   const [novoComentario, setNovoComentario] = useState("")
   const [enviandoComentario, setEnviandoComentario] = useState(false)
+  const fotos = fotosDoPost(post.midias)
 
   async function alternarCurtir() {
     if (!podeInteragir) {
@@ -170,7 +171,17 @@ export function PostCard({ post, podeInteragir, onRemoved }: Props) {
             {post.autorEspecialidade && (
               <p className="text-xs capitalize text-muted-foreground/70">{post.autorEspecialidade}</p>
             )}
-            <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground/90">{post.corpo}</p>
+            {post.corpo && (
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm text-foreground/90">{post.corpo}</p>
+            )}
+            {fotos.length > 0 && (
+              <div className={cn("mt-3 grid gap-1.5 overflow-hidden rounded-xl border border-border/50", fotos.length === 1 ? "grid-cols-1" : "grid-cols-2")}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                {fotos.map((src, i) => (
+                  <img key={i} src={src} alt="" loading="lazy" className="max-h-[440px] w-full object-cover" />
+                ))}
+              </div>
+            )}
 
             <div className="mt-3 flex items-center gap-1">
               <Button
