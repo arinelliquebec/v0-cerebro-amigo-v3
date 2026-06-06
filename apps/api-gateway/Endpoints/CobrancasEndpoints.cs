@@ -46,7 +46,7 @@ public static class CobrancasEndpoints
             var venc = req.Vencimento ?? DateOnly.FromDateTime(DateTime.UtcNow).AddDays(3);
             var desc = string.IsNullOrWhiteSpace(req.Descricao) ? "Consulta" : req.Descricao!.Trim();
 
-            await db.Database.ExecuteSqlRawAsync(@"
+            await db.Database.ExecuteRawAsync(@"
                 INSERT INTO cobrancas
                     (id, medico_id, paciente_id, consulta_id, descricao, valor, metodo, status, vencimento)
                 VALUES ({0}, {1}, {2}, {3}, {4}, {5}, 'pix', 'pendente', {6})",
@@ -60,12 +60,12 @@ public static class CobrancasEndpoints
 
             if (!res.Sucesso)
             {
-                await db.Database.ExecuteSqlRawAsync(
+                await db.Database.ExecuteRawAsync(
                     "UPDATE cobrancas SET status = 'erro_gateway', atualizado_em = NOW() WHERE id = {0}", cobrancaId);
                 return Results.Json(new { error = "asaas_falhou", detalhe = res.Erro }, statusCode: 502);
             }
 
-            await db.Database.ExecuteSqlRawAsync(@"
+            await db.Database.ExecuteRawAsync(@"
                 UPDATE cobrancas SET
                     asaas_cobranca_id = {1}, asaas_invoice_url = {2},
                     pix_copia_cola = {3}, pix_qr_base64 = {4}, atualizado_em = NOW()
@@ -180,11 +180,11 @@ public static class CobrancasEndpoints
                 return Results.Ok(new { ignored = true });
 
             if (novoStatus == "pago")
-                await db.Database.ExecuteSqlRawAsync(@"
+                await db.Database.ExecuteRawAsync(@"
                     UPDATE cobrancas SET status = 'pago', pago_em = COALESCE(pago_em, NOW()), atualizado_em = NOW()
                     WHERE asaas_cobranca_id = {0} AND status <> 'pago'", asaasId);
             else
-                await db.Database.ExecuteSqlRawAsync(@"
+                await db.Database.ExecuteRawAsync(@"
                     UPDATE cobrancas SET status = {1}, atualizado_em = NOW()
                     WHERE asaas_cobranca_id = {0} AND status NOT IN ('pago')", asaasId, novoStatus);
 

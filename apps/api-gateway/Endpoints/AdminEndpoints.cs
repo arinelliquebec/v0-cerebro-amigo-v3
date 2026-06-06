@@ -484,7 +484,7 @@ public static class AdminEndpoints
             if (!statuses.Contains(req.Status)) return Results.BadRequest(new { error = "status invalido" });
 
             var id = Guid.NewGuid();
-            await db.Database.ExecuteSqlRawAsync(@"
+            await db.Database.ExecuteRawAsync(@"
                 INSERT INTO assinaturas (id, medico_id, plano, valor_mensal, status, trial_ate, notas)
                 VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6})
                 ON CONFLICT (medico_id) DO UPDATE SET
@@ -501,7 +501,7 @@ public static class AdminEndpoints
         g.MapPatch("/assinaturas/{id:guid}", async (
             Guid id, [FromBody] AtualizarAssinaturaRequest req, AppDbContext db) =>
         {
-            var ok = await db.Database.ExecuteSqlRawAsync(@"
+            var ok = await db.Database.ExecuteRawAsync(@"
                 UPDATE assinaturas SET
                     plano        = COALESCE({2}, plano),
                     valor_mensal = COALESCE({3}, valor_mensal),
@@ -528,7 +528,7 @@ public static class AdminEndpoints
             if (!existe) return Results.NotFound();
 
             var pagId = Guid.NewGuid();
-            await db.Database.ExecuteSqlRawAsync(@"
+            await db.Database.ExecuteRawAsync(@"
                 INSERT INTO pagamentos_manuais
                     (id, assinatura_id, valor, moeda, referencia, status, metodo, pago_em, notas)
                 VALUES ({0}, {1}, {2}, {3}, {4}, 'confirmado', {5}, {6}, {7})",
@@ -539,7 +539,7 @@ public static class AdminEndpoints
                 (object?)req.Notas ?? DBNull.Value);
 
             // Ativa assinatura se estava em trial (primeiro pagamento)
-            await db.Database.ExecuteSqlRawAsync(@"
+            await db.Database.ExecuteRawAsync(@"
                 UPDATE assinaturas SET status = 'ativa', atualizado_em = NOW()
                 WHERE id = {0} AND status = 'trial'", id);
 
