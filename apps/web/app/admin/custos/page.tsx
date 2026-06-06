@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Cpu, Loader2, RefreshCw, DollarSign } from "lucide-react"
+import { Cpu, Loader2, RefreshCw, DollarSign, Download } from "lucide-react"
 import { ErroCarregar } from "@/components/admin/erro-carregar"
+import { baixarCsv } from "@/lib/csv"
 
 interface CustoMes {
   mes: string
@@ -53,6 +54,14 @@ export default function CustosPage() {
   const totalGeral = rows.reduce((s, r) => s + r.custoTotalUsd, 0)
   const execucoesGeral = rows.reduce((s, r) => s + r.execucoes, 0)
 
+  function exportarCsv() {
+    baixarCsv(
+      `custos-ia-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Mês", "Agente", "Execuções", "Tokens entrada", "Tokens saída", "Custo USD"],
+      rows.map((r) => [r.mes?.slice(0, 7), r.agente, r.execucoes, r.tokensInTotal, r.tokensOutTotal, r.custoTotalUsd]),
+    )
+  }
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between">
@@ -61,9 +70,14 @@ export default function CustosPage() {
           <h1 className="text-2xl font-semibold text-foreground">Custos de IA</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Últimos 12 meses · Agentes Python (Anthropic)</p>
         </div>
-        <Button variant="glass" size="sm" onClick={carregar} disabled={loading} className="gap-1.5">
-          <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Atualizar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="glass" size="sm" onClick={carregar} disabled={loading} className="gap-1.5">
+            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} /> Atualizar
+          </Button>
+          <Button variant="glass" size="sm" onClick={exportarCsv} disabled={!rows.length} className="gap-1.5">
+            <Download className="h-4 w-4" /> CSV
+          </Button>
+        </div>
       </div>
 
       {/* KPIs */}

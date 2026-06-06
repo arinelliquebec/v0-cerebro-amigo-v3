@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Stethoscope, Pencil, UserX, UserCheck } from "lucide-react"
+import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Stethoscope, Pencil, UserX, UserCheck, Search } from "lucide-react"
 import { ErroCarregar } from "@/components/admin/erro-carregar"
 
 // Schemas Zod para validação
@@ -452,6 +452,8 @@ export default function UsuariosPage() {
   const [erroDesativados, setErroDesativados] = useState<string | null>(null)
   const [meId, setMeId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
+  const [busca, setBusca] = useState("")
+  const [roleFiltro, setRoleFiltro] = useState("todos")
 
   const carregar = useCallback(async () => {
     setLoading(true); setErro(null)
@@ -492,6 +494,13 @@ export default function UsuariosPage() {
     setAba(nova)
     if (nova === "desativados") carregarDesativados()
   }
+
+  const usuariosFiltrados = usuarios.filter((u) => {
+    const q = busca.trim().toLowerCase()
+    if (q && !`${u.nome ?? ""} ${u.email ?? ""} ${u.crm ?? ""}`.toLowerCase().includes(q)) return false
+    if (roleFiltro !== "todos" && u.role !== roleFiltro) return false
+    return true
+  })
 
   return (
     <div className="p-8 space-y-6">
@@ -541,6 +550,22 @@ export default function UsuariosPage() {
         ) : erro ? (
           <ErroCarregar mensagem={erro} onRetry={carregar} />
         ) : (
+          <>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome, e-mail ou CRM" className="pl-9" />
+            </div>
+            <Select value={roleFiltro} onValueChange={setRoleFiltro}>
+              <SelectTrigger className="w-[150px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["todos", "owner", "admin", "medico"].map((r) => (
+                  <SelectItem key={r} value={r}>{r === "todos" ? "Todas as roles" : r}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <span className="ml-auto text-xs text-muted-foreground">{usuariosFiltrados.length} de {usuarios.length}</span>
+          </div>
           <div className="rounded-2xl border border-noir-line bg-noir-surface overflow-hidden">
             <table className="w-full text-sm">
               <thead>
@@ -553,7 +578,9 @@ export default function UsuariosPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-noir-line">
-                {usuarios.map((u) => (
+                {usuariosFiltrados.length === 0 ? (
+                  <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-muted-foreground">Nenhum usuário para o filtro.</td></tr>
+                ) : usuariosFiltrados.map((u) => (
                   <tr key={u.id} className="hover:bg-noir-surface-raised/40 transition-colors">
                     <td className="px-5 py-3 font-medium text-foreground">{u.nome}</td>
                     <td className="px-5 py-3 text-muted-foreground">{u.email}</td>
@@ -597,6 +624,7 @@ export default function UsuariosPage() {
               </tbody>
             </table>
           </div>
+          </>
         )
       ) : (
         loadingDesativados ? (

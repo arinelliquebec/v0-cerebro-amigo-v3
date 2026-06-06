@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog"
-import { CreditCard, Plus, Loader2, AlertTriangle, RefreshCw, DollarSign, TrendingUp } from "lucide-react"
+import { CreditCard, Plus, Loader2, AlertTriangle, RefreshCw, DollarSign, TrendingUp, Download, Search } from "lucide-react"
+import { baixarCsv } from "@/lib/csv"
 import { cpfMask, cpfValido, cpfDigits } from "@/lib/cpf"
 import { crmMask, crmValido } from "@/lib/crm"
 import { toast } from "sonner"
@@ -636,6 +637,10 @@ function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () =>
 export default function FinanceiroPage() {
   const [assinaturas, setAssinaturas] = useState<Assinatura[]>([])
   const [loading, setLoading] = useState(true)
+  const [busca, setBusca] = useState("")
+  const [statusFiltro, setStatusFiltro] = useState("todos")
+  const [soSemCpf, setSoSemCpf] = useState(false)
+  const [soSemAsaas, setSoSemAsaas] = useState(false)
 
   const carregar = useCallback(async () => {
     try {
@@ -655,6 +660,23 @@ export default function FinanceiroPage() {
   const mrr = assinaturas.filter((a) => a.status === "ativa").reduce((s, a) => s + (typeof a.valorMensal === "number" ? a.valorMensal : 0), 0)
   const receitaTotal = assinaturas.reduce((s, a) => s + (typeof a.totalPago === "number" ? a.totalPago : 0), 0)
 
+  const filtradas = assinaturas.filter((a) => {
+    const q = busca.trim().toLowerCase()
+    if (q && !`${a.medicoNome ?? ""} ${a.medicoEmail ?? ""} ${a.crm ?? ""}`.toLowerCase().includes(q)) return false
+    if (statusFiltro !== "todos" && a.status !== statusFiltro) return false
+    if (soSemCpf && a.cpf) return false
+    if (soSemAsaas && a.asaasSubscriptionId) return false
+    return true
+  })
+
+  function exportarCsv() {
+    baixarCsv(
+      `financeiro-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Médico", "E-mail", "CRM", "Plano", "Valor mensal", "Status", "Total pago", "Pagamentos", "Asaas", "CPF"],
+      filtradas.map((a) => [a.medicoNome, a.medicoEmail, a.crm, a.plano, a.valorMensal, a.status, a.totalPago, a.pagamentosConfirmados, a.asaasSubscriptionId ? "sim" : "não", a.cpf ? "sim" : "não"]),
+    )
+  }
+
   return (
     <div className="p-8 space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -665,6 +687,7 @@ export default function FinanceiroPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="glass" size="sm" onClick={carregar} className="gap-1.5"><RefreshCw className="h-4 w-4" /> Atualizar</Button>
+          <Button variant="glass" size="sm" onClick={exportarCsv} disabled={!filtradas.length} className="gap-1.5"><Download className="h-4 w-4" /> CSV</Button>
           <NovaAssinaturaDialog onCriado={carregar} />
         </div>
       </div>
@@ -689,6 +712,24 @@ export default function FinanceiroPage() {
       {loading ? (
         <div className="flex justify-center py-16 text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" /></div>
       ) : (
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por médico, e-mail ou CRM" className="pl-9" />
+            </div>
+            <Select value={statusFiltro} onValueChange={setStatusFiltro}>
+              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["todos", "trial", "ativa", "suspensa", "cancelada"].map((s) => (
+                  <SelectItem key={s} value={s}>{s === "todos" ? "Todos os status" : s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button variant={soSemCpf ? "coral" : "glass"} size="sm" onClick={() => setSoSemCpf((v) => !v)}>sem CPF</Button>
+            <Button variant={soSemAsaas ? "coral" : "glass"} size="sm" onClick={() => setSoSemAsaas((v) => !v)}>sem Asaas</Button>
+            <span className="ml-auto text-xs text-muted-foreground">{filtradas.length} de {assinaturas.length}</span>
+          </div>
         <div className="rounded-2xl border border-noir-line bg-noir-surface overflow-hidden">
           <table className="w-full text-sm">
             <thead>
@@ -699,7 +740,9 @@ export default function FinanceiroPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-noir-line">
-              {assinaturas.map((a) => (
+              {filtradas.length === 0 ? (
+                <tr><td colSpan={7} className="px-5 py-12 text-center text-sm text-muted-foreground">Nenhuma assinatura para o filtro.</td></tr>
+              ) : filtradas.map((a) => (
                 <tr key={a.id} className="hover:bg-noir-surface-raised/40 transition-colors">
                   <td className="px-5 py-3 font-medium text-foreground">{a.medicoNome ?? "—"}</td>
                   <td className="px-5 py-3 text-muted-foreground text-xs">{a.medicoEmail ?? "—"}</td>
@@ -730,6 +773,7 @@ export default function FinanceiroPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   )
