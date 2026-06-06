@@ -26,7 +26,11 @@ public static class AdminEndpoints
         g.MapGet("/metricas", async (AppDbContext db) =>
         {
             var agora = DateTime.UtcNow;
-            var inicioMes = new DateTime(agora.Year, agora.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+            // Fronteira de "mês atual" no fuso de Brasília (UTC-3, sem DST), não em
+            // UTC: 00:00 BRT do dia 1 = 03:00 UTC. Sem isto, pagamentos/custos das
+            // ~3h finais do último dia do mês (horário BR) cairiam no mês seguinte.
+            var agoraBrt = agora.AddHours(-3);
+            var inicioMes = new DateTime(agoraBrt.Year, agoraBrt.Month, 1, 0, 0, 0, DateTimeKind.Utc).AddHours(3);
             var sete = agora.AddDays(-7);
 
             // Médicos e pacientes

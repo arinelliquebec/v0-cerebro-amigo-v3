@@ -14,6 +14,10 @@ import { CreditCard, Plus, Loader2, AlertTriangle, RefreshCw, DollarSign, Trendi
 import { cpfMask, cpfValido, cpfDigits } from "@/lib/cpf"
 import { crmMask, crmValido } from "@/lib/crm"
 import { toast } from "sonner"
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 // Máscara de moeda BRL
 function moedaBrlMask(valor: string): string {
@@ -560,8 +564,7 @@ function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () =>
     finally { setEnviando(false) }
   }
 
-  async function cancelar() {
-    if (!confirm("Cancelar a cobrança recorrente deste médico no Asaas?")) return
+  async function executarCancelamento() {
     setErro(null); setEnviando(true)
     try {
       const r = await fetch(`/api/admin/assinaturas/${asn.id}/cobranca-asaas`, { method: "DELETE" })
@@ -584,7 +587,23 @@ function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () =>
       {asn.asaasSubscriptionId ? (
         <div className="flex items-center gap-1">
           <Badge className="border font-mono text-[10px] uppercase bg-success/15 text-success border-success/30">Asaas ativo</Badge>
-          <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-destructive" onClick={cancelar} disabled={enviando}>Cancelar</Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-destructive" disabled={enviando}>Cancelar</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Cancelar cobrança recorrente?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Isto cancela a assinatura recorrente de {asn.medicoNome ?? "este médico"} no Asaas. Ele deixa de ser cobrado automaticamente. Não afeta pagamentos já registrados.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Voltar</AlertDialogCancel>
+                <AlertDialogAction onClick={executarCancelamento}>Cancelar cobrança</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       ) : (
         <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-primary hover:text-primary hover:bg-primary/10" onClick={ativar} disabled={enviando}>

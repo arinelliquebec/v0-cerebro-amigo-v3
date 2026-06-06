@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Cpu, Loader2, RefreshCw, TrendingDown } from "lucide-react"
+import { Cpu, Loader2, RefreshCw, DollarSign } from "lucide-react"
 import { ErroCarregar } from "@/components/admin/erro-carregar"
 
 interface CustoMes {
@@ -69,7 +69,7 @@ export default function CustosPage() {
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: "Total 12 meses", value: fmt4(totalGeral), icon: TrendingDown, cls: "text-warning" },
+          { label: "Total 12 meses", value: fmt4(totalGeral), icon: DollarSign, cls: "text-warning" },
           { label: "Execuções", value: execucoesGeral.toLocaleString("pt-BR"), icon: Cpu, cls: "text-primary" },
           { label: "Agentes distintos", value: String(new Set(rows.map((r) => r.agente)).size), icon: Cpu, cls: "text-accent-on-dark" },
         ].map((k) => (
@@ -108,8 +108,8 @@ export default function CustosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-noir-line">
-                  {agentes.map((a, i) => (
-                    <tr key={i} className="hover:bg-noir-surface-raised/40 transition-colors">
+                  {agentes.map((a) => (
+                    <tr key={a.agente} className="hover:bg-noir-surface-raised/40 transition-colors">
                       <td className="px-5 py-2.5 font-mono text-xs text-foreground">{a.agente}</td>
                       <td className="px-5 py-2.5 text-muted-foreground">{a.execucoes.toLocaleString("pt-BR")}</td>
                       <td className="px-5 py-2.5 text-muted-foreground">{fmtNum(a.tokensInTotal)}</td>

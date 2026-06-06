@@ -484,7 +484,7 @@ export default function UsuariosPage() {
   useEffect(() => {
     carregar()
     fetch("/api/me").then(r => r.ok ? r.json() : null).then(d => {
-      if (d) { setMeId(d.id); setIsOwner(d.role === "owner") }
+      if (d) { setMeId(d.usuarioId); setIsOwner(d.role === "owner") }
     })
   }, [carregar])
 

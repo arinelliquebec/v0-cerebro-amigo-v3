@@ -43,13 +43,17 @@ const usd = (n: number) => `$ ${n.toLocaleString("en-US", { minimumFractionDigit
 const data = (iso: string | null) => (iso ? new Date(iso).toLocaleString("pt-BR") : "—")
 
 function SituacaoCrm({ s }: { s: string | null }) {
+  // Chaves normalizadas (lowercase, só letras) — a coluna crm_situacao guarda o
+  // valor cru do CFM (caixa/acentuação variável) e o soft-fail "PendenteVerificacao".
   const map: Record<string, { cls: string; Icon: typeof BadgeCheck; label: string }> = {
-    Regular: { cls: "bg-accent-on-dark/10 text-accent-on-dark", Icon: BadgeCheck, label: "Regular" },
-    Cancelado: { cls: "bg-destructive/10 text-destructive", Icon: ShieldX, label: "Cancelado" },
-    Suspenso: { cls: "bg-destructive/10 text-destructive", Icon: ShieldX, label: "Suspenso" },
-    NaoValidado: { cls: "bg-muted text-muted-foreground", Icon: ShieldQuestion, label: "Não validado" },
+    regular: { cls: "bg-accent-on-dark/10 text-accent-on-dark", Icon: BadgeCheck, label: "Regular" },
+    cancelado: { cls: "bg-destructive/10 text-destructive", Icon: ShieldX, label: "Cancelado" },
+    suspenso: { cls: "bg-destructive/10 text-destructive", Icon: ShieldX, label: "Suspenso" },
+    pendenteverificacao: { cls: "bg-warning/10 text-warning", Icon: ShieldQuestion, label: "Pendente de verificação" },
+    naovalidado: { cls: "bg-muted text-muted-foreground", Icon: ShieldQuestion, label: "Não validado" },
   }
-  const v = map[s ?? "NaoValidado"] ?? map.NaoValidado
+  const key = (s ?? "").toLowerCase().replace(/[^a-z]/g, "")
+  const v = map[key] ?? map.naovalidado
   return (
     <span className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-xs font-medium ${v.cls}`}>
       <v.Icon className="h-3 w-3" /> {v.label}
