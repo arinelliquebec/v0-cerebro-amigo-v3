@@ -4,11 +4,12 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/logo"
-import { LayoutDashboard, Users, CreditCard, TrendingUp, LogOut, Stethoscope, Settings, ShieldCheck, FileText, Activity } from "lucide-react"
+import { LayoutDashboard, Users, CreditCard, TrendingUp, LogOut, Stethoscope, Settings, ShieldCheck, FileText, Activity, LineChart } from "lucide-react"
 import { logoutAction } from "@/app/admin/actions"
 
 const nav = [
   { href: "/admin", label: "Visão geral", icon: LayoutDashboard, exact: true },
+  { href: "/admin/receita", label: "Receita", icon: LineChart },
   { href: "/admin/financeiro", label: "Financeiro", icon: CreditCard },
   { href: "/admin/custos", label: "Custos de IA", icon: TrendingUp },
   { href: "/admin/agentes", label: "Agentes", icon: Activity },
