@@ -88,6 +88,7 @@ interface Assinatura {
   medicoEmail: string | null
   totalPago: number
   pagamentosConfirmados: number
+  asaasSubscriptionId: string | null
 }
 
 const PLANO_COR: Record<string, string> = {
@@ -510,6 +511,76 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
   )
 }
 
+// Cobrança recorrente da plataforma ao médico via Asaas (Fluxo A, ADR-034).
+function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [enviando, setEnviando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const [link, setLink] = useState<string | null>(null)
+  const [copiado, setCopiado] = useState(false)
+
+  async function ativar() {
+    setErro(null); setEnviando(true)
+    try {
+      const r = await fetch(`/api/admin/assinaturas/${asn.id}/cobranca-asaas`, { method: "POST" })
+      const d = await r.json().catch(() => null)
+      if (!r.ok) {
+        if (r.status === 503) return setErro("Configure ASAAS_API_KEY no servidor.")
+        if (d?.error === "medico_sem_cpf") return setErro("Médico sem CPF cadastrado.")
+        if (d?.error === "valor_mensal_zero") return setErro("Defina o valor mensal (Editar) antes.")
+        return setErro(d?.detalhe || "Falha ao ativar cobrança.")
+      }
+      setLink(d?.invoiceUrl ?? null); setOpen(true); onMudou()
+    } catch { setErro("Erro de conexão.") }
+    finally { setEnviando(false) }
+  }
+
+  async function cancelar() {
+    if (!confirm("Cancelar a cobrança recorrente deste médico no Asaas?")) return
+    setEnviando(true)
+    try {
+      await fetch(`/api/admin/assinaturas/${asn.id}/cobranca-asaas`, { method: "DELETE" })
+      onMudou()
+    } finally { setEnviando(false) }
+  }
+
+  if (asn.asaasSubscriptionId) {
+    return (
+      <div className="flex items-center gap-1">
+        <Badge className="border font-mono text-[10px] uppercase bg-success/15 text-success border-success/30">Asaas ativo</Badge>
+        <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-destructive" onClick={cancelar} disabled={enviando}>Cancelar</Button>
+      </div>
+    )
+  }
+
+  return (
+    <>
+      <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-primary hover:text-primary hover:bg-primary/10" onClick={ativar} disabled={enviando}>
+        {enviando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />} Cobrança Asaas
+      </Button>
+      {erro && <span className="text-xs text-destructive">{erro}</span>}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Cobrança Asaas ativada</DialogTitle>
+            <DialogDescription>Envie o link ao médico — ele paga por Pix, boleto ou cartão.</DialogDescription>
+          </DialogHeader>
+          {link ? (
+            <div className="space-y-2">
+              <Input readOnly value={link} className="text-xs" onFocus={(e) => e.currentTarget.select()} />
+              <Button variant="coral" className="w-full" onClick={async () => { await navigator.clipboard.writeText(link); setCopiado(true); setTimeout(() => setCopiado(false), 2000) }}>
+                {copiado ? "Copiado!" : "Copiar link de pagamento"}
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Assinatura criada. O médico receberá a cobrança do Asaas por e-mail.</p>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
 export default function FinanceiroPage() {
   const [assinaturas, setAssinaturas] = useState<Assinatura[]>([])
   const [loading, setLoading] = useState(true)
@@ -599,6 +670,7 @@ export default function FinanceiroPage() {
                     <div className="flex items-center gap-1 flex-wrap">
                       <PagamentoDialog asn={a} onSalvo={carregar} />
                       <EditarAssinaturaDialog asn={a} onSalvo={carregar} />
+                      <AsaasCobrancaButton asn={a} onMudou={carregar} />
                     </div>
                   </td>
                 </tr>

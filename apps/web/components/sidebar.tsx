@@ -33,7 +33,6 @@ const navigation = [
   { name: "Prontuários", href: "/dashboard/prontuarios", icon: FileText },
   { name: "Evolução", href: "/dashboard/evolucao", icon: TrendingUp },
   { name: "Check-ins", href: "/dashboard/checkins", icon: Heart },
-  { name: "Financeiro", href: "/dashboard/financeiro", icon: Wallet },
   { name: "Comunidade", href: "/rede", icon: Globe },
   { name: "Chat", href: "/rede/chat", icon: MessageCircle },
 ]

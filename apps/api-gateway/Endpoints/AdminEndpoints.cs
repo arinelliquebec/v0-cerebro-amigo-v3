@@ -465,7 +465,8 @@ public static class AdminEndpoints
                        m.id AS medico_id, m.nome AS medico_nome, m.crm,
                        u.email AS medico_email,
                        COALESCE(SUM(pm.valor) FILTER (WHERE pm.status='confirmado'), 0) AS total_pago,
-                       COUNT(pm.id) FILTER (WHERE pm.status='confirmado') AS pagamentos_confirmados
+                       COUNT(pm.id) FILTER (WHERE pm.status='confirmado') AS pagamentos_confirmados,
+                       a.asaas_subscription_id
                 FROM assinaturas a
                 JOIN medicos m ON m.id = a.medico_id
                 JOIN usuarios u ON u.id = m.usuario_id
@@ -546,6 +547,73 @@ public static class AdminEndpoints
             return Results.Created($"/api/v1/admin/pagamentos/{pagId}", new { id = pagId });
         });
 
+        // ── Cobrança recorrente do médico via Asaas (Fluxo A, ADR-034) ──────────
+        // Plataforma cobra o médico (assinatura SaaS). Sem split, dinheiro direto.
+        g.MapPost("/assinaturas/{id:guid}/cobranca-asaas", async (
+            Guid id, AppDbContext db, AsaasClient asaas) =>
+        {
+            if (!asaas.Configurado)
+                return Results.Json(new { error = "asaas_nao_configurado" }, statusCode: 503);
+
+            var row = await db.Database.SqlQueryRaw<AssinaturaAsaasRow>(@"
+                SELECT a.id AS assinatura_id, a.valor_mensal, a.trial_ate,
+                       a.asaas_customer_id, a.asaas_subscription_id,
+                       m.id AS medico_id, m.nome AS medico_nome, m.cpf, m.wa_id AS telefone,
+                       u.email AS medico_email
+                FROM assinaturas a
+                JOIN medicos m ON m.id = a.medico_id
+                JOIN usuarios u ON u.id = m.usuario_id
+                WHERE a.id = {0}", id).FirstOrDefaultAsync();
+            if (row is null) return Results.NotFound();
+            if (!string.IsNullOrWhiteSpace(row.AsaasSubscriptionId))
+                return Results.Conflict(new { error = "ja_ativa", subscriptionId = row.AsaasSubscriptionId });
+            if (row.ValorMensal <= 0)
+                return Results.BadRequest(new { error = "valor_mensal_zero" });
+            if (string.IsNullOrWhiteSpace(row.Cpf))
+                return Results.BadRequest(new { error = "medico_sem_cpf" });
+
+            // 1) Customer do médico (cria só se ainda não tem).
+            var customerId = row.AsaasCustomerId;
+            if (string.IsNullOrWhiteSpace(customerId))
+            {
+                var cust = await asaas.CriarCustomerAsync(
+                    row.MedicoId.ToString(), row.MedicoNome, row.Cpf, row.MedicoEmail, row.Telefone);
+                if (!cust.Sucesso)
+                    return Results.Json(new { error = "asaas_customer_falhou", detalhe = cust.Erro }, statusCode: 502);
+                customerId = cust.CustomerId;
+                await db.Database.ExecuteRawAsync(
+                    "UPDATE assinaturas SET asaas_customer_id = {1}, atualizado_em = NOW() WHERE id = {0}", id, customerId!);
+            }
+
+            // 2) Assinatura recorrente. 1ª cobrança quando o trial acabar (ou hoje).
+            var hoje = DateOnly.FromDateTime(DateTime.UtcNow);
+            var proximo = row.TrialAte is { } t && DateOnly.FromDateTime(t) > hoje
+                ? DateOnly.FromDateTime(t) : hoje;
+            var desc = $"Assinatura Cérebro Amigo — {row.MedicoNome}";
+            var sub = await asaas.CriarAssinaturaAsync(customerId!, row.ValorMensal, proximo, desc, id.ToString());
+            if (!sub.Sucesso)
+                return Results.Json(new { error = "asaas_assinatura_falhou", detalhe = sub.Erro }, statusCode: 502);
+
+            await db.Database.ExecuteRawAsync(
+                "UPDATE assinaturas SET asaas_subscription_id = {1}, atualizado_em = NOW() WHERE id = {0}", id, sub.SubscriptionId!);
+
+            return Results.Ok(new { subscriptionId = sub.SubscriptionId, invoiceUrl = sub.InvoiceUrl });
+        });
+
+        // Cancela a cobrança recorrente do médico no Asaas.
+        g.MapDelete("/assinaturas/{id:guid}/cobranca-asaas", async (
+            Guid id, AppDbContext db, AsaasClient asaas) =>
+        {
+            var subId = await db.Database.ExecuteScalarAsync<string?>(
+                "SELECT asaas_subscription_id FROM assinaturas WHERE id = {0}", id);
+            if (string.IsNullOrWhiteSpace(subId))
+                return Results.NotFound(new { error = "sem_assinatura_asaas" });
+            await asaas.CancelarAssinaturaAsync(subId);
+            await db.Database.ExecuteRawAsync(
+                "UPDATE assinaturas SET asaas_subscription_id = NULL, atualizado_em = NOW() WHERE id = {0}", id);
+            return Results.NoContent();
+        });
+
         // Histórico de pagamentos de uma assinatura
         g.MapGet("/assinaturas/{id:guid}/pagamentos", async (Guid id, AppDbContext db) =>
         {
@@ -601,7 +669,7 @@ public record AssinaturaAdmin(
     Guid Id, string Plano, decimal ValorMensal, string Moeda, string Status,
     DateTime? TrialAte, DateTime InicioEm, DateTime? CanceladoEm, string? Notas,
     Guid MedicoId, string? MedicoNome, string? Crm, string? MedicoEmail,
-    decimal TotalPago, long PagamentosConfirmados);
+    decimal TotalPago, long PagamentosConfirmados, string? AsaasSubscriptionId);
 
 public record PagamentoAdmin(
     Guid Id, decimal Valor, string Moeda, string? Referencia,
@@ -619,4 +687,9 @@ public record AtualizarAssinaturaRequest(
 public record RegistrarPagamentoRequest(
     decimal Valor, string? Moeda, string? Referencia,
     string? Metodo, DateTime? PagoEm, string? Notas);
+
+public record AssinaturaAsaasRow(
+    Guid AssinaturaId, decimal ValorMensal, DateTime? TrialAte,
+    string? AsaasCustomerId, string? AsaasSubscriptionId,
+    Guid MedicoId, string MedicoNome, string? Cpf, string? Telefone, string MedicoEmail);
 

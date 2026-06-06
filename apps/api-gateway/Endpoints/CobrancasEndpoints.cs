@@ -179,6 +179,7 @@ public static class CobrancasEndpoints
             if (novoStatus is null || string.IsNullOrEmpty(asaasId))
                 return Results.Ok(new { ignored = true });
 
+            // Fluxo B (legado): cobrança médico→paciente, casada por asaas_cobranca_id.
             if (novoStatus == "pago")
                 await db.Database.ExecuteRawAsync(@"
                     UPDATE cobrancas SET status = 'pago', pago_em = COALESCE(pago_em, NOW()), atualizado_em = NOW()
@@ -187,6 +188,33 @@ public static class CobrancasEndpoints
                 await db.Database.ExecuteRawAsync(@"
                     UPDATE cobrancas SET status = {1}, atualizado_em = NOW()
                     WHERE asaas_cobranca_id = {0} AND status NOT IN ('pago')", asaasId, novoStatus);
+
+            // Fluxo A (ADR-034): pagamento de assinatura do médico, casado por subscription.
+            var subId = pay.TryGetProperty("subscription", out var sb) ? sb.GetString() : null;
+            if (!string.IsNullOrEmpty(subId))
+            {
+                if (novoStatus == "pago")
+                {
+                    var valor = pay.TryGetProperty("value", out var vv) && vv.TryGetDecimal(out var d) ? d : 0m;
+                    var refMes = DateTime.UtcNow.ToString("yyyy-MM");
+                    // Registra o pagamento (idempotente por asaas_payment_id) e ativa a assinatura.
+                    await db.Database.ExecuteRawAsync(@"
+                        INSERT INTO pagamentos_manuais
+                            (id, assinatura_id, valor, moeda, referencia, status, metodo, pago_em, asaas_payment_id)
+                        SELECT gen_random_uuid(), a.id, {2}, a.moeda, {3}, 'confirmado', 'asaas', NOW(), {1}
+                        FROM assinaturas a WHERE a.asaas_subscription_id = {0}
+                        ON CONFLICT (asaas_payment_id) DO NOTHING", subId, asaasId, valor, refMes);
+                    await db.Database.ExecuteRawAsync(@"
+                        UPDATE assinaturas SET status = 'ativa', atualizado_em = NOW()
+                        WHERE asaas_subscription_id = {0} AND status <> 'cancelada'", subId);
+                }
+                else if (novoStatus == "vencido")
+                {
+                    await db.Database.ExecuteRawAsync(@"
+                        UPDATE assinaturas SET status = 'suspensa', atualizado_em = NOW()
+                        WHERE asaas_subscription_id = {0} AND status <> 'cancelada'", subId);
+                }
+            }
 
             return Results.Ok(new { ok = true });
         }).WithTags("cobrancas").AllowAnonymous();

@@ -138,6 +138,124 @@ public sealed class AsaasClient
         }
     }
 
+    // ─── Fluxo A: a plataforma cobra o MÉDICO (assinatura recorrente, sem split) ──
+
+    /// <summary>
+    /// Cria o customer do médico no Asaas. Idempotência fica no call-site (só cria
+    /// se a assinatura ainda não tem asaas_customer_id).
+    /// </summary>
+    public async Task<AsaasCustomerResult> CriarCustomerAsync(
+        string medicoId, string nome, string? cpfCnpj, string? email, string? telefone, CancellationToken ct = default)
+    {
+        var cfg = ResolveConfig();
+        if (cfg is null) return AsaasCustomerResult.Falha("ASAAS_API_KEY não configurada no gateway");
+        var (apiKey, baseUrl) = cfg.Value;
+        try
+        {
+            var body = new
+            {
+                name = nome,
+                cpfCnpj = string.IsNullOrWhiteSpace(cpfCnpj) ? null : cpfCnpj,
+                email,
+                mobilePhone = telefone,
+                externalReference = medicoId,
+            };
+            var resp = await _http.SendAsync(Req(HttpMethod.Post, baseUrl, apiKey, "/customers", body), ct);
+            var json = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+                return AsaasCustomerResult.Falha($"Asaas customer {(int)resp.StatusCode}: {Resumo(json)}");
+            using var doc = JsonDocument.Parse(json);
+            return AsaasCustomerResult.Ok(doc.RootElement.GetProperty("id").GetString()!);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogError(ex, "Asaas inalcançável (customer médico)");
+            return AsaasCustomerResult.Falha($"Asaas inalcançável: {ex.Message}");
+        }
+        catch (JsonException) { return AsaasCustomerResult.Falha("Asaas retornou resposta inesperada"); }
+    }
+
+    /// <summary>
+    /// Cria a assinatura recorrente mensal (billingType UNDEFINED → médico escolhe
+    /// pix/boleto/cartão). SEM split. Devolve o id + o link da 1ª cobrança.
+    /// </summary>
+    public async Task<AsaasAssinaturaResult> CriarAssinaturaAsync(
+        string customerId, decimal valor, DateOnly proximoVencimento, string descricao,
+        string externalReference, CancellationToken ct = default)
+    {
+        var cfg = ResolveConfig();
+        if (cfg is null) return AsaasAssinaturaResult.Falha("ASAAS_API_KEY não configurada no gateway");
+        var (apiKey, baseUrl) = cfg.Value;
+        try
+        {
+            var body = new
+            {
+                customer = customerId,
+                billingType = "UNDEFINED",
+                value = valor,
+                nextDueDate = proximoVencimento.ToString("yyyy-MM-dd"),
+                cycle = "MONTHLY",
+                description = descricao,
+                externalReference,
+            };
+            var resp = await _http.SendAsync(Req(HttpMethod.Post, baseUrl, apiKey, "/subscriptions", body), ct);
+            var json = await resp.Content.ReadAsStringAsync(ct);
+            if (!resp.IsSuccessStatusCode)
+                return AsaasAssinaturaResult.Falha($"Asaas subscription {(int)resp.StatusCode}: {Resumo(json)}");
+            using var doc = JsonDocument.Parse(json);
+            var subId = doc.RootElement.GetProperty("id").GetString()!;
+            var link = await PrimeiroLinkAsync(baseUrl, apiKey, subId, ct);
+            return AsaasAssinaturaResult.Ok(subId, link);
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogError(ex, "Asaas inalcançável (assinatura médico)");
+            return AsaasAssinaturaResult.Falha($"Asaas inalcançável: {ex.Message}");
+        }
+        catch (JsonException) { return AsaasAssinaturaResult.Falha("Asaas retornou resposta inesperada"); }
+    }
+
+    /// <summary>Cancela a assinatura recorrente no Asaas.</summary>
+    public async Task<bool> CancelarAssinaturaAsync(string subscriptionId, CancellationToken ct = default)
+    {
+        var cfg = ResolveConfig();
+        if (cfg is null) return false;
+        var (apiKey, baseUrl) = cfg.Value;
+        try
+        {
+            var resp = await _http.SendAsync(Req(HttpMethod.Delete, baseUrl, apiKey, $"/subscriptions/{subscriptionId}"), ct);
+            return resp.IsSuccessStatusCode;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        {
+            _logger.LogError(ex, "Asaas inalcançável (cancelar assinatura)");
+            return false;
+        }
+    }
+
+    // Link de pagamento da 1ª cobrança gerada pela assinatura (p/ enviar ao médico).
+    private async Task<string?> PrimeiroLinkAsync(string baseUrl, string apiKey, string subscriptionId, CancellationToken ct)
+    {
+        try
+        {
+            var resp = await _http.SendAsync(Req(HttpMethod.Get, baseUrl, apiKey, $"/subscriptions/{subscriptionId}/payments"), ct);
+            if (!resp.IsSuccessStatusCode) return null;
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+            if (doc.RootElement.TryGetProperty("data", out var data)
+                && data.ValueKind == JsonValueKind.Array && data.GetArrayLength() > 0)
+            {
+                var first = data[0];
+                return first.TryGetProperty("invoiceUrl", out var iu) ? iu.GetString() : null;
+            }
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Asaas: falha ao obter link da assinatura (segue sem link)");
+            return null;
+        }
+    }
+
     private static string Resumo(string body)
     {
         body = body.Trim();
@@ -158,4 +276,16 @@ public sealed record AsaasCobrancaResult(
     public static AsaasCobrancaResult Ok(string id, string? url, string? copia, string? qr, string? status) =>
         new(true, id, url, copia, qr, status, null);
     public static AsaasCobrancaResult Falha(string erro) => new(false, null, null, null, null, null, erro);
+}
+
+public sealed record AsaasCustomerResult(bool Sucesso, string? CustomerId, string? Erro)
+{
+    public static AsaasCustomerResult Ok(string id) => new(true, id, null);
+    public static AsaasCustomerResult Falha(string erro) => new(false, null, erro);
+}
+
+public sealed record AsaasAssinaturaResult(bool Sucesso, string? SubscriptionId, string? InvoiceUrl, string? Erro)
+{
+    public static AsaasAssinaturaResult Ok(string id, string? url) => new(true, id, url, null);
+    public static AsaasAssinaturaResult Falha(string erro) => new(false, null, null, erro);
 }
