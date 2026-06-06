@@ -6,7 +6,7 @@ import {
   CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut,
 } from "@/components/ui/command"
 import {
-  LayoutDashboard, Users, CreditCard, Cpu, Activity, FileText, Stethoscope, Shield, LineChart, ShieldAlert, Eye,
+  LayoutDashboard, Users, CreditCard, Cpu, Activity, FileText, Stethoscope, Shield, LineChart, ShieldAlert, Eye, Scale,
 } from "lucide-react"
 
 /**
@@ -28,6 +28,7 @@ const ROTAS = [
   { label: "Receita", href: "/admin/receita", Icon: LineChart },
   { label: "Supervisão de crise", href: "/admin/crises", Icon: ShieldAlert },
   { label: "Trilha de acesso", href: "/admin/acessos", Icon: Eye },
+  { label: "Direitos do titular", href: "/admin/lgpd", Icon: Scale },
   { label: "Usuários", href: "/admin/usuarios", Icon: Users },
   { label: "Financeiro", href: "/admin/financeiro", Icon: CreditCard },
   { label: "Custos de IA", href: "/admin/custos", Icon: Cpu },

@@ -259,6 +259,68 @@ public static class AdminEndpoints
             return Results.Ok(new { total30d, cruzados30d, itens });
         });
 
+        // ── Solicitações de direitos do titular (LGPD) ───────────────────────────
+        // Registro/acompanhamento das solicitações (acesso, portabilidade,
+        // eliminação, oposição ao tratamento automatizado, correção). É o workflow
+        // do DPO — NÃO executa a operação (export/eliminação são feitos à parte,
+        // com cuidado). DELETE bloqueado no banco (registro de conformidade).
+        g.MapGet("/solicitacoes", async (AppDbContext db, [FromQuery] string? status) =>
+        {
+            var f = status ?? "";
+            var itens = await db.Database.SqlQueryRaw<SolicitacaoRow>(@"
+                SELECT s.id, s.identificacao, s.tipo, s.status, s.notas,
+                       s.criado_em, s.atendido_em,
+                       cp.nome AS criado_por_nome, ap.nome AS atendido_por_nome,
+                       c.nome AS paciente_nome
+                FROM solicitacoes_titular s
+                LEFT JOIN usuarios cp ON cp.id = s.criado_por
+                LEFT JOIN usuarios ap ON ap.id = s.atendido_por
+                LEFT JOIN clientes c ON c.id = s.paciente_id
+                WHERE ({0} = '' OR s.status = {0})
+                ORDER BY (s.status = 'aberta') DESC, s.criado_em DESC
+                LIMIT 200", f).ToListAsync();
+            var abertas = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM solicitacoes_titular WHERE status = 'aberta'") ?? 0;
+            return Results.Ok(new { abertas, itens });
+        });
+
+        g.MapPost("/solicitacoes", async (
+            [FromBody] CriarSolicitacaoRequest req, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var tipos = new[] { "acesso", "portabilidade", "eliminacao", "oposicao_ia", "correcao" };
+            if (string.IsNullOrWhiteSpace(req.Identificacao)) return Results.BadRequest(new { error = "identificacao_obrigatoria" });
+            if (!tipos.Contains(req.Tipo)) return Results.BadRequest(new { error = "tipo_invalido" });
+
+            var criadoPor = user.FindFirst("sub")?.Value;
+            var id = Guid.NewGuid();
+            await db.Database.ExecuteRawAsync(@"
+                INSERT INTO solicitacoes_titular (id, identificacao, tipo, notas, criado_por)
+                VALUES ({0}, {1}, {2}, {3}, {4}::uuid)",
+                id, req.Identificacao.Trim(), req.Tipo,
+                (object?)req.Notas ?? DBNull.Value, (object?)criadoPor ?? DBNull.Value);
+            return Results.Created($"/api/v1/admin/solicitacoes/{id}", new { id });
+        });
+
+        g.MapPatch("/solicitacoes/{id:guid}", async (
+            Guid id, [FromBody] AtualizarSolicitacaoRequest req, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var statuses = new[] { "aberta", "atendida", "recusada" };
+            if (req.Status is not null && !statuses.Contains(req.Status)) return Results.BadRequest(new { error = "status_invalido" });
+
+            var atendidoPor = user.FindFirst("sub")?.Value;
+            var ok = await db.Database.ExecuteRawAsync(@"
+                UPDATE solicitacoes_titular SET
+                    status        = COALESCE({1}, status),
+                    notas         = COALESCE({2}, notas),
+                    atendido_por  = CASE WHEN {1} IN ('atendida','recusada') THEN {3}::uuid ELSE atendido_por END,
+                    atendido_em   = CASE WHEN {1} IN ('atendida','recusada') THEN NOW() ELSE atendido_em END,
+                    atualizado_em = NOW()
+                WHERE id = {0}",
+                id, (object?)req.Status ?? DBNull.Value,
+                (object?)req.Notas ?? DBNull.Value, (object?)atendidoPor ?? DBNull.Value);
+            return ok == 0 ? Results.NotFound() : Results.NoContent();
+        });
+
         // Custo LLM por mês (histórico 12 meses)
         g.MapGet("/custos-llm", async (AppDbContext db) =>
         {
@@ -933,4 +995,12 @@ public record CriseEventoRow(
 public record AcessoRow(
     Guid Id, DateTime CriadoEm, string Recurso, string? MedicoNome,
     string? PacienteNome, bool AcessoCruzado);
+
+// ── Solicitações de direitos do titular (LGPD) ──
+public record SolicitacaoRow(
+    Guid Id, string Identificacao, string Tipo, string Status, string? Notas,
+    DateTime CriadoEm, DateTime? AtendidoEm, string? CriadoPorNome,
+    string? AtendidoPorNome, string? PacienteNome);
+public record CriarSolicitacaoRequest(string Identificacao, string Tipo, string? Notas);
+public record AtualizarSolicitacaoRequest(string? Status, string? Notas);
 
