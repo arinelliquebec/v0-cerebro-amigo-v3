@@ -177,7 +177,7 @@ public static class ConsultasEndpoints
             if (mudouTempo && await TemConflitoAsync(db, medicoId.Value, novoInicio, novaDur, id))
                 return Results.Conflict(new { erro = "horario_ocupado" });
 
-            var afetadas = await db.Database.ExecuteSqlRawAsync(@"
+            var afetadas = await db.Database.ExecuteRawAsync(@"
                 UPDATE consultas SET
                     status      = COALESCE({2}, status),
                     inicia_em   = COALESCE({3}, inicia_em),
@@ -207,7 +207,7 @@ public static class ConsultasEndpoints
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
 
-            var afetadas = await db.Database.ExecuteSqlRawAsync(@"
+            var afetadas = await db.Database.ExecuteRawAsync(@"
                 UPDATE consultas SET
                     notas  = COALESCE(NULLIF({2}, ''), notas),
                     status = 'realizada'

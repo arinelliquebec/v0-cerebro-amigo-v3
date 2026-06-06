@@ -71,7 +71,7 @@ public static class ExamesEndpoints
 
             var coletadoEm = req.ColetadoEm ?? DateOnly.FromDateTime(DateTime.UtcNow);
 
-            await db.Database.ExecuteSqlRawAsync(@"
+            await db.Database.ExecuteRawAsync(@"
                 UPDATE exames_agenda SET
                     status = 'realizado',
                     resultado_valor = {2},
@@ -92,7 +92,7 @@ public static class ExamesEndpoints
             {
                 var nome = ex.RefLabel ?? ex.TipoExame;
                 var unid = ex.RefUnidade is null ? "" : " " + ex.RefUnidade;
-                await db.Database.ExecuteSqlRawAsync(@"
+                await db.Database.ExecuteRawAsync(@"
                     INSERT INTO notificacoes_medico
                         (medico_id, paciente_id, severidade, tipo, titulo, mensagem)
                     VALUES ({0}, {1}, 'atencao', 'exame_fora_faixa', {2}, {3})",
@@ -111,7 +111,7 @@ public static class ExamesEndpoints
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
 
-            var afetadas = await db.Database.ExecuteSqlRawAsync(@"
+            var afetadas = await db.Database.ExecuteRawAsync(@"
                 UPDATE exames_agenda SET status = 'cancelado', atualizado_em = NOW()
                 WHERE id = {0} AND status = 'agendado'
                   AND paciente_id IN (

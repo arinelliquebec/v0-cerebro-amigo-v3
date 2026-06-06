@@ -86,6 +86,47 @@ public static class DbExtensions
         }
     }
 
+    /// <summary>
+    /// Executa um comando que não retorna linhas (INSERT/UPDATE/DELETE) e
+    /// devolve o número de linhas afetadas.
+    /// <para>
+    /// Use no lugar de <c>ExecuteSqlRawAsync</c> do EF Core quando algum
+    /// parâmetro puder ser <c>DBNull.Value</c>: o EF tenta mapear o tipo CLR
+    /// <c>DBNull</c> para um tipo de banco e estoura
+    /// <c>"The current provider doesn't have a store type mapping for properties
+    /// of type 'DBNull'"</c>. Aqui usamos ADO.NET puro — o NULL não-tipado é
+    /// resolvido pelo Postgres a partir do contexto (coluna do INSERT / outro
+    /// ramo do COALESCE).
+    /// </para>
+    /// </summary>
+    public static async Task<int> ExecuteRawAsync(
+        this DatabaseFacade database,
+        string sql,
+        params object?[] parameters)
+    {
+        var conn = database.GetDbConnection();
+        var jaAberta = conn.State == System.Data.ConnectionState.Open;
+        if (!jaAberta) await conn.OpenAsync();
+
+        try
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = ReplacePositionals(sql, parameters.Length);
+            for (var i = 0; i < parameters.Length; i++)
+            {
+                var p = cmd.CreateParameter();
+                p.ParameterName = $"p{i}";
+                p.Value = parameters[i] ?? DBNull.Value;
+                cmd.Parameters.Add(p);
+            }
+            return await cmd.ExecuteNonQueryAsync();
+        }
+        finally
+        {
+            if (!jaAberta) await conn.CloseAsync();
+        }
+    }
+
     private static string ReplacePositionals(string sql, int count)
     {
         // Substitui {0}, {1}, ... por @p0, @p1, ... (Npgsql aceita @ ou : prefixo).

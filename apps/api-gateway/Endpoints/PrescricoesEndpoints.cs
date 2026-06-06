@@ -78,7 +78,7 @@ public static class PrescricoesEndpoints
             {
                 var medAntiga = await db.Database.ExecuteScalarAsync<string?>(
                     "SELECT medicamento FROM prescricoes WHERE id = {0}", antigaId);
-                await db.Database.ExecuteSqlRawAsync(
+                await db.Database.ExecuteRawAsync(
                     "UPDATE prescricoes SET ativa = FALSE, fim_em = CURRENT_DATE WHERE id = {0}", antigaId);
                 await GravarEvento(db, req.PacienteId, medicoId, prescricaoId,
                     "troca", req.Medicamento, medAntiga, req.Motivo);
@@ -97,7 +97,7 @@ public static class PrescricoesEndpoints
         {
             var horariosArray = req.Horarios.Select(h => TimeOnly.Parse(h)).ToArray();
 
-            var linhas = await db.Database.ExecuteSqlRawAsync(@"
+            var linhas = await db.Database.ExecuteRawAsync(@"
                 UPDATE prescricoes SET
                   medicamento = {1}, dose_descricao = {2}, horarios = {3},
                   inicio_em = {4}, fim_em = {5}, receita_tipo = {6},
@@ -140,7 +140,7 @@ public static class PrescricoesEndpoints
             var medicamento = await db.Database.ExecuteScalarAsync<string?>(
                 "SELECT medicamento FROM prescricoes WHERE id = {0}", id);
 
-            await db.Database.ExecuteSqlRawAsync(
+            await db.Database.ExecuteRawAsync(
                 "UPDATE prescricoes SET ativa = FALSE, fim_em = CURRENT_DATE WHERE id = {0}", id);
 
             var medicoId = await ResolveMedicoId(db, user);
@@ -165,7 +165,7 @@ public static class PrescricoesEndpoints
     {
         try
         {
-            await db.Database.ExecuteSqlRawAsync(@"
+            await db.Database.ExecuteRawAsync(@"
                 INSERT INTO prescricao_eventos
                   (paciente_id, medico_id, prescricao_id, tipo, medicamento, medicamento_anterior, motivo)
                 VALUES ({0}, {1}, {2}, {3}, {4}, {5}, {6})",
@@ -286,14 +286,14 @@ public static class NotificacoesEndpoints
 
         g.MapPost("/{id:guid}/marcar-lida", async (Guid id, AppDbContext db) =>
         {
-            await db.Database.ExecuteSqlRawAsync(
+            await db.Database.ExecuteRawAsync(
                 "UPDATE notificacoes_medico SET lida = TRUE, lida_em = NOW() WHERE id = {0}", id);
             return Results.NoContent();
         });
 
         g.MapPost("/{id:guid}/marcar-nao-lida", async (Guid id, AppDbContext db) =>
         {
-            await db.Database.ExecuteSqlRawAsync(
+            await db.Database.ExecuteRawAsync(
                 "UPDATE notificacoes_medico SET lida = FALSE, lida_em = NULL WHERE id = {0}", id);
             return Results.NoContent();
         });
