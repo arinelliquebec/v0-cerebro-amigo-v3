@@ -13,6 +13,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     if (err instanceof GatewayError) {
       if (err.status === 400) return NextResponse.json(err.body ?? { error: "erro" }, { status: 400 })
       if (err.status === 404) return NextResponse.json({ error: "não encontrado" }, { status: 404 })
+      // Falha ao cancelar a recorrência no Asaas (status='cancelada'): repassa o
+      // detalhe p/ o admin saber que a cobrança pode seguir viva.
+      if (err.status === 502 || err.status === 503)
+        return NextResponse.json(err.body ?? { error: "erro" }, { status: err.status })
       if (err.status === 401 || err.status === 403)
         return NextResponse.json({ error: "não autorizado" }, { status: err.status })
     }

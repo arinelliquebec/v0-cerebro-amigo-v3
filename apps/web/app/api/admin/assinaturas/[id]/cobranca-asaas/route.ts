@@ -30,7 +30,11 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
     return new NextResponse(null, { status: 204 })
   } catch (err) {
     if (err instanceof GatewayError) {
-      if (err.status === 404) return NextResponse.json({ error: "não encontrado" }, { status: 404 })
+      if (err.status === 404) return NextResponse.json({ error: "sem_assinatura_asaas" }, { status: 404 })
+      // Asaas não confirmou o cancelamento (502) ou não está configurado (503):
+      // repassa p/ o admin não achar que cancelou.
+      if (err.status === 502 || err.status === 503)
+        return NextResponse.json(err.body ?? { error: "erro" }, { status: err.status })
       if (err.status === 401 || err.status === 403)
         return NextResponse.json({ error: "não autorizado" }, { status: err.status })
     }

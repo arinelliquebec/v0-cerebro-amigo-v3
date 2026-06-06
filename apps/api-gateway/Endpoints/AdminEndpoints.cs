@@ -501,8 +501,16 @@ public static class AdminEndpoints
         });
 
         g.MapPatch("/assinaturas/{id:guid}", async (
-            Guid id, [FromBody] AtualizarAssinaturaRequest req, AppDbContext db) =>
+            Guid id, [FromBody] AtualizarAssinaturaRequest req, AppDbContext db, AsaasClient asaas) =>
         {
+            // O gateway é a fronteira de confiança: valida os enums também aqui (o
+            // front valida via Zod, mas chamada direta/bug não pode gravar um
+            // plano/status fora do conjunto e corromper o cálculo de MRR).
+            var planos = new[] { "trial", "starter", "pro", "enterprise" };
+            var statuses = new[] { "trial", "ativa", "suspensa", "cancelada" };
+            if (req.Plano is not null && !planos.Contains(req.Plano)) return Results.BadRequest(new { error = "plano invalido" });
+            if (req.Status is not null && !statuses.Contains(req.Status)) return Results.BadRequest(new { error = "status invalido" });
+
             // CPF do médico (opcional) — necessário p/ cobrança Asaas. Valida e grava
             // na tabela medicos (não há outra UI p/ editar CPF pós-onboarding).
             if (!string.IsNullOrWhiteSpace(req.Cpf))
@@ -512,6 +520,29 @@ public static class AdminEndpoints
                 await db.Database.ExecuteRawAsync(@"
                     UPDATE medicos SET cpf = {1}
                     WHERE id = (SELECT medico_id FROM assinaturas WHERE id = {0})", id, cpfDigits);
+            }
+
+            // Cancelar o plano (status='cancelada') tem de encerrar a cobrança
+            // recorrente no Asaas — senão o médico segue sendo cobrado de um plano
+            // que o admin acredita cancelado (Fluxo A, ADR-034). 'suspensa' NÃO
+            // cancela: é o status que o webhook usa em pagamento vencido e a
+            // recorrência deve continuar. Cancela ANTES do UPDATE; se o Asaas não
+            // confirmar, aborta para o banco não dizer "cancelada" com cobrança viva.
+            var cancelarAsaas = string.Equals(req.Status, "cancelada", StringComparison.OrdinalIgnoreCase);
+            string? subIdCancelado = null;
+            if (cancelarAsaas)
+            {
+                var subId = await db.Database.ExecuteScalarAsync<string?>(
+                    "SELECT asaas_subscription_id FROM assinaturas WHERE id = {0}", id);
+                if (!string.IsNullOrWhiteSpace(subId))
+                {
+                    if (!asaas.Configurado)
+                        return Results.Json(new { error = "asaas_nao_configurado" }, statusCode: 503);
+                    var cancelou = await asaas.CancelarAssinaturaAsync(subId);
+                    if (!cancelou)
+                        return Results.Json(new { error = "asaas_cancelar_falhou", detalhe = "Não foi possível confirmar o cancelamento da cobrança no Asaas. Tente novamente." }, statusCode: 502);
+                    subIdCancelado = subId;
+                }
             }
 
             var ok = await db.Database.ExecuteRawAsync(@"
@@ -529,7 +560,15 @@ public static class AdminEndpoints
                 (object?)req.Status ?? DBNull.Value,
                 (object?)req.TrialAte ?? DBNull.Value,
                 (object?)req.Notas ?? DBNull.Value);
-            return ok == 0 ? Results.NotFound() : Results.NoContent();
+
+            if (ok == 0) return Results.NotFound();
+
+            // Recorrência cancelada no Asaas → limpa o vínculo no banco.
+            if (subIdCancelado is not null)
+                await db.Database.ExecuteRawAsync(
+                    "UPDATE assinaturas SET asaas_subscription_id = NULL, atualizado_em = NOW() WHERE id = {0}", id);
+
+            return Results.NoContent();
         });
 
         // Registrar pagamento manual
@@ -620,7 +659,13 @@ public static class AdminEndpoints
                 "SELECT asaas_subscription_id FROM assinaturas WHERE id = {0}", id);
             if (string.IsNullOrWhiteSpace(subId))
                 return Results.NotFound(new { error = "sem_assinatura_asaas" });
-            await asaas.CancelarAssinaturaAsync(subId);
+            if (!asaas.Configurado)
+                return Results.Json(new { error = "asaas_nao_configurado" }, statusCode: 503);
+            // Só limpa o vínculo se o Asaas confirmar o cancelamento — senão o banco
+            // diria "sem cobrança" enquanto a recorrência segue viva e cobrando.
+            var cancelou = await asaas.CancelarAssinaturaAsync(subId);
+            if (!cancelou)
+                return Results.Json(new { error = "asaas_cancelar_falhou", detalhe = "Não foi possível confirmar o cancelamento da cobrança no Asaas. Tente novamente." }, statusCode: 502);
             await db.Database.ExecuteRawAsync(
                 "UPDATE assinaturas SET asaas_subscription_id = NULL, atualizado_em = NOW() WHERE id = {0}", id);
             return Results.NoContent();

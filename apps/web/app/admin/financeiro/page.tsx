@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { CreditCard, Plus, Loader2, AlertTriangle, RefreshCw, DollarSign, TrendingUp } from "lucide-react"
 import { cpfMask, cpfValido, cpfDigits } from "@/lib/cpf"
 import { crmMask, crmValido } from "@/lib/crm"
+import { toast } from "sonner"
 
 // Máscara de moeda BRL
 function moedaBrlMask(valor: string): string {
@@ -32,11 +33,15 @@ function parseBrl(valor: string): number {
   return parseFloat(clean) || 0
 }
 
+// Número (reais) → string mascarada BRL ("1.234,56") para popular inputs de valor.
+function valorParaMask(reais: number): string {
+  return moedaBrlMask(String(Math.round((reais ?? 0) * 100)))
+}
+
 // Schemas Zod para validação
 const pagamentoSchema = z.object({
   valor: z.string().min(1, "Valor é obrigatório").refine((v) => {
-    const num = parseFloat(v.replace(",", "."))
-    return !isNaN(num) && num > 0
+    return parseBrl(v) > 0
   }, "Valor deve ser maior que zero"),
   referencia: z.string().min(1, "Mês de referência é obrigatório"),
   metodo: z.enum(["pix", "transferencia", "cartao", "outro"]),
@@ -45,8 +50,7 @@ const pagamentoSchema = z.object({
 const editarAssinaturaSchema = z.object({
   plano: z.enum(["trial", "starter", "pro", "enterprise"]),
   valor: z.string().min(1, "Valor é obrigatório").refine((v) => {
-    const num = parseFloat(v.replace(",", "."))
-    return !isNaN(num)
+    return parseBrl(v) >= 0
   }, "Valor inválido"),
   status: z.enum(["trial", "ativa", "suspensa", "cancelada"]),
   notas: z.string().optional(),
@@ -122,17 +126,18 @@ function PagamentoDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: () => voi
   } = useForm<PagamentoFormData>({
     resolver: zodResolver(pagamentoSchema),
     defaultValues: {
-      valor: (asn.valorMensal ?? 0).toString(),
+      valor: valorParaMask(asn.valorMensal ?? 0),
       referencia: new Date().toISOString().slice(0, 7),
       metodo: "pix",
     },
   })
 
   const metodo = watch("metodo")
+  const valorValue = watch("valor")
 
   async function salvar(data: PagamentoFormData) {
     setErro(null)
-    const v = parseFloat(data.valor.replace(",", "."))
+    const v = parseBrl(data.valor)
     setEnviando(true)
     try {
       const r = await fetch(`/api/admin/assinaturas/${asn.id}`, {
@@ -140,10 +145,15 @@ function PagamentoDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: () => voi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ valor: v, moeda: asn.moeda, referencia: data.referencia, metodo: data.metodo, pagoEm: new Date().toISOString() }),
       })
-      if (!r.ok) return setErro("Erro ao registrar.")
-      setOk(true); onSalvo()
+      if (!r.ok) {
+        const d = await r.json().catch(() => null)
+        const msg = d?.detalhe || d?.error || "Erro ao registrar."
+        setErro(msg); toast.error(msg)
+        return
+      }
+      setOk(true); toast.success("Pagamento registrado."); onSalvo()
       setTimeout(() => { setOpen(false); setOk(false); reset() }, 1500)
-    } catch { setErro("Erro de conexão.") }
+    } catch { setErro("Erro de conexão."); toast.error("Erro de conexão.") }
     finally { setEnviando(false) }
   }
 
@@ -164,7 +174,7 @@ function PagamentoDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: () => voi
         <form onSubmit={handleSubmit(salvar)} className="space-y-3">
           <div className="space-y-1.5">
             <Label>Valor ({asn.moeda})</Label>
-            <Input {...register("valor")} inputMode="decimal" />
+            <Input value={valorValue} onChange={(e) => setValue("valor", moedaBrlMask(e.target.value))} placeholder="0,00" inputMode="numeric" />
             {errors.valor && <p className="text-xs text-destructive">{errors.valor.message}</p>}
           </div>
           <div className="space-y-1.5">
@@ -213,7 +223,7 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
     resolver: zodResolver(editarAssinaturaSchema),
     defaultValues: {
       plano: asn.plano as any,
-      valor: (asn.valorMensal ?? 0).toString(),
+      valor: valorParaMask(asn.valorMensal ?? 0),
       status: asn.status as any,
       notas: asn.notas ?? "",
       cpf: asn.cpf ? cpfMask(asn.cpf) : "",
@@ -222,10 +232,11 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
 
   const plano = watch("plano")
   const status = watch("status")
+  const valorValue = watch("valor")
 
   async function salvar(data: EditarAssinaturaFormData) {
     setErro(null)
-    const v = parseFloat(data.valor.replace(",", "."))
+    const v = parseBrl(data.valor)
     setEnviando(true)
     try {
       const r = await fetch(`/api/admin/assinaturas/${asn.id}`, {
@@ -233,9 +244,15 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ plano: data.plano, valorMensal: v, status: data.status, notas: data.notas || null, cpf: data.cpf ? cpfDigits(data.cpf) : null }),
       })
-      if (!r.ok) return setErro("Erro ao atualizar.")
+      if (!r.ok) {
+        const d = await r.json().catch(() => null)
+        const msg = d?.detalhe || d?.error || "Erro ao atualizar."
+        setErro(msg); toast.error(msg)
+        return
+      }
+      toast.success("Assinatura atualizada.")
       onSalvo(); setOpen(false)
-    } catch { setErro("Erro de conexão.") }
+    } catch { setErro("Erro de conexão."); toast.error("Erro de conexão.") }
     finally { setEnviando(false) }
   }
 
@@ -281,7 +298,7 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
           </div>
           <div className="space-y-1.5">
             <Label>Valor mensal (BRL)</Label>
-            <Input {...register("valor")} inputMode="decimal" />
+            <Input value={valorValue} onChange={(e) => setValue("valor", moedaBrlMask(e.target.value))} placeholder="0,00" inputMode="numeric" />
             {errors.valor && <p className="text-xs text-destructive">{errors.valor.message}</p>}
           </div>
           <div className="space-y-1.5">
@@ -350,7 +367,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
 
   async function submeter(data: NovaAssinaturaFormData) {
     setErro(null)
-    const v = parseFloat(data.valor.replace(",", "."))
+    const v = parseBrl(data.valor)
     setEnviando(true)
     try {
       const r = await fetch("/api/admin/onboarding", {
@@ -545,10 +562,20 @@ function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () =>
 
   async function cancelar() {
     if (!confirm("Cancelar a cobrança recorrente deste médico no Asaas?")) return
-    setEnviando(true)
+    setErro(null); setEnviando(true)
     try {
-      await fetch(`/api/admin/assinaturas/${asn.id}/cobranca-asaas`, { method: "DELETE" })
+      const r = await fetch(`/api/admin/assinaturas/${asn.id}/cobranca-asaas`, { method: "DELETE" })
+      if (!r.ok) {
+        const d = await r.json().catch(() => null)
+        const msg = d?.detalhe || d?.error || "Falha ao cancelar a cobrança no Asaas."
+        setErro(msg); toast.error(msg)
+        return
+      }
+      toast.success("Cobrança recorrente cancelada no Asaas.")
       onMudou()
+    } catch {
+      const msg = "Erro de conexão ao cancelar a cobrança."
+      setErro(msg); toast.error(msg)
     } finally { setEnviando(false) }
   }
 

@@ -227,6 +227,10 @@ public sealed class AsaasClient
         try
         {
             var resp = await _http.SendAsync(Req(HttpMethod.Delete, baseUrl, apiKey, $"/subscriptions/{subscriptionId}"), ct);
+            // 404 = assinatura já inexistente no Asaas (cancelada/expirada por fora):
+            // cancelar é idempotente — o objetivo (não cobrar mais) já está atingido,
+            // então tratamos como sucesso para o vínculo poder ser limpo no banco.
+            if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) return true;
             return resp.IsSuccessStatusCode;
         }
         catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
