@@ -6,7 +6,7 @@ import {
   CommandDialog, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem, CommandShortcut,
 } from "@/components/ui/command"
 import {
-  LayoutDashboard, Users, CreditCard, Cpu, Activity, FileText, Stethoscope, Shield,
+  LayoutDashboard, Users, CreditCard, Cpu, Activity, FileText, Stethoscope, Shield, LineChart,
 } from "lucide-react"
 
 /**
@@ -25,6 +25,7 @@ interface UsuarioBusca {
 
 const ROTAS = [
   { label: "Visão geral", href: "/admin", Icon: LayoutDashboard },
+  { label: "Receita", href: "/admin/receita", Icon: LineChart },
   { label: "Usuários", href: "/admin/usuarios", Icon: Users },
   { label: "Financeiro", href: "/admin/financeiro", Icon: CreditCard },
   { label: "Custos de IA", href: "/admin/custos", Icon: Cpu },

@@ -110,6 +110,87 @@ public static class AdminEndpoints
             });
         });
 
+        // ── Cockpit de receita (Fluxo A): MRR, receita/mês, inadimplência, funil ──
+        // Foca na cobrança plataforma→médico (assinaturas + pagamentos_manuais).
+        // NÃO faz decomposição de MRR (Novo/Churn) — exigiria histórico de snapshots.
+        g.MapGet("/cockpit", async (AppDbContext db) =>
+        {
+            // MRR atual = soma das mensalidades das assinaturas ativas.
+            var mrr = await db.Database.ExecuteScalarAsync<decimal?>(
+                "SELECT COALESCE(SUM(valor_mensal),0)::numeric FROM assinaturas WHERE status='ativa'") ?? 0;
+
+            var mrrPorPlano = await db.Database.SqlQueryRaw<MrrPlanoRow>(@"
+                SELECT plano,
+                       COUNT(*)::int AS quantidade,
+                       COALESCE(SUM(valor_mensal),0)::numeric AS valor
+                FROM assinaturas WHERE status='ativa'
+                GROUP BY plano ORDER BY valor DESC").ToListAsync();
+
+            // Receita realizada por mês (12m) — pagamentos confirmados, bucket no fuso BR.
+            var receitaMensal = await db.Database.SqlQueryRaw<ReceitaMesRow>(@"
+                SELECT to_char(date_trunc('month', pago_em AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM') AS mes,
+                       COALESCE(SUM(valor),0)::numeric AS valor,
+                       COUNT(*)::int AS pagamentos
+                FROM pagamentos_manuais
+                WHERE status='confirmado' AND pago_em IS NOT NULL
+                  AND pago_em >= (NOW() - INTERVAL '12 months')
+                GROUP BY 1 ORDER BY 1").ToListAsync();
+
+            // Inadimplência (Fluxo A): assinaturas suspensas = pagamento Asaas vencido.
+            var inadimplentes = await db.Database.SqlQueryRaw<InadimplenteRow>(@"
+                SELECT a.id AS assinatura_id, a.medico_id, m.nome AS medico_nome,
+                       u.email AS medico_email, a.valor_mensal, a.atualizado_em AS desde
+                FROM assinaturas a
+                JOIN medicos m ON m.id = a.medico_id
+                JOIN usuarios u ON u.id = m.usuario_id
+                WHERE a.status='suspensa'
+                ORDER BY a.valor_mensal DESC").ToListAsync();
+            var mrrEmRisco = inadimplentes.Sum(x => x.ValorMensal);
+
+            // Trials ativos + os que vencem em ≤7 dias.
+            var trialsAtivos = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM assinaturas WHERE status='trial'") ?? 0;
+            var trialsExpirando = await db.Database.SqlQueryRaw<TrialRow>(@"
+                SELECT a.id AS assinatura_id, a.medico_id, m.nome AS medico_nome, a.trial_ate
+                FROM assinaturas a JOIN medicos m ON m.id = a.medico_id
+                WHERE a.status='trial' AND a.trial_ate IS NOT NULL
+                  AND a.trial_ate <= (NOW() + INTERVAL '7 days')
+                ORDER BY a.trial_ate").ToListAsync();
+
+            // Funil (aproximado): convidados → ativaram conta → em trial → converteram.
+            var convidados = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM medico_invite_tokens") ?? 0;
+            var ativaram = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM medico_invite_tokens WHERE usado_em IS NOT NULL") ?? 0;
+            var convertidos = await db.Database.ExecuteScalarAsync<int?>(@"
+                SELECT COUNT(DISTINCT a.id)::int FROM assinaturas a
+                JOIN pagamentos_manuais pm ON pm.assinatura_id = a.id AND pm.status='confirmado'
+                WHERE a.status='ativa'") ?? 0;
+
+            // Cobráveis ainda sem cobrança Asaas (CPF + valor>0, sem subscription).
+            var cobraveisSemAsaas = await db.Database.SqlQueryRaw<CobravelRow>(@"
+                SELECT a.id AS assinatura_id, a.medico_id, m.nome AS medico_nome,
+                       a.valor_mensal, m.cpf
+                FROM assinaturas a
+                JOIN medicos m ON m.id = a.medico_id
+                WHERE a.status IN ('trial','ativa')
+                  AND a.asaas_subscription_id IS NULL
+                  AND a.valor_mensal > 0
+                  AND m.cpf IS NOT NULL AND m.cpf <> ''
+                ORDER BY a.valor_mensal DESC").ToListAsync();
+
+            return Results.Ok(new
+            {
+                mrr,
+                mrrPorPlano,
+                receitaMensal,
+                inadimplencia = new { mrrEmRisco, itens = inadimplentes },
+                trials = new { ativos = trialsAtivos, expirando = trialsExpirando },
+                funil = new { convidados, ativaram, emTrial = trialsAtivos, convertidos },
+                cobraveisSemAsaas,
+            });
+        });
+
         // Custo LLM por mês (histórico 12 meses)
         g.MapGet("/custos-llm", async (AppDbContext db) =>
         {
@@ -764,4 +845,14 @@ public record AssinaturaAsaasRow(
     Guid AssinaturaId, decimal ValorMensal, DateTime? TrialAte,
     string? AsaasCustomerId, string? AsaasSubscriptionId,
     Guid MedicoId, string MedicoNome, string? Cpf, string? Telefone, string MedicoEmail);
+
+// ── Cockpit de receita ──
+public record MrrPlanoRow(string Plano, int Quantidade, decimal Valor);
+public record ReceitaMesRow(string Mes, decimal Valor, int Pagamentos);
+public record InadimplenteRow(
+    Guid AssinaturaId, Guid MedicoId, string? MedicoNome, string? MedicoEmail,
+    decimal ValorMensal, DateTime Desde);
+public record TrialRow(Guid AssinaturaId, Guid MedicoId, string? MedicoNome, DateTime? TrialAte);
+public record CobravelRow(
+    Guid AssinaturaId, Guid MedicoId, string? MedicoNome, decimal ValorMensal, string? Cpf);
 
