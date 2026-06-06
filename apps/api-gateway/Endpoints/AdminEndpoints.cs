@@ -191,6 +191,47 @@ public static class AdminEndpoints
             });
         });
 
+        // ── Sala de supervisão de crise (governança platform-wide, READ-ONLY) ─────
+        // Lê a trilha imutável protocolos_crise_acionados (clinical-safety regra 5:
+        // NUNCA edita/apaga). Expõe só METADADOS (médico, origem, categoria de
+        // gatilho, SLA de notificação) — sem conteúdo clínico cru e sem PII do
+        // paciente (regra 4 — minimização). Mede a regra "médico no loop".
+        g.MapGet("/crises", async (AppDbContext db) =>
+        {
+            var total30d = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM protocolos_crise_acionados WHERE criado_em >= NOW() - INTERVAL '30 days'") ?? 0;
+            var semNotificacao = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM protocolos_crise_acionados WHERE medico_notificado = FALSE AND criado_em >= NOW() - INTERVAL '30 days'") ?? 0;
+            var slaMedioSegundos = await db.Database.ExecuteScalarAsync<double?>(@"
+                SELECT AVG(EXTRACT(EPOCH FROM (medico_notificado_em - criado_em)))::float8
+                FROM protocolos_crise_acionados
+                WHERE medico_notificado = TRUE AND medico_notificado_em IS NOT NULL
+                  AND criado_em >= NOW() - INTERVAL '30 days'");
+            var automacaoPausada = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM pacientes WHERE automacao_pausada = TRUE") ?? 0;
+
+            var eventos = await db.Database.SqlQueryRaw<CriseEventoRow>(@"
+                SELECT pc.id, pc.criado_em, m.nome AS medico_nome, pc.origem,
+                       pc.gatilho, pc.confianca, pc.medico_notificado,
+                       pc.medico_notificado_em,
+                       COALESCE(p.automacao_pausada, FALSE) AS automacao_pausada
+                FROM protocolos_crise_acionados pc
+                LEFT JOIN medicos m ON m.id = pc.medico_id
+                LEFT JOIN pacientes p ON p.cliente_id = pc.paciente_id
+                WHERE pc.criado_em >= NOW() - INTERVAL '30 days'
+                ORDER BY pc.criado_em DESC
+                LIMIT 100").ToListAsync();
+
+            return Results.Ok(new
+            {
+                total30d,
+                semNotificacao,
+                slaMedioSegundos,
+                automacaoPausada,
+                eventos,
+            });
+        });
+
         // Custo LLM por mês (histórico 12 meses)
         g.MapGet("/custos-llm", async (AppDbContext db) =>
         {
@@ -855,4 +896,9 @@ public record InadimplenteRow(
 public record TrialRow(Guid AssinaturaId, Guid MedicoId, string? MedicoNome, DateTime? TrialAte);
 public record CobravelRow(
     Guid AssinaturaId, Guid MedicoId, string? MedicoNome, decimal ValorMensal, string? Cpf);
+
+// ── Sala de supervisão de crise (metadados, sem conteúdo clínico) ──
+public record CriseEventoRow(
+    Guid Id, DateTime CriadoEm, string? MedicoNome, string Origem, string Gatilho,
+    double Confianca, bool MedicoNotificado, DateTime? MedicoNotificadoEm, bool AutomacaoPausada);
 
