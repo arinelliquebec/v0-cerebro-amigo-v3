@@ -135,6 +135,38 @@ public static class CobrancasEndpoints
             return Results.Ok(r);
         }).WithTags("cobrancas").RequireAuthorization();
 
+        // ── Médico: minha assinatura da plataforma (Fluxo A, ADR-034). ──
+        // Status + valor + link p/ pagar (invoiceUrl do Asaas) + histórico.
+        app.MapGet("/api/v1/minha-assinatura", async (AppDbContext db, AsaasClient asaas, ClaimsPrincipal user) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            var a = await db.Database.SqlQueryRaw<MinhaAssinatura>(@"
+                SELECT plano, valor_mensal, moeda, status, trial_ate, asaas_subscription_id
+                FROM assinaturas WHERE medico_id = {0}", medicoId.Value).FirstOrDefaultAsync();
+            if (a is null) return Results.NotFound(new { error = "sem_assinatura" });
+
+            string? invoiceUrl = null;
+            if (!string.IsNullOrWhiteSpace(a.AsaasSubscriptionId) && asaas.Configurado)
+                invoiceUrl = await asaas.ObterLinkAtualAsync(a.AsaasSubscriptionId);
+
+            var pagamentos = await db.Database.SqlQueryRaw<PagamentoMedico>(@"
+                SELECT pm.valor, pm.referencia, pm.metodo, pm.pago_em
+                FROM pagamentos_manuais pm
+                JOIN assinaturas s ON s.id = pm.assinatura_id
+                WHERE s.medico_id = {0} AND pm.status = 'confirmado'
+                ORDER BY pm.pago_em DESC NULLS LAST LIMIT 24", medicoId.Value).ToListAsync();
+
+            return Results.Ok(new
+            {
+                plano = a.Plano, valorMensal = a.ValorMensal, moeda = a.Moeda,
+                status = a.Status, trialAte = a.TrialAte,
+                cobrancaAtiva = !string.IsNullOrWhiteSpace(a.AsaasSubscriptionId),
+                invoiceUrl, pagamentos,
+            });
+        }).WithTags("cobrancas").RequireAuthorization();
+
         // ── Portal do paciente: vê as próprias cobranças (Pix p/ pagar). ──
         app.MapGet("/api/v1/portal/paciente/cobrancas", async (AppDbContext db, ClaimsPrincipal user) =>
         {
@@ -230,6 +262,9 @@ public static class CobrancasEndpoints
 }
 
 public record CriarCobrancaRequest(Guid PacienteId, decimal Valor, string? Descricao, Guid? ConsultaId, DateOnly? Vencimento);
+
+public record MinhaAssinatura(string Plano, decimal ValorMensal, string Moeda, string Status, DateTime? TrialAte, string? AsaasSubscriptionId);
+public record PagamentoMedico(decimal Valor, string? Referencia, string? Metodo, DateTime? PagoEm);
 
 public record CobrancaItem(
     Guid Id, string Descricao, decimal Valor, string Metodo, string Status, DateOnly? Vencimento,

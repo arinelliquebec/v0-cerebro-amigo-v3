@@ -236,6 +236,15 @@ public sealed class AsaasClient
         }
     }
 
+    /// <summary>Link da cobrança em aberto da assinatura (p/ o médico pagar na página "Minha assinatura").</summary>
+    public async Task<string?> ObterLinkAtualAsync(string subscriptionId, CancellationToken ct = default)
+    {
+        var cfg = ResolveConfig();
+        if (cfg is null) return null;
+        var (apiKey, baseUrl) = cfg.Value;
+        return await PrimeiroLinkAsync(baseUrl, apiKey, subscriptionId, ct);
+    }
+
     // Link de pagamento da 1ª cobrança gerada pela assinatura (p/ enviar ao médico).
     private async Task<string?> PrimeiroLinkAsync(string baseUrl, string apiKey, string subscriptionId, CancellationToken ct)
     {

@@ -538,7 +538,7 @@ function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () =>
         if (d?.error === "valor_mensal_zero") return setErro("Defina o valor mensal (Editar) antes.")
         return setErro(d?.detalhe || "Falha ao ativar cobrança.")
       }
-      setLink(d?.invoiceUrl ?? null); setOpen(true); onMudou()
+      setLink(d?.invoiceUrl ?? null); setOpen(true) // refresh só ao fechar (senão o branch troca e o dialog some)
     } catch { setErro("Erro de conexão.") }
     finally { setEnviando(false) }
   }
@@ -552,22 +552,20 @@ function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () =>
     } finally { setEnviando(false) }
   }
 
-  if (asn.asaasSubscriptionId) {
-    return (
-      <div className="flex items-center gap-1">
-        <Badge className="border font-mono text-[10px] uppercase bg-success/15 text-success border-success/30">Asaas ativo</Badge>
-        <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-destructive" onClick={cancelar} disabled={enviando}>Cancelar</Button>
-      </div>
-    )
-  }
-
   return (
     <>
-      <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-primary hover:text-primary hover:bg-primary/10" onClick={ativar} disabled={enviando}>
-        {enviando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />} Cobrança Asaas
-      </Button>
+      {asn.asaasSubscriptionId ? (
+        <div className="flex items-center gap-1">
+          <Badge className="border font-mono text-[10px] uppercase bg-success/15 text-success border-success/30">Asaas ativo</Badge>
+          <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground hover:text-destructive" onClick={cancelar} disabled={enviando}>Cancelar</Button>
+        </div>
+      ) : (
+        <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-primary hover:text-primary hover:bg-primary/10" onClick={ativar} disabled={enviando}>
+          {enviando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />} Cobrança Asaas
+        </Button>
+      )}
       {erro && <span className="text-xs text-destructive">{erro}</span>}
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) onMudou() }}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Cobrança Asaas ativada</DialogTitle>
