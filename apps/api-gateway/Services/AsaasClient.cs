@@ -51,6 +51,9 @@ public sealed class AsaasClient
     {
         var r = new HttpRequestMessage(m, $"{baseUrl}{path}");
         r.Headers.Add("access_token", apiKey);
+        // Asaas exige User-Agent; o HttpClient do .NET não envia por padrão
+        // (sem isso: 400 user_agent_not_informed).
+        r.Headers.UserAgent.ParseAdd("CerebroAmigo-Gateway/1.0");
         if (body is not null) r.Content = JsonContent.Create(body);
         return r;
     }
