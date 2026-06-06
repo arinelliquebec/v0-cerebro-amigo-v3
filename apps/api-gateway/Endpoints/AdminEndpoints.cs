@@ -232,6 +232,33 @@ public static class AdminEndpoints
             });
         });
 
+        // ── Trilha de acesso a dados sensíveis (LGPD art.37, READ-ONLY) ───────────
+        // Quem-viu-qual-paciente. Detecta acesso cruzado (médico abriu paciente que
+        // não é dele). Só metadados de acesso — nunca conteúdo clínico.
+        g.MapGet("/acessos", async (AppDbContext db, [FromQuery] string? q) =>
+        {
+            var filtro = q ?? "";
+            var total30d = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM acessos_prontuario WHERE criado_em >= NOW() - INTERVAL '30 days'") ?? 0;
+            var cruzados30d = await db.Database.ExecuteScalarAsync<int?>(@"
+                SELECT COUNT(*)::int FROM acessos_prontuario ap
+                LEFT JOIN pacientes p ON p.cliente_id = ap.paciente_id
+                WHERE ap.criado_em >= NOW() - INTERVAL '30 days'
+                  AND p.medico_responsavel_id IS DISTINCT FROM ap.medico_id") ?? 0;
+            var itens = await db.Database.SqlQueryRaw<AcessoRow>(@"
+                SELECT ap.id, ap.criado_em, ap.recurso, m.nome AS medico_nome,
+                       c.nome AS paciente_nome,
+                       (p.medico_responsavel_id IS DISTINCT FROM ap.medico_id) AS acesso_cruzado
+                FROM acessos_prontuario ap
+                JOIN medicos m ON m.id = ap.medico_id
+                JOIN clientes c ON c.id = ap.paciente_id
+                LEFT JOIN pacientes p ON p.cliente_id = ap.paciente_id
+                WHERE ({0} = '' OR m.nome ILIKE '%' || {0} || '%' OR c.nome ILIKE '%' || {0} || '%')
+                ORDER BY ap.criado_em DESC
+                LIMIT 200", filtro).ToListAsync();
+            return Results.Ok(new { total30d, cruzados30d, itens });
+        });
+
         // Custo LLM por mês (histórico 12 meses)
         g.MapGet("/custos-llm", async (AppDbContext db) =>
         {
@@ -901,4 +928,9 @@ public record CobravelRow(
 public record CriseEventoRow(
     Guid Id, DateTime CriadoEm, string? MedicoNome, string Origem, string Gatilho,
     double Confianca, bool MedicoNotificado, DateTime? MedicoNotificadoEm, bool AutomacaoPausada);
+
+// ── Trilha de acesso (LGPD art.37) ──
+public record AcessoRow(
+    Guid Id, DateTime CriadoEm, string Recurso, string? MedicoNome,
+    string? PacienteNome, bool AcessoCruzado);
 

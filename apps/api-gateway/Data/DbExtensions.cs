@@ -127,6 +127,27 @@ public static class DbExtensions
         }
     }
 
+    /// <summary>
+    /// Registra um acesso a dado clínico de paciente na trilha append-only
+    /// <c>acessos_prontuario</c> (LGPD art. 37 — registro das operações de
+    /// tratamento). Best-effort: uma falha de log NUNCA quebra a leitura clínica
+    /// (disponibilidade do dado &gt; completude do registro de acesso).
+    /// </summary>
+    public static async Task RegistrarAcessoProntuarioAsync(
+        this DatabaseFacade database, Guid medicoId, Guid pacienteId, string recurso)
+    {
+        try
+        {
+            await database.ExecuteRawAsync(
+                "INSERT INTO acessos_prontuario (medico_id, paciente_id, recurso) VALUES ({0}, {1}, {2})",
+                medicoId, pacienteId, recurso);
+        }
+        catch
+        {
+            // best-effort — não bloqueia a resposta ao médico.
+        }
+    }
+
     private static string ReplacePositionals(string sql, int count)
     {
         // Substitui {0}, {1}, ... por @p0, @p1, ... (Npgsql aceita @ ou : prefixo).

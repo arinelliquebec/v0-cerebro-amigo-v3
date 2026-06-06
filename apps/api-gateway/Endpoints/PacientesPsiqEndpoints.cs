@@ -62,7 +62,7 @@ public static class PacientesPsiqEndpoints
             Guid id, AppDbContext db, ClaimsPrincipal user,
             [FromQuery] int dias = 30) =>
         {
-            if (!await PacienteEhDoMedico(db, id, user)) return Results.Forbid();
+            if (!await PacienteEhDoMedico(db, id, user, "timeline")) return Results.Forbid();
 
             var inicio = DateTime.UtcNow.AddDays(-dias);
 
@@ -119,7 +119,7 @@ public static class PacientesPsiqEndpoints
             Guid id, AppDbContext db, ClaimsPrincipal user,
             [FromQuery] int dias = 30) =>
         {
-            if (!await PacienteEhDoMedico(db, id, user)) return Results.Forbid();
+            if (!await PacienteEhDoMedico(db, id, user, "humor")) return Results.Forbid();
 
             var inicio = DateTime.UtcNow.AddDays(-dias);
             var dados = await db.Database.SqlQueryRaw<PontoHumor>(@"
@@ -137,7 +137,7 @@ public static class PacientesPsiqEndpoints
         g.MapGet("/{id:guid}/adesao", async (
             Guid id, AppDbContext db, ClaimsPrincipal user) =>
         {
-            if (!await PacienteEhDoMedico(db, id, user)) return Results.Forbid();
+            if (!await PacienteEhDoMedico(db, id, user, "adesao")) return Results.Forbid();
 
             var dados = await db.Database.SqlQueryRaw<AdesaoMedicacao>(@"
                 SELECT pr.medicamento,
@@ -161,7 +161,7 @@ public static class PacientesPsiqEndpoints
         g.MapGet("/{id:guid}/resumo-pre-consulta", async (
             Guid id, AppDbContext db, ClaimsPrincipal user) =>
         {
-            if (!await PacienteEhDoMedico(db, id, user)) return Results.Forbid();
+            if (!await PacienteEhDoMedico(db, id, user, "resumo_pre_consulta")) return Results.Forbid();
 
             var sql = @"
                 SELECT id, titulo, conteudo, severidade, criado_em, valido_ate,
@@ -576,14 +576,22 @@ public static class PacientesPsiqEndpoints
             "SELECT id FROM medicos WHERE usuario_id = {0}", userId);
     }
 
-    private static async Task<bool> PacienteEhDoMedico(AppDbContext db, Guid pacienteId, ClaimsPrincipal user)
+    private static async Task<bool> PacienteEhDoMedico(
+        AppDbContext db, Guid pacienteId, ClaimsPrincipal user, string? recurso = null)
     {
         var medicoId = await GetMedicoIdAsync(db, user);
         if (medicoId is null) return false;
 
-        return await db.Database.ExistsAsync(
+        var ok = await db.Database.ExistsAsync(
             "SELECT 1 FROM pacientes WHERE cliente_id = {0} AND medico_responsavel_id = {1}",
             pacienteId, medicoId.Value);
+
+        // Trilha de acesso (LGPD art.37): registra a leitura concedida quando o
+        // chamador identifica o `recurso`. Best-effort — não quebra a leitura.
+        if (ok && recurso is not null)
+            await db.Database.RegistrarAcessoProntuarioAsync(medicoId.Value, pacienteId, recurso);
+
+        return ok;
     }
 }
 

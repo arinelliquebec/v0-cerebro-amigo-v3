@@ -37,6 +37,9 @@ public static class ExamesEndpoints
                 ORDER BY (ea.status = 'agendado') DESC, ea.devido_em",
                 id, medicoId.Value).ToListAsync();
 
+            // Trilha de acesso (LGPD art.37) — best-effort.
+            await db.Database.RegistrarAcessoProntuarioAsync(medicoId.Value, id, "exames");
+
             return Results.Ok(rows);
         })
         .WithTags("exames")
