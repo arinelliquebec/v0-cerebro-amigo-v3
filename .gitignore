@@ -44,3 +44,4 @@ docker-compose.override.yml
 .sentryclirc
 .sentry/
 .env.sentry-build-plugin
+.vercel
