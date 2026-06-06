@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { promptTravado } from "@/lib/prompts-guard"
 
 /**
  * GET /api/prompts — lista prompts ativos do gateway.
@@ -22,6 +23,18 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
   if (!body) return NextResponse.json({ error: "corpo inválido" }, { status: 400 })
+
+  // Defesa em profundidade (a trava definitiva vive no gateway): bloqueia já no
+  // BFF a criação de versão de prompt de salvaguarda clínica (crise/auditoria).
+  if (promptTravado(body.agente, body.nome))
+    return NextResponse.json(
+      {
+        error: "prompt_travado",
+        detalhe:
+          "Prompt de salvaguarda clínica (detecção de crise / auditoria) não pode ser alterado pelo painel.",
+      },
+      { status: 409 },
+    )
 
   try {
     const data = await gateway.post("/api/v1/prompts/", body)

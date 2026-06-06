@@ -16,6 +16,9 @@ export async function POST(
     if (err instanceof GatewayError) {
       if (err.status === 401 || err.status === 403)
         return NextResponse.json({ error: "não autorizado" }, { status: 401 })
+      // Prompt de salvaguarda clínica travado no gateway (crise/auditoria).
+      if (err.status === 409)
+        return NextResponse.json(err.body, { status: 409 })
     }
     return NextResponse.json({ error: "erro interno" }, { status: 500 })
   }

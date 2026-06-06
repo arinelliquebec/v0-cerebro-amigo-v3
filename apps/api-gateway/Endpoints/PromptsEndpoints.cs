@@ -16,6 +16,34 @@ namespace ApiGateway.Endpoints;
 /// </summary>
 public static class PromptsEndpoints
 {
+    /// <summary>
+    /// Salvaguardas clínicas que NÃO podem ser criadas/ativadas pelo painel
+    /// (clinical-safety regras 2 e 3, ADR-035):
+    ///  - orchestrator:crisis_detection — classificador de detecção de crise;
+    ///  - orchestrator:audit — auditoria da resposta ao paciente.
+    /// O orchestrator-py lê o prompt ATIVO do banco em runtime, então ativar uma
+    /// versão maliciosa sobrescreveria a salvaguarda. A trava do front
+    /// (lib/prompts-guard.ts) é só UX; ESTA é a fronteira de confiança real.
+    /// Alterá-los exige decisão clínica + validação SHADOW + ADR, não um POST.
+    /// </summary>
+    private static readonly HashSet<string> PromptsTravados = new()
+    {
+        "orchestrator:crisis_detection",
+        "orchestrator:audit",
+    };
+
+    private static bool EhTravado(string? agente, string? nome) =>
+        PromptsTravados.Contains($"{agente}:{nome}");
+
+    private static IResult RespostaTravado() => Results.Json(
+        new
+        {
+            error = "prompt_travado",
+            detalhe = "Prompt de salvaguarda clínica (detecção de crise / auditoria) "
+                + "não pode ser alterado pelo painel — exige ADR e validação SHADOW.",
+        },
+        statusCode: StatusCodes.Status409Conflict);
+
     public static void Map(WebApplication app)
     {
         // Editor de prompts = poder de plataforma. Só owner/admin.
@@ -63,6 +91,10 @@ public static class PromptsEndpoints
             if (!user.IsInRole("admin") && !user.IsInRole("owner"))
                 return Results.Forbid();
 
+            // Salvaguarda clínica: prompt de crise/auditoria não se edita pelo painel.
+            if (EhTravado(req.Agente, req.Nome))
+                return RespostaTravado();
+
             var criadoPor = user.FindFirst("sub")?.Value
                 ?? throw new InvalidOperationException("claim 'sub' ausente");
 
@@ -102,6 +134,11 @@ public static class PromptsEndpoints
                 SELECT agente, nome FROM prompts WHERE id = {0}", id).FirstOrDefaultAsync();
 
             if (row is null) return Results.NotFound();
+
+            // Salvaguarda clínica: não permitir ativar versão de prompt travado
+            // (ex.: ativar uma versão antiga/maliciosa de crisis_detection).
+            if (EhTravado(row.Agente, row.Nome))
+                return RespostaTravado();
 
             await db.Database.ExecuteSqlRawAsync(@"
                 UPDATE prompts SET ativo = FALSE
