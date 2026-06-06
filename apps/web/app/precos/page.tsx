@@ -14,7 +14,7 @@ import {
 export const metadata = {
   title: "Preços",
   description:
-    "Planos simples para psiquiatras. Comece grátis por 14 dias, sem cartão de crédito. Cancele quando quiser.",
+    "Planos simples para psiquiatras. Comece grátis por 14 dias, sem cartão de crédito. Ao assinar, período mínimo de 3 meses.",
   openGraph: {
     title: "Preços — Cérebro Amigo",
     description: "Planos simples para psiquiatras. 14 dias grátis, sem cartão.",
@@ -90,7 +90,7 @@ const faqs = [
   },
   {
     q: "E se eu quiser cancelar?",
-    a: "Cancele quando quiser, sem multa. O acesso fica ativo até o fim do período pago. Não há fidelidade mínima.",
+    a: "Ao assinar, o plano tem período mínimo de 3 meses. Concluído esse período, você cancela quando quiser e o acesso fica ativo até o fim do ciclo pago. As condições podem variar conforme o contrato.",
   },
   {
     q: "Os dados dos meus pacientes são seguros?",
@@ -185,8 +185,8 @@ export default function PrecosPage() {
               <span className="italic text-accent [text-shadow:0_0_40px_var(--noir-glow-coral)]">sem surpresas</span>.
             </h1>
             <p className="mx-auto mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
-              14 dias grátis, sem cartão de crédito. Cancele quando quiser.
-              Sem fidelidade mínima.
+              14 dias grátis, sem cartão de crédito. Ao assinar um plano,
+              período mínimo de 3 meses.
             </p>
           </Reveal>
         </div>
@@ -260,7 +260,7 @@ export default function PrecosPage() {
               {[
                 { icon: ShieldCheck, label: "LGPD", sub: "Dados de saúde mental protegidos" },
                 { icon: Lock, label: "AWS Brasil", sub: "Dados armazenados no Brasil (sa-east-1)" },
-                { icon: Zap, label: "Sem fidelidade", sub: "Cancele quando quiser, sem multa" },
+                { icon: Zap, label: "Contrato claro", sub: "Período mínimo de 3 meses ao assinar" },
                 { icon: Brain, label: "Protocolo fixo", sub: "Crise com texto pré-aprovado, nunca gerado por IA" },
               ].map((t) => (
                 <div key={t.label} className="flex flex-col items-center gap-2">
