@@ -31,6 +31,7 @@ from app.services.crisis import (
     detectar_crise,
 )
 from app.services.crisis_copy import CRISIS_COPY
+from app.services.escriba import gerar_rascunho_consulta
 from app.services.retrieval import buscar as rag_buscar_service
 from app.services.transcricao import transcrever_audio
 
@@ -186,6 +187,38 @@ async def transcrever_diario(req: TranscreverAudioRequest) -> dict:
         "sintomas_detectados": result.sintomas_detectados,
         "crise": result.crise,
         "crise_texto": result.crise_texto,
+    }
+
+
+# ─── Escriba clínico (Ambient Scribe, ADR-040) ──────────────────────────────
+
+
+class EscribaRequest(BaseModel):
+    audio_base64: str   # áudio da teleconsulta (WebM/MP4), base64
+    content_type: str   # "audio/webm" | "audio/mp4"
+    paciente_id: UUID
+
+
+@app.post(
+    "/internal/escriba/transcrever",
+    dependencies=[Depends(_check_internal_token)],
+)
+async def transcrever_escriba(req: EscribaRequest) -> dict:
+    """Transcreve o áudio de uma teleconsulta (diarizado) e gera um rascunho FACTUAL
+    para o médico (ADR-040). NÃO gera diagnóstico/conduta (regra #1). Doctor-facing:
+    não aciona protocolo de crise patient-facing (regra #2) — só marca mencao_risco.
+    Áudio deletado do S3 logo após a transcrição (LGPD)."""
+    import base64
+
+    audio_bytes = base64.b64decode(req.audio_base64)
+    if len(audio_bytes) > 25 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="áudio maior que 25 MB")
+
+    result = await gerar_rascunho_consulta(audio_bytes, req.content_type, req.paciente_id)
+    return {
+        "transcricao": result.transcricao,
+        "rascunho": result.rascunho,
+        "mencao_risco": result.mencao_risco,
     }
 
 

@@ -60,19 +60,6 @@ export function proxy(req: NextRequest) {
     return next()
   }
 
-  // ── Rede social: /rede/login e /rede/cadastro são PÚBLICAS (médico externo);
-  //    o resto exige auth_token e cai no login da rede. ──
-  if (pathname.startsWith("/rede")) {
-    if (pathname === "/rede/login" || pathname === "/rede/cadastro") return next()
-    const token = req.cookies.get("auth_token")?.value
-    if (!token) {
-      const loginUrl = new URL("/rede/login", req.url)
-      loginUrl.searchParams.set("next", pathname)
-      return NextResponse.redirect(loginUrl)
-    }
-    return next()
-  }
-
   // ── Doctor dashboard (médico) ──
   if (pathname.startsWith("/dashboard")) {
     const token = req.cookies.get("auth_token")?.value
@@ -88,5 +75,5 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard/:path*", "/rede/:path*", "/p/:path*"],
+  matcher: ["/admin/:path*", "/dashboard/:path*", "/p/:path*"],
 }

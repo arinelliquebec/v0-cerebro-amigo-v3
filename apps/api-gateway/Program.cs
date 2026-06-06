@@ -282,10 +282,6 @@ app.MapGet("/ready", async (AppDbContext db) =>
 
 // Endpoints
 AuthEndpoints.Map(app);
-RedeAuthEndpoints.Map(app);
-RedeFotoEndpoints.Map(app);
-RedePostsExtraEndpoints.Map(app);
-RedePresencaEndpoints.Map(app);
 AgentesEndpoints.Map(app);
 PacientesPsiqEndpoints.Map(app);
 PrescricoesEndpoints.Map(app);
@@ -303,10 +299,12 @@ RenovacoesEndpoints.Map(app);
 InteracoesEndpoints.Map(app);
 CobrancasEndpoints.Map(app);
 BlindagemEndpoints.Map(app);
+RoiEndpoints.Map(app);
 RagEndpoints.Map(app);
 InsightsEndpoints.Map(app);
 ConsultasEndpoints.Map(app);
 TeleconsultaEndpoints.Map(app);
+EscribaEndpoints.Map(app);
 CriseEndpoints.Map(app);
 FilaAtencaoEndpoints.Map(app);
 EvolucaoEndpoints.Map(app);
@@ -317,10 +315,7 @@ ComunicacaoEndpoints.Map(app);
 MensagensEndpoints.Map(app);
 PromptsEndpoints.Map(app);
 AdminEndpoints.Map(app);
-SocialEndpoints.Map(app);
-ChatEndpoints.Map(app);
-ModeracaoEndpoints.Map(app);
-app.MapHub<ApiGateway.Hubs.ChatHub>("/hubs/chat");
 SeedEndpoint.Map(app);
+SeedDemoEndpoint.Map(app);
 
 app.Run();

@@ -7,6 +7,7 @@ import { AgendaWidget } from "@/components/dashboard/agenda-widget"
 import { RemindersWidget } from "@/components/dashboard/reminders-widget"
 import { RenovacoesWidget } from "@/components/dashboard/renovacoes-widget"
 import { BlindagemCard } from "@/components/dashboard/blindagem-card"
+import { PrimeirosPassos } from "@/components/dashboard/primeiros-passos"
 import { MessagesWidget } from "@/components/dashboard/messages-widget"
 import { CheckinWidget } from "@/components/dashboard/checkin-widget"
 import { RecentPatientsWidget, RecentPatientsSkeleton } from "@/components/dashboard/recent-patients-widget"
@@ -29,6 +30,9 @@ export default function DashboardPage() {
       <Header title="Dashboard" />
 
       <div className="p-8 space-y-8">
+        {/* Onboarding — só aparece se o médico ainda não tem pacientes */}
+        <PrimeirosPassos />
+
         {/* Stats Overview (dados reais) */}
         <Suspense fallback={<StatsCardsSkeleton />}>
           <StatsCards />
