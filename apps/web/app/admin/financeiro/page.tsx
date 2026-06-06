@@ -50,6 +50,7 @@ const editarAssinaturaSchema = z.object({
   }, "Valor inválido"),
   status: z.enum(["trial", "ativa", "suspensa", "cancelada"]),
   notas: z.string().optional(),
+  cpf: z.string().optional().refine((v) => !v || cpfValido(v), "CPF inválido"),
 })
 
 const novaAssinaturaSchema = z.object({
@@ -89,6 +90,7 @@ interface Assinatura {
   totalPago: number
   pagamentosConfirmados: number
   asaasSubscriptionId: string | null
+  cpf: string | null
 }
 
 const PLANO_COR: Record<string, string> = {
@@ -214,6 +216,7 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
       valor: (asn.valorMensal ?? 0).toString(),
       status: asn.status as any,
       notas: asn.notas ?? "",
+      cpf: asn.cpf ? cpfMask(asn.cpf) : "",
     },
   })
 
@@ -228,7 +231,7 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
       const r = await fetch(`/api/admin/assinaturas/${asn.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plano: data.plano, valorMensal: v, status: data.status, notas: data.notas || null }),
+        body: JSON.stringify({ plano: data.plano, valorMensal: v, status: data.status, notas: data.notas || null, cpf: data.cpf ? cpfDigits(data.cpf) : null }),
       })
       if (!r.ok) return setErro("Erro ao atualizar.")
       onSalvo(); setOpen(false)
@@ -285,6 +288,11 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
             <Label>Notas (opcional)</Label>
             <Input {...register("notas")} placeholder="Observações internas" />
             {errors.notas && <p className="text-xs text-destructive">{errors.notas.message}</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>CPF do médico (p/ cobrança Asaas)</Label>
+            <Input value={watch("cpf")} onChange={(e) => setValue("cpf", cpfMask(e.target.value))} placeholder="000.000.000-00" inputMode="numeric" maxLength={14} />
+            {errors.cpf && <p className="text-xs text-destructive">{errors.cpf.message}</p>}
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
