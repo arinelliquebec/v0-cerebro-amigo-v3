@@ -466,7 +466,8 @@ public static class AdminEndpoints
                        u.email AS medico_email,
                        COALESCE(SUM(pm.valor) FILTER (WHERE pm.status='confirmado'), 0) AS total_pago,
                        COUNT(pm.id) FILTER (WHERE pm.status='confirmado') AS pagamentos_confirmados,
-                       a.asaas_subscription_id
+                       a.asaas_subscription_id,
+                       m.cpf
                 FROM assinaturas a
                 JOIN medicos m ON m.id = a.medico_id
                 JOIN usuarios u ON u.id = m.usuario_id
@@ -502,6 +503,17 @@ public static class AdminEndpoints
         g.MapPatch("/assinaturas/{id:guid}", async (
             Guid id, [FromBody] AtualizarAssinaturaRequest req, AppDbContext db) =>
         {
+            // CPF do médico (opcional) — necessário p/ cobrança Asaas. Valida e grava
+            // na tabela medicos (não há outra UI p/ editar CPF pós-onboarding).
+            if (!string.IsNullOrWhiteSpace(req.Cpf))
+            {
+                if (!CpfValido(req.Cpf)) return Results.BadRequest(new { error = "cpf_invalido" });
+                var cpfDigits = new string(req.Cpf.Where(char.IsDigit).ToArray());
+                await db.Database.ExecuteRawAsync(@"
+                    UPDATE medicos SET cpf = {1}
+                    WHERE id = (SELECT medico_id FROM assinaturas WHERE id = {0})", id, cpfDigits);
+            }
+
             var ok = await db.Database.ExecuteRawAsync(@"
                 UPDATE assinaturas SET
                     plano        = COALESCE({2}, plano),
@@ -626,6 +638,17 @@ public static class AdminEndpoints
         });
     }
 
+    // Validação de CPF (dígitos verificadores) — espelha lib/cpf do front.
+    private static bool CpfValido(string? cpf)
+    {
+        if (string.IsNullOrWhiteSpace(cpf)) return false;
+        var d = new string(cpf.Where(char.IsDigit).ToArray());
+        if (d.Length != 11 || d.Distinct().Count() == 1) return false;
+        int Soma(int len) { var s = 0; for (var i = 0; i < len; i++) s += (d[i] - '0') * (len + 1 - i); return s; }
+        int Dig(int soma) { var r = soma % 11; return r < 2 ? 0 : 11 - r; }
+        return Dig(Soma(9)) == d[9] - '0' && Dig(Soma(10)) == d[10] - '0';
+    }
+
     private static string AdminSha256(string input)
     {
         var bytes = System.Security.Cryptography.SHA256.HashData(
@@ -669,7 +692,7 @@ public record AssinaturaAdmin(
     Guid Id, string Plano, decimal ValorMensal, string Moeda, string Status,
     DateTime? TrialAte, DateTime InicioEm, DateTime? CanceladoEm, string? Notas,
     Guid MedicoId, string? MedicoNome, string? Crm, string? MedicoEmail,
-    decimal TotalPago, long PagamentosConfirmados, string? AsaasSubscriptionId);
+    decimal TotalPago, long PagamentosConfirmados, string? AsaasSubscriptionId, string? Cpf);
 
 public record PagamentoAdmin(
     Guid Id, decimal Valor, string Moeda, string? Referencia,
@@ -683,7 +706,7 @@ public record CriarAssinaturaRequest(
     DateTime? TrialAte, string? Notas);
 public record AtualizarAssinaturaRequest(
     string? Plano, decimal? ValorMensal, string? Status,
-    DateTime? TrialAte, string? Notas);
+    DateTime? TrialAte, string? Notas, string? Cpf);
 public record RegistrarPagamentoRequest(
     decimal Valor, string? Moeda, string? Referencia,
     string? Metodo, DateTime? PagoEm, string? Notas);
