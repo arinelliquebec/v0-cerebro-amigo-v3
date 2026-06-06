@@ -5,6 +5,7 @@ import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { FileText, Lock, Loader2, RefreshCw, AlertCircle } from "lucide-react"
 import { promptTravado } from "@/lib/prompts-guard"
+import { ErroCarregar } from "@/components/admin/erro-carregar"
 
 interface PromptAtivo {
   id: string
@@ -20,14 +21,17 @@ interface PromptAtivo {
 export default function AdminPromptsPage() {
   const [prompts, setPrompts] = useState<PromptAtivo[]>([])
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
-    setLoading(true)
+    setLoading(true); setErro(null)
     try {
       const r = await fetch("/api/prompts/")
-      setPrompts(r.ok ? await r.json() : [])
+      if (r.status === 401) { window.location.href = "/login"; return }
+      if (!r.ok) { setErro("Não foi possível carregar os prompts."); return }
+      setPrompts(await r.json())
     } catch {
-      setPrompts([])
+      setErro("Erro de conexão ao carregar os prompts.")
     } finally {
       setLoading(false)
     }
@@ -64,6 +68,8 @@ export default function AdminPromptsPage() {
         <div className="flex justify-center py-16 text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
+      ) : erro ? (
+        <ErroCarregar mensagem={erro} onRetry={carregar} />
       ) : prompts.length === 0 ? (
         <div className="flex items-center gap-2 rounded-2xl border border-dashed border-noir-line bg-noir-surface p-16 justify-center text-sm text-muted-foreground">
           <AlertCircle className="w-4 h-4" />

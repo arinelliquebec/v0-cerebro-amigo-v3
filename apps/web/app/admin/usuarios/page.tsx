@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Stethoscope, Pencil, UserX, UserCheck } from "lucide-react"
+import { ErroCarregar } from "@/components/admin/erro-carregar"
 
 // Schemas Zod para validação
 const novoUsuarioSchema = z.object({
@@ -447,20 +448,37 @@ export default function UsuariosPage() {
   const [desativados, setDesativados] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
   const [loadingDesativados, setLoadingDesativados] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+  const [erroDesativados, setErroDesativados] = useState<string | null>(null)
   const [meId, setMeId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
 
   const carregar = useCallback(async () => {
-    const r = await fetch("/api/admin/usuarios")
-    if (r.ok) setUsuarios(await r.json())
-    setLoading(false)
+    setLoading(true); setErro(null)
+    try {
+      const r = await fetch("/api/admin/usuarios")
+      if (r.status === 401) { window.location.href = "/login"; return }
+      if (!r.ok) { setErro("Não foi possível carregar os usuários."); return }
+      setUsuarios(await r.json())
+    } catch {
+      setErro("Erro de conexão ao carregar os usuários.")
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   const carregarDesativados = useCallback(async () => {
-    setLoadingDesativados(true)
-    const r = await fetch("/api/admin/usuarios?desativados=true")
-    if (r.ok) setDesativados(await r.json())
-    setLoadingDesativados(false)
+    setLoadingDesativados(true); setErroDesativados(null)
+    try {
+      const r = await fetch("/api/admin/usuarios?desativados=true")
+      if (r.status === 401) { window.location.href = "/login"; return }
+      if (!r.ok) { setErroDesativados("Não foi possível carregar os usuários desativados."); return }
+      setDesativados(await r.json())
+    } catch {
+      setErroDesativados("Erro de conexão ao carregar os usuários desativados.")
+    } finally {
+      setLoadingDesativados(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -520,6 +538,8 @@ export default function UsuariosPage() {
           <div className="flex justify-center py-16 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
+        ) : erro ? (
+          <ErroCarregar mensagem={erro} onRetry={carregar} />
         ) : (
           <div className="rounded-2xl border border-noir-line bg-noir-surface overflow-hidden">
             <table className="w-full text-sm">
@@ -583,6 +603,8 @@ export default function UsuariosPage() {
           <div className="flex justify-center py-16 text-muted-foreground">
             <Loader2 className="h-6 w-6 animate-spin" />
           </div>
+        ) : erroDesativados ? (
+          <ErroCarregar mensagem={erroDesativados} onRetry={carregarDesativados} />
         ) : desativados.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 gap-2 text-muted-foreground">
             <UserX className="h-8 w-8 opacity-30" />

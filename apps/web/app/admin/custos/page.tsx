@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Cpu, Loader2, RefreshCw, TrendingDown } from "lucide-react"
+import { ErroCarregar } from "@/components/admin/erro-carregar"
 
 interface CustoMes {
   mes: string
@@ -23,12 +24,20 @@ function fmtNum(n: number | null) {
 export default function CustosPage() {
   const [rows, setRows] = useState<CustoMes[]>([])
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
-    setLoading(true)
-    const r = await fetch("/api/admin/custos-llm")
-    if (r.ok) setRows(await r.json())
-    setLoading(false)
+    setLoading(true); setErro(null)
+    try {
+      const r = await fetch("/api/admin/custos-llm")
+      if (r.status === 401) { window.location.href = "/login"; return }
+      if (!r.ok) { setErro("Não foi possível carregar os custos de IA."); return }
+      setRows(await r.json())
+    } catch {
+      setErro("Erro de conexão ao carregar os custos de IA.")
+    } finally {
+      setLoading(false)
+    }
   }, [])
 
   useEffect(() => { carregar() }, [carregar])
@@ -76,6 +85,8 @@ export default function CustosPage() {
 
       {loading ? (
         <div className="flex justify-center py-16 text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : erro ? (
+        <ErroCarregar mensagem={erro} onRetry={carregar} />
       ) : Object.keys(porMes).length === 0 ? (
         <div className="rounded-2xl border border-dashed border-noir-line bg-noir-surface p-16 text-center text-sm text-muted-foreground">
           Sem execuções de agentes registradas ainda.

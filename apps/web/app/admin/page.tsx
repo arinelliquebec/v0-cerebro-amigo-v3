@@ -7,6 +7,7 @@ import {
   Activity, RefreshCw, Loader2, Cpu, ShieldCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ErroCarregar } from "@/components/admin/erro-carregar"
 
 interface Metricas {
   totalMedicos: number
@@ -71,12 +72,17 @@ export default function AdminOverview() {
   const [m, setM] = useState<Metricas | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
     setRefreshing(true)
     try {
       const r = await fetch("/api/admin/metricas")
-      if (r.ok) setM(await r.json())
+      if (r.status === 401) { window.location.href = "/login"; return }
+      if (!r.ok) { setErro("Não foi possível carregar as métricas."); return }
+      setM(await r.json()); setErro(null)
+    } catch {
+      setErro("Erro de conexão ao carregar as métricas.")
     } finally {
       setRefreshing(false)
       setLoading(false)
@@ -97,6 +103,15 @@ export default function AdminOverview() {
     )
   }
 
+  // Primeira carga falhou: mostra erro em vez de um dashboard "fantasma" de zeros.
+  if (!m) {
+    return (
+      <div className="p-8">
+        <ErroCarregar mensagem={erro ?? "Não foi possível carregar as métricas."} onRetry={carregar} />
+      </div>
+    )
+  }
+
   const atualizado = m ? new Date(m.calculadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "—"
 
   return (
@@ -109,7 +124,10 @@ export default function AdminOverview() {
             <p className="font-mono text-xs uppercase tracking-widest text-accent">Admin Master</p>
           </div>
           <h1 className="text-2xl font-semibold text-foreground">Visão geral da plataforma</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Atualiza automaticamente a cada 30s · última: {atualizado}</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Atualiza automaticamente a cada 30s · última: {atualizado}
+            {erro && <span className="ml-2 text-destructive">⚠ última atualização falhou</span>}
+          </p>
         </div>
         <Button variant="glass" size="sm" onClick={carregar} disabled={refreshing} className="gap-2">
           <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />

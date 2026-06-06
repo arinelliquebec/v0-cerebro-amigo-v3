@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Activity, Loader2, RefreshCw, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { ErroCarregar } from "@/components/admin/erro-carregar"
 
 interface AgenteSaude {
   agente: string
@@ -39,14 +40,17 @@ function quando(iso: string | null) {
 export default function AgentesPage() {
   const [data, setData] = useState<Resposta>({ agentes: [], errosRecentes: [] })
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
 
   const carregar = useCallback(async () => {
-    setLoading(true)
+    setLoading(true); setErro(null)
     try {
       const r = await fetch("/api/admin/agentes-saude")
-      setData(r.ok ? await r.json() : { agentes: [], errosRecentes: [] })
+      if (r.status === 401) { window.location.href = "/login"; return }
+      if (!r.ok) { setErro("Não foi possível carregar a saúde dos agentes."); return }
+      setData(await r.json())
     } catch {
-      setData({ agentes: [], errosRecentes: [] })
+      setErro("Erro de conexão ao carregar a saúde dos agentes.")
     } finally {
       setLoading(false)
     }
@@ -96,6 +100,8 @@ export default function AgentesPage() {
         <div className="flex justify-center py-16 text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
+      ) : erro ? (
+        <ErroCarregar mensagem={erro} onRetry={carregar} />
       ) : data.agentes.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-noir-line bg-noir-surface p-16 text-center text-sm text-muted-foreground">
           Sem execuções de agentes registradas nos últimos 30 dias.
