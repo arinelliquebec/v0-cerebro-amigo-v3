@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Stethoscope, Pencil, UserX, UserCheck, Search } from "lucide-react"
 import { ErroCarregar } from "@/components/admin/erro-carregar"
+import { toast } from "sonner"
 
 // Schemas Zod para validação
 const novoUsuarioSchema = z.object({
@@ -191,7 +192,25 @@ function RoleDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
       })
       const d = await r.json().catch(() => ({}))
       if (!r.ok) return setErro(d?.error ?? "Erro ao atualizar.")
+      const anterior = u.role
       onSalvo(); setOpen(false)
+      if (data.role !== anterior) {
+        toast.success(`Role de ${u.nome} alterada para ${data.role}.`, {
+          action: {
+            label: "Desfazer",
+            onClick: async () => {
+              const rr = await fetch(`/api/admin/usuarios/${u.id}?action=role`, {
+                method: "PATCH", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ role: anterior }),
+              })
+              if (rr.ok) { toast.success(`Role de ${u.nome} revertida para ${anterior}.`); onSalvo() }
+              else toast.error("Não foi possível desfazer.")
+            },
+          },
+        })
+      } else {
+        toast.success("Role atualizada.")
+      }
     } catch { setErro("Erro de conexão.") }
     finally { setEnviando(false) }
   }
@@ -306,6 +325,16 @@ function ExcluirDialog({ u, onExcluido }: { u: Usuario; onExcluido: () => void }
       }
       onExcluido()
       setOpen(false)
+      toast.success(`${u.nome} desativado.`, {
+        action: {
+          label: "Desfazer",
+          onClick: async () => {
+            const rr = await fetch(`/api/admin/usuarios/${u.id}`, { method: "POST" })
+            if (rr.ok) { toast.success(`${u.nome} reativado.`); onExcluido() }
+            else toast.error("Não foi possível desfazer.")
+          },
+        },
+      })
     } catch { setErro("Erro de conexão.") }
     finally { setExcluindo(false) }
   }
@@ -406,6 +435,7 @@ function ReativarDialog({ u, onReativado }: { u: Usuario; onReativado: () => voi
       }
       onReativado()
       setOpen(false)
+      toast.success(`${u.nome} reativado.`)
     } catch { setErro("Erro de conexão.") }
     finally { setReativando(false) }
   }
