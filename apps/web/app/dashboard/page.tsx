@@ -6,6 +6,7 @@ import { FilaAtencao } from "@/components/dashboard/fila-atencao"
 import { AgendaWidget } from "@/components/dashboard/agenda-widget"
 import { RemindersWidget } from "@/components/dashboard/reminders-widget"
 import { RenovacoesWidget } from "@/components/dashboard/renovacoes-widget"
+import { BlindagemCard } from "@/components/dashboard/blindagem-card"
 import { MessagesWidget } from "@/components/dashboard/messages-widget"
 import { CheckinWidget } from "@/components/dashboard/checkin-widget"
 import { RecentPatientsWidget, RecentPatientsSkeleton } from "@/components/dashboard/recent-patients-widget"
@@ -53,6 +54,7 @@ export default function DashboardPage() {
             <CheckinWidget />
             <MessagesWidget />
             <RemindersWidget />
+            <BlindagemCard />
           </div>
         </div>
       </div>

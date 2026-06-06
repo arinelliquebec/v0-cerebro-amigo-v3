@@ -160,18 +160,43 @@ public static class AdminEndpoints
 
         // ─── Usuários ─────────────────────────────────────────────────────────
 
-        g.MapGet("/usuarios", async (AppDbContext db) =>
+        g.MapGet("/usuarios", async ([FromQuery] bool? desativados, AppDbContext db) =>
         {
-            var rows = await db.Database.SqlQueryRaw<UsuarioAdmin>(@"
+            // ?desativados=true → lista desativados (p/ aba de reativação).
+            var sql = desativados == true ? @"
                 SELECT u.id, u.nome, u.email, u.role, u.ultimo_login,
                        m.id AS medico_id, m.crm, m.especialidade,
-                       a.plano AS plano_assinatura, a.status AS status_assinatura
+                       a.plano AS plano_assinatura, a.status AS status_assinatura,
+                       u.desativado_em
+                FROM usuarios u
+                LEFT JOIN medicos m ON m.usuario_id = u.id
+                LEFT JOIN assinaturas a ON a.medico_id = m.id
+                WHERE u.desativado_em IS NOT NULL
+                ORDER BY u.desativado_em DESC, u.nome" : @"
+                SELECT u.id, u.nome, u.email, u.role, u.ultimo_login,
+                       m.id AS medico_id, m.crm, m.especialidade,
+                       a.plano AS plano_assinatura, a.status AS status_assinatura,
+                       u.desativado_em
                 FROM usuarios u
                 LEFT JOIN medicos m ON m.usuario_id = u.id
                 LEFT JOIN assinaturas a ON a.medico_id = m.id
                 WHERE u.desativado_em IS NULL
-                ORDER BY u.role DESC, u.nome").ToListAsync();
+                ORDER BY u.role DESC, u.nome";
+            var rows = await db.Database.SqlQueryRaw<UsuarioAdmin>(sql).ToListAsync();
             return Results.Ok(rows);
+        });
+
+        // Reativar usuário desativado (desfaz soft delete).
+        g.MapPost("/usuarios/{id:guid}/reativar", async (
+            Guid id, AppDbContext db, ClaimsPrincipal caller) =>
+        {
+            var callerRole = caller.FindFirst("role")?.Value ?? "";
+            if (callerRole != "owner" && callerRole != "admin")
+                return Results.Forbid();
+
+            var ok = await db.Database.ExecuteSqlRawAsync(
+                "UPDATE usuarios SET desativado_em = NULL WHERE id = {0} AND desativado_em IS NOT NULL", id);
+            return ok == 0 ? Results.NotFound() : Results.NoContent();
         });
 
         // Criar usuário (owner/admin cria médicos, admins, etc.)
@@ -313,11 +338,19 @@ public static class AdminEndpoints
             // qualquer coisa, senão um CFM fora do ar deixava o usuário órfão no banco.
             var val = await cfm.ValidarAsync(crm, crmUf, nome);
             if (val.Erro is not null)
-                return Results.Json(new { error = "cfm_indisponivel" }, statusCode: 503);
-            // "NaoValidado" = bypass (CRM_VALIDATION_ENABLED=false) — não bloquear
+            {
+                if (val.Erro.StartsWith("INFOSIMPLES_TOKEN"))
+                    return Results.Json(new { error = "crm_validacao_nao_configurada" }, statusCode: 500);
+                // Soft-fail: CFM indisponível após 3 tentativas → cria conta pendente de
+                // verificação manual. Não bloqueia o admin — médico entra, CRM fica como
+                // PendenteVerificacao p/ revisão posterior.
+                val = new CrmValidationResult(true, "PendenteVerificacao", null, null, null);
+            }
+            // "NaoValidado" = bypass (CRM_VALIDATION_ENABLED=false). "PendenteVerificacao" = soft-fail.
             if (!val.Encontrado ||
                 (!string.Equals(val.Situacao, "Regular", StringComparison.OrdinalIgnoreCase) &&
-                 !string.Equals(val.Situacao, "NaoValidado", StringComparison.OrdinalIgnoreCase)))
+                 !string.Equals(val.Situacao, "NaoValidado", StringComparison.OrdinalIgnoreCase) &&
+                 !string.Equals(val.Situacao, "PendenteVerificacao", StringComparison.OrdinalIgnoreCase)))
                 return Results.Json(new { error = "crm_invalido", situacao = val.Situacao }, statusCode: 422);
 
             // Tudo validado → grava de forma ATÔMICA (usuario + medico + assinatura + token).
@@ -380,6 +413,8 @@ public static class AdminEndpoints
                 emailEnviado = emailResult.Success,
                 emailErro = emailResult.Error,
                 ativarContaUrl = emailResult.Success ? null : link,
+                crmPendente = string.Equals(val.Situacao, "PendenteVerificacao",
+                    StringComparison.OrdinalIgnoreCase),
             });
         });
 
@@ -560,7 +595,7 @@ public record MedicoPerfil(
 public record UsuarioAdmin(
     Guid Id, string Nome, string Email, string Role, DateTime? UltimoLogin,
     Guid? MedicoId, string? Crm, string? Especialidade,
-    string? PlanoAssinatura, string? StatusAssinatura);
+    string? PlanoAssinatura, string? StatusAssinatura, DateTime? DesativadoEm);
 
 public record AssinaturaAdmin(
     Guid Id, string Plano, decimal ValorMensal, string Moeda, string Status,

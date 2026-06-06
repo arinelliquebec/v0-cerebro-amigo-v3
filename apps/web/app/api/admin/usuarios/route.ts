@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const desativados = new URL(req.url).searchParams.get("desativados")
+  const path = desativados === "true"
+    ? "/api/v1/admin/usuarios?desativados=true"
+    : "/api/v1/admin/usuarios"
   try {
-    const data = await gateway.get("/api/v1/admin/usuarios")
+    const data = await gateway.get(path)
     return NextResponse.json(data)
   } catch (err) {
     if (err instanceof GatewayError && (err.status === 401 || err.status === 403))

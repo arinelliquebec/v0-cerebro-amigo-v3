@@ -150,6 +150,8 @@ builder.Services.AddScoped<ITenantContext, TenantContext>();
 builder.Services.AddSingleton<TurnCredentialService>();
 builder.Services.AddSingleton<TeleconsultaSignalingHub>();
 
+builder.Services.AddMemoryCache();
+
 // HTTP clients
 builder.Services.AddHttpClient(); // factory genérico
 
@@ -160,9 +162,14 @@ builder.Services.AddHttpClient<MemedClient>()
     .AddStandardResilienceHandler();
 
 // CfmClient: SEM StandardResilienceHandler — o scrape do CFM pela Infosimples
-// leva até ~60s (o total-timeout padrão de 30s mataria) e é uma chamada PAGA
-// (retries automáticos = consultas duplicadas). Timeout próprio no CfmClient (100s).
+// leva até ~60s (o total-timeout padrão de 30s mataria). Retries MANUAIS (3x, 1s)
+// controlados no CfmClient — o StandardResilienceHandler duplicaria chamadas PAGAS.
 builder.Services.AddHttpClient<CfmClient>();
+
+// AsaasClient: SEM StandardResilienceHandler — retry automático em POST /payments
+// criaria COBRANÇA DUPLICADA (mesmo motivo do CfmClient). Idempotência fica a
+// cargo do fluxo (1 cobrança por chamada do médico).
+builder.Services.AddHttpClient<AsaasClient>();
 
 // OrchestratorStreamClient — proxy SSE para o orchestrator-py
 builder.Services.AddOrchestratorStreamClient(builder.Configuration);
@@ -294,6 +301,8 @@ EscalasEndpoints.Map(app);
 ExamesEndpoints.Map(app);
 RenovacoesEndpoints.Map(app);
 InteracoesEndpoints.Map(app);
+CobrancasEndpoints.Map(app);
+BlindagemEndpoints.Map(app);
 RagEndpoints.Map(app);
 InsightsEndpoints.Map(app);
 ConsultasEndpoints.Map(app);

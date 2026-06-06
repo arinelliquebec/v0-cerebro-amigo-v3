@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
-import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Stethoscope, Pencil, UserX } from "lucide-react"
+import { AlertTriangle, Plus, Loader2, Key, Shield, Users, RefreshCw, Stethoscope, Pencil, UserX, UserCheck } from "lucide-react"
 
 // Schemas Zod para validação
 const novoUsuarioSchema = z.object({
@@ -39,6 +39,7 @@ interface Usuario {
   especialidade: string | null
   planoAssinatura: string | null
   statusAssinatura: string | null
+  desativadoEm: string | null
 }
 
 const ROLE_BADGE: Record<string, string> = {
@@ -388,9 +389,64 @@ function SenhaDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
   )
 }
 
+function ReativarDialog({ u, onReativado }: { u: Usuario; onReativado: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [reativando, setReativando] = useState(false)
+  const [erro, setErro] = useState<string | null>(null)
+
+  async function reativar() {
+    setErro(null)
+    setReativando(true)
+    try {
+      const r = await fetch(`/api/admin/usuarios/${u.id}`, { method: "POST" })
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}))
+        return setErro(d?.error ?? "Erro ao reativar.")
+      }
+      onReativado()
+      setOpen(false)
+    } catch { setErro("Erro de conexão.") }
+    finally { setReativando(false) }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); setErro(null) }}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs text-success hover:text-success" title="Reativar usuário">
+          <UserCheck className="h-3.5 w-3.5" /> Reativar
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-success">
+            <UserCheck className="h-4 w-4" /> Reativar usuário
+          </DialogTitle>
+        </DialogHeader>
+        <p className="text-sm text-muted-foreground">
+          Reativar <span className="font-semibold text-foreground">{u.nome}</span>? O usuário voltará a ter acesso à plataforma.
+        </p>
+        {erro && (
+          <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {erro}
+          </div>
+        )}
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button variant="coral" onClick={reativar} disabled={reativando}>
+            {reativando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reativar"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export default function UsuariosPage() {
+  const [aba, setAba] = useState<"ativos" | "desativados">("ativos")
   const [usuarios, setUsuarios] = useState<Usuario[]>([])
+  const [desativados, setDesativados] = useState<Usuario[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingDesativados, setLoadingDesativados] = useState(false)
   const [meId, setMeId] = useState<string | null>(null)
   const [isOwner, setIsOwner] = useState(false)
 
@@ -400,12 +456,24 @@ export default function UsuariosPage() {
     setLoading(false)
   }, [])
 
+  const carregarDesativados = useCallback(async () => {
+    setLoadingDesativados(true)
+    const r = await fetch("/api/admin/usuarios?desativados=true")
+    if (r.ok) setDesativados(await r.json())
+    setLoadingDesativados(false)
+  }, [])
+
   useEffect(() => {
     carregar()
     fetch("/api/me").then(r => r.ok ? r.json() : null).then(d => {
       if (d) { setMeId(d.id); setIsOwner(d.role === "owner") }
     })
   }, [carregar])
+
+  function handleAba(nova: "ativos" | "desativados") {
+    setAba(nova)
+    if (nova === "desativados") carregarDesativados()
+  }
 
   return (
     <div className="p-8 space-y-6">
@@ -416,77 +484,145 @@ export default function UsuariosPage() {
             <p className="font-mono text-xs uppercase tracking-widest text-primary">Gestão</p>
           </div>
           <h1 className="text-2xl font-semibold text-foreground">Usuários</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{usuarios.length} usuário(s) cadastrado(s)</p>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {aba === "ativos" ? `${usuarios.length} ativo(s)` : `${desativados.length} desativado(s)`}
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="glass" size="sm" onClick={carregar} className="gap-1.5">
+          <Button variant="glass" size="sm"
+            onClick={aba === "ativos" ? carregar : carregarDesativados}
+            className="gap-1.5">
             <RefreshCw className="h-4 w-4" /> Atualizar
           </Button>
-          <NovoUsuarioDialog onCriado={carregar} />
+          {aba === "ativos" && <NovoUsuarioDialog onCriado={carregar} />}
         </div>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-16 text-muted-foreground">
-          <Loader2 className="h-6 w-6 animate-spin" />
-        </div>
-      ) : (
-        <div className="rounded-2xl border border-noir-line bg-noir-surface overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-noir-line bg-noir-surface-raised">
-                {["Nome", "E-mail", "Role", "CRM", "Plano", "Último login", "Ações"].map((h) => (
-                  <th key={h} className="px-5 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-noir-line">
-              {usuarios.map((u) => (
-                <tr key={u.id} className="hover:bg-noir-surface-raised/40 transition-colors">
-                  <td className="px-5 py-3 font-medium text-foreground">{u.nome}</td>
-                  <td className="px-5 py-3 text-muted-foreground">{u.email}</td>
-                  <td className="px-5 py-3">
-                    <Badge className={`border font-mono text-[10px] uppercase ${ROLE_BADGE[u.role] ?? ""}`}>
-                      {ROLE_LABEL[u.role] ?? u.role}
-                    </Badge>
-                  </td>
-                  <td className="px-5 py-3 text-muted-foreground">{u.crm ?? "—"}</td>
-                  <td className="px-5 py-3">
-                    {u.planoAssinatura ? (
-                      <span className={`text-xs font-medium ${u.statusAssinatura === "ativa" ? "text-success" : "text-muted-foreground"}`}>
-                        {u.planoAssinatura} · {u.statusAssinatura}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">sem assinatura</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-muted-foreground text-xs">
-                    {u.ultimoLogin ? new Date(u.ultimoLogin).toLocaleDateString("pt-BR") : "nunca"}
-                  </td>
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-1">
-                      {u.medicoId && (
-                        <Link href={`/admin/medicos/${u.medicoId}`} title="Ver perfil do médico">
-                          <Button variant="ghost" size="icon" className="h-8 w-8">
-                            <Stethoscope className="h-4 w-4" />
-                          </Button>
-                        </Link>
-                      )}
-                      <EditarDialog u={u} onSalvo={carregar} />
-                      {isOwner && <RoleDialog u={u} onSalvo={carregar} />}
-                      <SenhaDialog u={u} onSalvo={carregar} />
-                      {u.id !== meId && u.role !== "owner" && (
-                        <ExcluirDialog u={u} onExcluido={carregar} />
-                      )}
-                    </div>
-                  </td>
+      {/* Tabs */}
+      <div className="flex gap-1 border-b border-noir-line">
+        {(["ativos", "desativados"] as const).map((t) => (
+          <button
+            key={t}
+            onClick={() => handleAba(t)}
+            className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              aba === t
+                ? "border-primary text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {t === "ativos" ? "Ativos" : "Desativados"}
+          </button>
+        ))}
+      </div>
+
+      {aba === "ativos" ? (
+        loading ? (
+          <div className="flex justify-center py-16 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-noir-line bg-noir-surface overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-noir-line bg-noir-surface-raised">
+                  {["Nome", "E-mail", "Role", "CRM", "Plano", "Último login", "Ações"].map((h) => (
+                    <th key={h} className="px-5 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {h}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-noir-line">
+                {usuarios.map((u) => (
+                  <tr key={u.id} className="hover:bg-noir-surface-raised/40 transition-colors">
+                    <td className="px-5 py-3 font-medium text-foreground">{u.nome}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{u.email}</td>
+                    <td className="px-5 py-3">
+                      <Badge className={`border font-mono text-[10px] uppercase ${ROLE_BADGE[u.role] ?? ""}`}>
+                        {ROLE_LABEL[u.role] ?? u.role}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-3 text-muted-foreground">{u.crm ?? "—"}</td>
+                    <td className="px-5 py-3">
+                      {u.planoAssinatura ? (
+                        <span className={`text-xs font-medium ${u.statusAssinatura === "ativa" ? "text-success" : "text-muted-foreground"}`}>
+                          {u.planoAssinatura} · {u.statusAssinatura}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-muted-foreground">sem assinatura</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-3 text-muted-foreground text-xs">
+                      {u.ultimoLogin ? new Date(u.ultimoLogin).toLocaleDateString("pt-BR") : "nunca"}
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex items-center gap-1">
+                        {u.medicoId && (
+                          <Link href={`/admin/medicos/${u.medicoId}`} title="Ver perfil do médico">
+                            <Button variant="ghost" size="icon" className="h-8 w-8">
+                              <Stethoscope className="h-4 w-4" />
+                            </Button>
+                          </Link>
+                        )}
+                        <EditarDialog u={u} onSalvo={carregar} />
+                        {isOwner && <RoleDialog u={u} onSalvo={carregar} />}
+                        <SenhaDialog u={u} onSalvo={carregar} />
+                        {u.id !== meId && u.role !== "owner" && (
+                          <ExcluirDialog u={u} onExcluido={carregar} />
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      ) : (
+        loadingDesativados ? (
+          <div className="flex justify-center py-16 text-muted-foreground">
+            <Loader2 className="h-6 w-6 animate-spin" />
+          </div>
+        ) : desativados.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-2 text-muted-foreground">
+            <UserX className="h-8 w-8 opacity-30" />
+            <p className="text-sm">Nenhum usuário desativado.</p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-noir-line bg-noir-surface overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-noir-line bg-noir-surface-raised">
+                  {["Nome", "E-mail", "Role", "CRM", "Desativado em", "Ações"].map((h) => (
+                    <th key={h} className="px-5 py-3 text-left font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-noir-line">
+                {desativados.map((u) => (
+                  <tr key={u.id} className="hover:bg-noir-surface-raised/40 transition-colors opacity-75">
+                    <td className="px-5 py-3 font-medium text-foreground">{u.nome}</td>
+                    <td className="px-5 py-3 text-muted-foreground">{u.email}</td>
+                    <td className="px-5 py-3">
+                      <Badge className={`border font-mono text-[10px] uppercase ${ROLE_BADGE[u.role] ?? ""}`}>
+                        {ROLE_LABEL[u.role] ?? u.role}
+                      </Badge>
+                    </td>
+                    <td className="px-5 py-3 text-muted-foreground">{u.crm ?? "—"}</td>
+                    <td className="px-5 py-3 text-muted-foreground text-xs">
+                      {u.desativadoEm ? new Date(u.desativadoEm).toLocaleDateString("pt-BR") : "—"}
+                    </td>
+                    <td className="px-5 py-3">
+                      <ReativarDialog u={u} onReativado={() => { carregarDesativados(); carregar() }} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       )}
     </div>
   )

@@ -15,6 +15,7 @@ function mensagemErro(status: number, error?: string, situacao?: string): string
   if (error === "crm_nao_confere") return "CRM não confere no CFM. Confira nome, número e UF."
   if (error === "crm_nao_regular") return `Seu CRM não está Regular no CFM${situacao ? ` (situação: ${situacao})` : ""}.`
   if (error === "cfm_indisponivel" || status === 503) return "Não deu pra validar o CRM agora. Tente em instantes."
+  if (error === "crm_validacao_nao_configurada") return "Validação de CRM temporariamente indisponível. Entre em contato com o suporte."
   if (error === "senha_curta") return "A senha precisa de ao menos 8 caracteres."
   if (status === 400) return "Preencha todos os campos."
   return "Não foi possível cadastrar. Tente novamente."

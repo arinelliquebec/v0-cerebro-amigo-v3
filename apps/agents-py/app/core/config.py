@@ -43,6 +43,10 @@ class Settings(BaseSettings):
     # gerador_renovacao_receita (A4) — antecedência do alerta de vencimento.
     renovacao_antecedencia_dias: int = 7  # RENOVACAO_ANTECEDENCIA_DIAS
 
+    # recall_inativos — paciente sem retorno há N dias (recuperação de receita).
+    recall_inativo_dias: int = 90  # RECALL_INATIVO_DIAS
+    recall_dedup_dias: int = 30    # RECALL_DEDUP_DIAS
+
     # Agentes sensíveis à janela de consulta — precisam de resposta rápida.
     resumidor_interval_seconds: int = 300   # RESUMIDOR_INTERVAL_SECONDS
     diario_interval_seconds: int = 300      # DIARIO_INTERVAL_SECONDS
