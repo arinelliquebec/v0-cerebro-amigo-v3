@@ -49,14 +49,18 @@ export async function proxySinalPOST(
 ) {
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
 
-  const res = await fetch(`${GATEWAY}${gatewayPath}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    body,
-    cache: "no-store",
-  })
-  return new NextResponse(res.status === 204 ? null : await res.text(), {
-    status: res.status,
-    headers: { "Content-Type": "application/json" },
-  })
+  try {
+    const res = await fetch(`${GATEWAY}${gatewayPath}`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body,
+      cache: "no-store",
+    })
+    return new NextResponse(res.status === 204 ? null : await res.text(), {
+      status: res.status,
+      headers: { "Content-Type": "application/json" },
+    })
+  } catch {
+    return NextResponse.json({ erro: "serviço indisponível" }, { status: 502 })
+  }
 }

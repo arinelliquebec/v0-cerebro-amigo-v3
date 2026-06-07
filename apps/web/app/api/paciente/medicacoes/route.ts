@@ -7,13 +7,17 @@ export async function GET() {
   const token = (await cookies()).get("paciente_token")?.value
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
 
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/medicacoes`, {
-    headers: { Authorization: `Bearer ${token}` },
-    cache: "no-store",
-  })
-  const body = await res.text()
-  return new NextResponse(body, {
-    status: res.status,
-    headers: { "Content-Type": "application/json" },
-  })
+  try {
+    const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/medicacoes`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+    const body = await res.text()
+    return new NextResponse(body, {
+      status: res.status,
+      headers: { "Content-Type": "application/json" },
+    })
+  } catch {
+    return NextResponse.json({ erro: "serviço indisponível" }, { status: 502 })
+  }
 }

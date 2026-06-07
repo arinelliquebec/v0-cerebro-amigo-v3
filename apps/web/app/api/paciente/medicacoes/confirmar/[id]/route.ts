@@ -13,17 +13,21 @@ export async function POST(
   const { id } = await params
   const body = await req.json().catch(() => ({}))
 
-  const res = await fetch(
-    `${GATEWAY}/api/v1/portal/paciente/medicacoes/confirmar/${id}`,
-    {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ status: body?.status ?? "tomada", nota: body?.nota ?? null }),
-    },
-  )
-  // 204 NoContent no sucesso
-  return new NextResponse(res.status === 204 ? null : await res.text(), {
-    status: res.status,
-    headers: { "Content-Type": "application/json" },
-  })
+  try {
+    const res = await fetch(
+      `${GATEWAY}/api/v1/portal/paciente/medicacoes/confirmar/${id}`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ status: body?.status ?? "tomada", nota: body?.nota ?? null }),
+      },
+    )
+    // 204 NoContent no sucesso
+    return new NextResponse(res.status === 204 ? null : await res.text(), {
+      status: res.status,
+      headers: { "Content-Type": "application/json" },
+    })
+  } catch {
+    return NextResponse.json({ erro: "serviço indisponível" }, { status: 502 })
+  }
 }
