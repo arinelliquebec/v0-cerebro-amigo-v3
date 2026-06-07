@@ -101,7 +101,7 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
         setAlLimiar(Number(al.limiar ?? 2))
         setAlJanela(Number(al.janela_dias ?? 7))
       })
-      .catch(() => {})
+      .catch(() => setErro("carregar"))
       .finally(() => setLoading(false))
   }, [pacienteId])
 

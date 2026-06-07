@@ -142,5 +142,6 @@ class AlertaNaoAdesaoJob(BaseJob):
             try:
                 return json.loads(raw) or {}
             except Exception:
+                logger.warning("alerta_nao_adesao.parse_cfg_failed", raw=raw[:200] if raw else "")
                 return {}
         return raw or {}

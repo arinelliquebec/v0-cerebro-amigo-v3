@@ -619,7 +619,11 @@ public static class AdminEndpoints
 
             SendEmailResult emailResult;
             try { emailResult = await resend.SendAsync(email, "Convite — Cérebro Amigo", html, txt); }
-            catch (Exception ex) { emailResult = new SendEmailResult(false, null, ex.Message); }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Falha ao enviar convite para {Email}", email);
+                emailResult = new SendEmailResult(false, null, ex.Message);
+            }
 
             return Results.Created($"/api/v1/admin/medicos/{medicoId}", new
             {

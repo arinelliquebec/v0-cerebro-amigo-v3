@@ -175,7 +175,11 @@ public sealed class AsaasClient
             _logger.LogError(ex, "Asaas inalcançável (customer médico)");
             return AsaasCustomerResult.Falha($"Asaas inalcançável: {ex.Message}");
         }
-        catch (JsonException) { return AsaasCustomerResult.Falha("Asaas retornou resposta inesperada"); }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Asaas resposta inválida (customer médico)");
+            return AsaasCustomerResult.Falha("Asaas retornou resposta inesperada");
+        }
     }
 
     /// <summary>
@@ -215,7 +219,11 @@ public sealed class AsaasClient
             _logger.LogError(ex, "Asaas inalcançável (assinatura médico)");
             return AsaasAssinaturaResult.Falha($"Asaas inalcançável: {ex.Message}");
         }
-        catch (JsonException) { return AsaasAssinaturaResult.Falha("Asaas retornou resposta inesperada"); }
+        catch (JsonException ex)
+        {
+            _logger.LogError(ex, "Asaas resposta inválida (assinatura médico)");
+            return AsaasAssinaturaResult.Falha("Asaas retornou resposta inesperada");
+        }
     }
 
     /// <summary>Cancela a assinatura recorrente no Asaas.</summary>

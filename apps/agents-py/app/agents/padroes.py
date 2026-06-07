@@ -228,7 +228,7 @@ def _analisar_serie(
         a.slope_p_value = float(reg.pvalue)
         a.slope_r_squared = float(reg.rvalue ** 2)
     except Exception:
-        pass
+        logger.warning("padroes.slope_failed", variavel=variavel)
 
     # ── Step change (t-test entre metades) ──
     mid = len(arr) // 2
@@ -240,7 +240,7 @@ def _analisar_serie(
             a.step_change_p_value = float(tt.pvalue)
             a.step_change_em = momentos[mid]
         except Exception:
-            pass
+            logger.warning("padroes.step_change_failed", variavel=variavel)
 
     # ── Avaliação de triggers ──
     _avaliar_triggers_variavel(a, settings)

@@ -54,8 +54,14 @@ function iniciais(nome: string | null): string {
 export const getDashboard = cache(async (): Promise<DashboardData> => {
   // Falha do gateway não derruba a página — cai pra vazio (zeros).
   const [pacientes, insights] = await Promise.all([
-    gateway.get<PacienteListItem[]>("/api/v1/pacientes").catch(() => [] as PacienteListItem[]),
-    gateway.get<InsightDto[]>("/api/v1/insights/pendentes").catch(() => [] as InsightDto[]),
+    gateway.get<PacienteListItem[]>("/api/v1/pacientes").catch((err) => {
+      console.warn("[dashboard] falha ao carregar pacientes:", err)
+      return [] as PacienteListItem[]
+    }),
+    gateway.get<InsightDto[]>("/api/v1/insights/pendentes").catch((err) => {
+      console.warn("[dashboard] falha ao carregar insights:", err)
+      return [] as InsightDto[]
+    }),
   ])
 
   // Severidade mais alta por paciente (insight.pacienteId === paciente.id, ambos cliente_id).

@@ -119,6 +119,7 @@ class GeradorCheckinHumorJob(BaseJob):
             try:
                 return json.loads(raw) or {}
             except Exception:
+                logger.warning("checkin_humor.parse_cfg_failed", raw=raw[:200] if raw else "")
                 return {}
         return raw or {}
 

@@ -27,7 +27,10 @@ function buscar(): Promise<Me | null> {
         cache = d
         return d
       })
-      .catch(() => null)
+      .catch((err) => {
+        console.warn("[useMe] falha ao buscar perfil:", err)
+        return null
+      })
       .finally(() => {
         inflight = null
       })

@@ -119,7 +119,7 @@ export default function AgendaPacientePage() {
       fetch(`/api/paciente/agenda/disponibilidade?data=${data}`)
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => setSlots(Array.isArray(d?.slots) ? d.slots : []))
-        .catch(() => {})
+        .catch(() => { /* slots refresh best-effort */ })
     } catch {
       setMsg({ tipo: "erro", texto: "Erro de conexão. Tente novamente." })
     } finally {

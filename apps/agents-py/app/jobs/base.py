@@ -88,6 +88,11 @@ class BaseJob(abc.ABC):
                 try:
                     cfg = json.loads(cfg)
                 except Exception:
+                    logger.warning(
+                        "job.parse_conduta_cfg_failed",
+                        tipo=tipo,
+                        paciente_id=str(ln["paciente_id"]),
+                    )
                     cfg = {}
             out[ln["paciente_id"]] = cfg or {}
         return out

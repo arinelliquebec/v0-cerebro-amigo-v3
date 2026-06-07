@@ -58,7 +58,7 @@ export function CommandPalette() {
     fetch("/api/admin/usuarios")
       .then((r) => (r.ok ? r.json() : []))
       .then((d) => { if (Array.isArray(d)) setUsuarios(d) })
-      .catch(() => {})
+      .catch(() => setUsuarios([]))
       .finally(() => setCarregado(true))
   }, [open, carregado])
 

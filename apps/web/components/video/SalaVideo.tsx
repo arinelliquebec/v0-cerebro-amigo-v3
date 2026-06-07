@@ -106,8 +106,8 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(sinal),
       })
-    } catch {
-      /* tolera falha de sinalização */
+    } catch (err) {
+      console.warn("[teleconsulta] falha de sinalização:", err)
     }
   }, [baseUrl])
 
@@ -123,7 +123,9 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
 
     // Só o médico fecha a sala no servidor (o desfecho é registrado à parte).
     if (papel === "medico" && !peerDesligou) {
-      fetch(`${baseUrl}/encerrar`, { method: "POST" }).catch(() => {})
+      fetch(`${baseUrl}/encerrar`, { method: "POST" }).catch((err) =>
+        console.warn("[teleconsulta] falha ao encerrar sala:", err)
+      )
     }
     setFase("encerrada")
   }, [baseUrl, papel, enviarSinal])
@@ -266,7 +268,7 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
     fetch(`${escribaBase}/status`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (!cancel && d) setConsentido(!!d.consentido) })
-      .catch(() => {})
+      .catch((err) => console.warn("[escriba] falha ao buscar status de consentimento:", err))
     return () => { cancel = true }
   }, [papel, escribaBase, peerOnline, fase])
 
@@ -303,7 +305,9 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
     setEnviandoNota(true)
     enviarSinal({ tipo: "bye" })
     esRef.current?.close()
-    if (papel === "medico") fetch(`${baseUrl}/encerrar`, { method: "POST" }).catch(() => {})
+    if (papel === "medico") fetch(`${baseUrl}/encerrar`, { method: "POST" }).catch((err) =>
+      console.warn("[teleconsulta] falha ao encerrar sala:", err)
+    )
 
     const rec = mediaRecorderRef.current
     const blob: Blob = await new Promise((resolve) => {

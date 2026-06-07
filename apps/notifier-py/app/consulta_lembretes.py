@@ -49,6 +49,7 @@ def _formatar_quando(inicia_em: datetime, tz_name: str | None) -> str:
     try:
         tz = ZoneInfo(tz_name or "America/Sao_Paulo")
     except Exception:
+        logger.warning("consulta_lembretes.tz_invalido", tz_name=tz_name)
         tz = ZoneInfo("America/Sao_Paulo")
     return inicia_em.astimezone(tz).strftime("%d/%m às %H:%M")
 

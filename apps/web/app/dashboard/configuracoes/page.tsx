@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { Loader2, Check } from "lucide-react"
+import { Loader2, Check, AlertTriangle } from "lucide-react"
 import { cpfMask, cpfValido, cpfDigits } from "@/lib/cpf"
 
 const HORA_RE = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/
@@ -71,6 +71,7 @@ export default function ConfiguracoesPage() {
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
   const [erroSalvar, setErroSalvar] = useState<string | null>(null)
+  const [erroCarregar, setErroCarregar] = useState(false)
 
   const {
     register,
@@ -133,7 +134,7 @@ export default function ConfiguracoesPage() {
           cpf: c.cpf ? cpfMask(c.cpf) : "",
         })
       })
-      .catch(() => {})
+      .catch(() => setErroCarregar(true))
       .finally(() => setLoading(false))
   }, [reset])
 
