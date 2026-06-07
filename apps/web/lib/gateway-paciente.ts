@@ -7,6 +7,7 @@
  */
 
 import { cookies } from "next/headers"
+import { NextResponse } from "next/server"
 
 const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 
@@ -47,8 +48,27 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return (text ? JSON.parse(text) : null) as T
 }
 
+/**
+ * Mapeia um erro do gateway-paciente para uma resposta JSON do BFF.
+ * 401/403 → "não autenticado"; demais → repassa status + corpo do gateway.
+ * Erros de conexão (não-GatewayPacienteError) → 502.
+ */
+export function gatewayPacienteErrorResponse(err: unknown): Response {
+  if (err instanceof GatewayPacienteError) {
+    if (err.status === 401 || err.status === 403)
+      return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
+    return NextResponse.json(err.body ?? { erro: "erro" }, { status: err.status })
+  }
+  return NextResponse.json({ erro: "erro_conexao" }, { status: 502 })
+}
+
 export const gatewayPaciente = {
   get: <T>(path: string) => request<T>(path, { method: "GET" }),
-  post: <T>(path: string, body: unknown) =>
-    request<T>(path, { method: "POST", body: JSON.stringify(body) }),
+  post: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "POST", body: body != null ? JSON.stringify(body) : undefined }),
+  patch: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "PATCH", body: body != null ? JSON.stringify(body) : undefined }),
+  put: <T>(path: string, body?: unknown) =>
+    request<T>(path, { method: "PUT", body: body != null ? JSON.stringify(body) : undefined }),
+  delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 }
