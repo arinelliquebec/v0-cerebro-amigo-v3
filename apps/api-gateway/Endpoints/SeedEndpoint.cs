@@ -22,10 +22,18 @@ public static class SeedEndpoint
         var g = app.MapGroup("/api/v1/seed").WithTags("seed");
 
         // POST /api/v1/seed/primeiro-medico — público, mas só funciona 1 vez
+        // Segurança: desligado em produção a menos que ALLOW_SEED=true esteja
+        // explicitamente definido (evita que um atacante crie conta admin numa
+        // instância que ainda não tem médico cadastrado).
         g.MapPost("/primeiro-medico", async (
             [FromBody] PrimeiroMedicoRequest req,
-            AppDbContext db, IPasswordHasher hasher) =>
+            AppDbContext db, IPasswordHasher hasher,
+            IConfiguration cfg, IWebHostEnvironment env) =>
         {
+            if (!env.IsDevelopment()
+                && !string.Equals(cfg["ALLOW_SEED"], "true", StringComparison.OrdinalIgnoreCase))
+                return Results.NotFound();
+
             // Bloqueio: só roda se NÃO houver médico ainda
             var jaExiste = await db.Database.ExecuteScalarAsync<int>(
                 "SELECT COUNT(*)::int FROM medicos");

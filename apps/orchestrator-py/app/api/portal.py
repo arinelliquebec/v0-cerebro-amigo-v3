@@ -43,9 +43,11 @@ router = APIRouter(prefix="/internal/portal", tags=["portal"])
 
 
 def _check_internal_token(authorization: str | None = Header(None)) -> None:
+    import hmac
+
     settings = get_settings()
     expected = f"Bearer {settings.internal_api_token.get_secret_value()}"
-    if authorization != expected:
+    if not hmac.compare_digest(authorization or "", expected):
         raise HTTPException(status_code=401, detail="invalid internal token")
 
 

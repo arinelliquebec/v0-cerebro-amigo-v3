@@ -239,9 +239,10 @@ app.UseExceptionHandler(errorApp =>
         context.Response.StatusCode = StatusCodes.Status500InternalServerError;
         context.Response.ContentType = "application/json";
 
-        var exposeDetails = string.Equals(
-            builder.Configuration["EXPOSE_ERROR_DETAILS"], "true",
-            StringComparison.OrdinalIgnoreCase);
+        var exposeDetails = app.Environment.IsDevelopment()
+            && string.Equals(
+                builder.Configuration["EXPOSE_ERROR_DETAILS"], "true",
+                StringComparison.OrdinalIgnoreCase);
 
         var payload = exposeDetails
             ? new

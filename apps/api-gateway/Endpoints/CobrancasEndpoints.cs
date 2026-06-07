@@ -3,6 +3,8 @@ using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace ApiGateway.Endpoints;
@@ -187,11 +189,14 @@ public static class CobrancasEndpoints
         app.MapPost("/api/v1/asaas/webhook", async (HttpRequest http, AppDbContext db, IConfiguration cfg) =>
         {
             var esperado = cfg["ASAAS_WEBHOOK_TOKEN"];
-            if (!string.IsNullOrWhiteSpace(esperado))
-            {
-                var recebido = http.Headers["asaas-access-token"].ToString();
-                if (recebido != esperado) return Results.Unauthorized();
-            }
+            if (string.IsNullOrWhiteSpace(esperado))
+                return Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+
+            var recebido = http.Headers["asaas-access-token"].ToString();
+            if (!CryptographicOperations.FixedTimeEquals(
+                    Encoding.UTF8.GetBytes(recebido),
+                    Encoding.UTF8.GetBytes(esperado)))
+                return Results.Unauthorized();
 
             using var doc = await JsonDocument.ParseAsync(http.Body);
             var root = doc.RootElement;
