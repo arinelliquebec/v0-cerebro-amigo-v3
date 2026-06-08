@@ -265,6 +265,11 @@ app.UseCors("dashboard");
 app.UseAuthentication();
 app.UseAuthorization();
 
+// Tenant na conexão p/ a RLS (0037). Depois da auth (precisa do ctx.User),
+// antes dos endpoints. Anônimo passa direto (endpoints anônimos não tocam
+// tabela com RLS).
+app.UseMiddleware<ApiGateway.Auth.TenantSessionMiddleware>();
+
 // Liveness e readiness
 app.MapGet("/health", () => Results.Ok(new { status = "ok" })).AllowAnonymous();
 app.MapGet("/ready", async (AppDbContext db) =>
