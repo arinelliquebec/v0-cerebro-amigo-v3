@@ -35,16 +35,23 @@ public static class CriseEndpoints
             var rows = await db.Database.SqlQueryRaw<CriseAtivaDto>(@"
                 SELECT p.cliente_id AS paciente_id, cl.nome AS paciente_nome,
                        pc.gatilho, pc.origem, pc.criado_em AS acionado_em,
-                       pc.medico_notificado_em
+                       pc.medico_notificado_em,
+                       COALESCE(ack.confirmada, FALSE) AS confirmada
                 FROM pacientes p
                 JOIN clientes cl ON cl.id = p.cliente_id
                 LEFT JOIN LATERAL (
-                    SELECT gatilho, origem, criado_em, medico_notificado_em
+                    SELECT id, gatilho, origem, criado_em, medico_notificado_em
                     FROM protocolos_crise_acionados
                     WHERE paciente_id = p.cliente_id
                     ORDER BY criado_em DESC
                     LIMIT 1
                 ) pc ON TRUE
+                LEFT JOIN LATERAL (
+                    SELECT TRUE AS confirmada
+                    FROM crise_alerta_eventos e
+                    WHERE e.protocolo_id = pc.id AND e.evento = 'confirmado'
+                    LIMIT 1
+                ) ack ON TRUE
                 WHERE p.medico_responsavel_id = {0}
                   AND p.automacao_pausada = TRUE
                 ORDER BY pc.criado_em DESC NULLS LAST",
@@ -107,9 +114,47 @@ public static class CriseEndpoints
                 medicoId.Value, pacienteId,
                 "O médico retomou a automação do paciente após avaliar a crise." + obs);
 
+            // Retomar implica ciência: encerra a escada de escalonamento (ADR-041).
+            await AckCrisesAbertasAsync(db, pacienteId, medicoId.Value, "retomar");
+
             return Results.NoContent();
         });
+
+        // Médico confirma ciência da crise (ack) sem necessariamente retomar a
+        // automação. Encerra a escada de escalonamento do notifier (ADR-041).
+        // INSERT append-only em crise_alerta_eventos; não toca a trilha imutável.
+        g.MapPost("/{pacienteId:guid}/ciente", async (
+            Guid pacienteId, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            var ehDoMedico = await db.Database.ExistsAsync(
+                "SELECT 1 FROM pacientes WHERE cliente_id = {0} AND medico_responsavel_id = {1}",
+                pacienteId, medicoId.Value);
+            if (!ehDoMedico) return Results.Forbid();
+
+            var confirmadas = await AckCrisesAbertasAsync(
+                db, pacienteId, medicoId.Value, "ack_dashboard");
+            return Results.Ok(new { confirmadas });
+        });
     }
+
+    // Marca como confirmadas todas as crises abertas (sem ack) do paciente nas
+    // últimas 48h. Idempotente (NOT EXISTS evita ack duplicado). Append-only.
+    private static Task<int> AckCrisesAbertasAsync(
+        AppDbContext db, Guid pacienteId, Guid medicoId, string via) =>
+        db.Database.ExecuteSqlRawAsync(@"
+            INSERT INTO crise_alerta_eventos
+                (protocolo_id, medico_id, canal, evento, estagio, detalhe)
+            SELECT pc.id, {1}, 'in_app', 'confirmado', 0, {2}
+            FROM protocolos_crise_acionados pc
+            WHERE pc.paciente_id = {0}
+              AND pc.criado_em > NOW() - INTERVAL '48 hours'
+              AND NOT EXISTS (
+                  SELECT 1 FROM crise_alerta_eventos e
+                  WHERE e.protocolo_id = pc.id AND e.evento = 'confirmado')",
+            pacienteId, medicoId, via);
 
     private static async Task<Guid?> GetMedicoIdAsync(AppDbContext db, ClaimsPrincipal user)
     {
@@ -131,7 +176,7 @@ public static class CriseEndpoints
 
 public record CriseAtivaDto(
     Guid PacienteId, string? PacienteNome, string? Gatilho, string? Origem,
-    DateTime? AcionadoEm, DateTime? MedicoNotificadoEm);
+    DateTime? AcionadoEm, DateTime? MedicoNotificadoEm, bool Confirmada);
 
 public record CriseDetalheDto(
     Guid PacienteId, string Gatilho, double Confianca, string Origem,
