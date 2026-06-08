@@ -35,9 +35,10 @@ def _etapa(idade: float, st: _EstadoAlerta) -> str:
 # ─── _proxima_etapa: a escada ────────────────────────────────────────────────
 
 
-def test_sem_email_pede_email_inicial_em_qualquer_idade():
+def test_email_inicial_enquanto_nada_enviado_e_dentro_do_ack():
+    # Antes do ack_timeout e sem e-mail confirmado: garantir o e-mail inicial.
     assert _etapa(0, _st()) == "email_inicial"
-    assert _etapa(99_999, _st()) == "email_inicial"
+    assert _etapa(ACK - 1, _st()) == "email_inicial"
 
 
 def test_email_enviado_recente_aguarda():
@@ -49,25 +50,45 @@ def test_sem_ack_apos_ack_timeout_reforca():
 
 
 def test_reforco_ja_feito_aguarda_ate_ops_timeout():
-    st = _st(email_enviado=True, reforco_enviado=True)
+    # "reforço/estágio 1 cumprido" = marcador OPS gravado (independe do e-mail).
+    st = _st(email_enviado=True, ops_estagio1=True)
     assert _etapa(ACK + 1, st) == "aguardando"
 
 
 def test_sem_ack_apos_ops_timeout_escala_ops():
-    st = _st(email_enviado=True, reforco_enviado=True)
+    st = _st(email_enviado=True, ops_estagio1=True)
     assert _etapa(OPS, st) == "ops_estagio2"
 
 
 def test_ops2_ja_feito_nao_repete():
-    st = _st(email_enviado=True, reforco_enviado=True, ops_estagio2=True)
+    st = _st(email_enviado=True, ops_estagio1=True, ops_estagio2=True)
     assert _etapa(OPS + 999, st) == "aguardando"
 
 
 def test_reforco_pendente_tem_prioridade_sobre_ops():
-    # Watchdog ficou fora: já passou de ops_timeout, mas o reforço nunca saiu.
+    # Watchdog ficou fora: já passou de ops_timeout, mas o estágio 1 nunca saiu.
     # Faz o reforço primeiro (catch-up); o OPS vem no tick seguinte.
-    st = _st(email_enviado=True, reforco_enviado=False)
+    st = _st(email_enviado=True)
     assert _etapa(OPS + 10, st) == "reforco_estagio1"
+
+
+# ─── FAIL-SAFE: e-mail fora não pode travar a escada (ADR-041, must-fix) ──────
+
+
+def test_email_down_persistente_ainda_escala_por_idade():
+    # Bug corrigido: e-mail nunca confirmado (Resend fora) NÃO pode prender a
+    # escada em 'email_inicial'. Passado o ack_timeout, tem que escalar.
+    assert _etapa(ACK, _st(email_enviado=False)) == "reforco_estagio1"
+    # Com o estágio 1 (OPS sem_ack) já registrado, ainda sem e-mail e sem ack,
+    # o OPS crítico por idade tem que disparar — mesmo com o canal de e-mail fora.
+    assert _etapa(OPS, _st(email_enviado=False, ops_estagio1=True)) == "ops_estagio2"
+
+
+def test_email_down_nao_fica_preso_em_email_inicial_em_idade_alta():
+    # Regressão direta do must-fix: idade altíssima + e-mail nunca enviado NÃO
+    # pode retornar 'email_inicial' para sempre (o canal mais quebrado escalava
+    # MENOS que o caso brando). Tem que estar numa etapa de escalação.
+    assert _etapa(99_999, _st()) != "email_inicial"
 
 
 # ─── _estado_de_eventos: redução das linhas append-only ──────────────────────

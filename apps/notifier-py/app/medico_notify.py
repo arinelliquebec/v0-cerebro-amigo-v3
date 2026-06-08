@@ -156,17 +156,26 @@ def _proxima_etapa(
 ) -> str:
     """Próxima etapa da escada (PURA — sem I/O, fácil de testar).
 
-    Ordem: garantir e-mail inicial → reforço após ack_timeout → OPS após
-    ops_timeout. Cada etapa só dispara se ainda não foi cumprida (idempotente).
+    Ordem: reforço após ack_timeout → OPS após ops_timeout → garantir e-mail
+    inicial. Cada etapa só dispara se ainda não foi cumprida (idempotente).
     Protocolos já confirmados (ack) são filtrados na SQL antes de chegar aqui.
-    Retorna: 'email_inicial' | 'reforco_estagio1' | 'ops_estagio2' | 'aguardando'.
+
+    FAIL-SAFE (ADR-041): a escalação por TEMPO NÃO depende do sucesso do e-mail.
+    Os estágios por idade são avaliados ANTES do e-mail inicial e gateados pelos
+    marcadores OPS (`ops_estagio1`/`ops_estagio2`, sempre gravados quando o
+    estágio dispara), nunca por `email_enviado` (que fica False se o Resend cai).
+    Assim "e-mail fora + sem ack" continua subindo até o OPS crítico — senão a
+    falha MAIS grave (canal de e-mail down) escalaria MENOS que o médico só
+    distraído, deixando o paciente descoberto em silêncio.
+
+    Retorna: 'reforco_estagio1' | 'ops_estagio2' | 'email_inicial' | 'aguardando'.
     """
-    if not st.email_enviado:
-        return "email_inicial"
-    if idade_s >= ack_timeout_s and not st.reforco_enviado:
+    if idade_s >= ack_timeout_s and not st.ops_estagio1:
         return "reforco_estagio1"
     if idade_s >= ops_timeout_s and not st.ops_estagio2:
         return "ops_estagio2"
+    if not st.email_enviado:
+        return "email_inicial"
     return "aguardando"
 
 
