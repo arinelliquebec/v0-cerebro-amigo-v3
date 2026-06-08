@@ -24,27 +24,36 @@ public static class PacienteAuthEndpoints
     {
         var g = app.MapGroup("/api/v1/auth/paciente").WithTags("paciente-auth");
 
-        // Solicitar magic link (médico chama; ou paciente "esqueci senha")
+        // Solicitar magic link — APENAS o médico dono do paciente (fluxo de convite).
         g.MapPost("/magic-link", async (
             [FromBody] SolicitarMagicLinkRequest req,
             AppDbContext db,
             IConfiguration config,
-            LoginRateLimiter rateLimiter) =>
+            LoginRateLimiter rateLimiter,
+            ClaimsPrincipal user) =>
         {
             if (string.IsNullOrWhiteSpace(req.Email))
                 return Results.BadRequest(new { error = "email obrigatório" });
+
+            // Tenant: resolve o médico do JWT (claim sub). Token de paciente ou
+            // não-médico não resolve -> Forbid. Impede gerar link cross-tenant.
+            var sub = user.FindFirst("sub")?.Value;
+            if (!Guid.TryParse(sub, out var usuarioId)) return Results.Forbid();
+            var medicoId = await db.Database.ExecuteScalarAsync<Guid?>(
+                "SELECT id FROM medicos WHERE usuario_id = {0}", usuarioId);
+            if (medicoId is null) return Results.Forbid();
 
             // Rate limiting: previne spam de magic links para o mesmo paciente
             var emailNorm = req.Email.Trim().ToLowerInvariant();
             if (rateLimiter.IsBlocked(emailNorm))
                 return Results.StatusCode(429);
 
-            // Busca paciente pelo email
+            // Busca paciente pelo email — ANCORADA no médico dono (não vaza cross-tenant).
             var paciente = await db.Database.SqlQueryRaw<MagicLinkPacienteDto>(@"
                 SELECT c.id, COALESCE(c.email, '') AS email, c.nome
                 FROM clientes c
                 JOIN pacientes p ON p.cliente_id = c.id
-                WHERE LOWER(c.email) = {0}", req.Email.Trim().ToLowerInvariant())
+                WHERE LOWER(c.email) = {0} AND p.medico_responsavel_id = {1}", emailNorm, medicoId.Value)
                 .FirstOrDefaultAsync();
 
             if (paciente is null)
