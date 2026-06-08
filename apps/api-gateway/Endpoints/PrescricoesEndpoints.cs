@@ -23,28 +23,39 @@ public static class PrescricoesEndpoints
             dt.HasValue ? DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc) : null;
 
         // ---- lista de prescrições do paciente ----
-        g.MapGet("/paciente/{pacienteId:guid}", async (Guid pacienteId, AppDbContext db) =>
+        g.MapGet("/paciente/{pacienteId:guid}", async (Guid pacienteId, AppDbContext db, ClaimsPrincipal user) =>
         {
+            var medicoId = await ResolveMedicoId(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            // Tenant: o paciente tem de ser do médico logado (JOIN pacientes).
             var rows = await db.Database.SqlQueryRaw<PrescricaoDto>(@"
-                SELECT id, paciente_id, medicamento, dose_descricao,
-                       horarios, inicio_em, fim_em,
-                       receita_tipo, receita_validade,
-                       observacoes, ativa, criada_em
-                FROM prescricoes WHERE paciente_id = {0}
-                ORDER BY ativa DESC, criada_em DESC", pacienteId).ToListAsync();
+                SELECT pr.id, pr.paciente_id, pr.medicamento, pr.dose_descricao,
+                       pr.horarios, pr.inicio_em, pr.fim_em,
+                       pr.receita_tipo, pr.receita_validade,
+                       pr.observacoes, pr.ativa, pr.criada_em
+                FROM prescricoes pr
+                JOIN pacientes p ON p.cliente_id = pr.paciente_id
+                WHERE pr.paciente_id = {0} AND p.medico_responsavel_id = {1}
+                ORDER BY pr.ativa DESC, pr.criada_em DESC", pacienteId, medicoId.Value).ToListAsync();
             return Results.Ok(rows);
         });
 
         // ---- histórico/timeline de eventos do paciente ----
-        g.MapGet("/paciente/{pacienteId:guid}/historico", async (Guid pacienteId, AppDbContext db) =>
+        g.MapGet("/paciente/{pacienteId:guid}/historico", async (Guid pacienteId, AppDbContext db, ClaimsPrincipal user) =>
         {
+            var medicoId = await ResolveMedicoId(db, user);
+            if (medicoId is null) return Results.Forbid();
+
             try
             {
+                // Tenant: timeline só do paciente do médico logado (JOIN pacientes).
                 var rows = await db.Database.SqlQueryRaw<EventoPrescricaoDto>(@"
-                    SELECT id, tipo, medicamento, medicamento_anterior, motivo, criado_em
-                    FROM prescricao_eventos
-                    WHERE paciente_id = {0}
-                    ORDER BY criado_em DESC", pacienteId).ToListAsync();
+                    SELECT e.id, e.tipo, e.medicamento, e.medicamento_anterior, e.motivo, e.criado_em
+                    FROM prescricao_eventos e
+                    JOIN pacientes p ON p.cliente_id = e.paciente_id
+                    WHERE e.paciente_id = {0} AND p.medico_responsavel_id = {1}
+                    ORDER BY e.criado_em DESC", pacienteId, medicoId.Value).ToListAsync();
                 return Results.Ok(rows);
             }
             catch
@@ -58,6 +69,12 @@ public static class PrescricoesEndpoints
         {
             var medicoId = await ResolveMedicoId(db, user);
             if (medicoId is null) return Results.Forbid();
+
+            // Tenant: só prescreve para paciente do médico logado.
+            var pacienteEhDoMedico = await db.Database.ExistsAsync(
+                "SELECT 1 FROM pacientes WHERE cliente_id = {0} AND medico_responsavel_id = {1}",
+                req.PacienteId, medicoId.Value);
+            if (!pacienteEhDoMedico) return Results.Forbid();
 
             var horariosArray = req.Horarios.Select(h => TimeOnly.Parse(h)).ToArray();
 
@@ -76,10 +93,16 @@ public static class PrescricoesEndpoints
 
             if (req.SubstituiPrescricaoId is Guid antigaId)
             {
-                var medAntiga = await db.Database.ExecuteScalarAsync<string?>(
-                    "SELECT medicamento FROM prescricoes WHERE id = {0}", antigaId);
-                await db.Database.ExecuteRawAsync(
-                    "UPDATE prescricoes SET ativa = FALSE, fim_em = CURRENT_DATE WHERE id = {0}", antigaId);
+                // Tenant: a prescrição trocada também tem de ser do médico logado.
+                var medAntiga = await db.Database.ExecuteScalarAsync<string?>(@"
+                    SELECT pr.medicamento FROM prescricoes pr
+                    JOIN pacientes p ON p.cliente_id = pr.paciente_id
+                    WHERE pr.id = {0} AND p.medico_responsavel_id = {1}", antigaId, medicoId.Value);
+                await db.Database.ExecuteRawAsync(@"
+                    UPDATE prescricoes pr SET ativa = FALSE, fim_em = CURRENT_DATE
+                    FROM pacientes p
+                    WHERE pr.id = {0} AND p.cliente_id = pr.paciente_id
+                      AND p.medico_responsavel_id = {1}", antigaId, medicoId.Value);
                 await GravarEvento(db, req.PacienteId, medicoId, prescricaoId,
                     "troca", req.Medicamento, medAntiga, req.Motivo);
             }
@@ -95,24 +118,30 @@ public static class PrescricoesEndpoints
         // ---- editar (ajuste) ----
         g.MapPut("/{id:guid}", async (Guid id, [FromBody] EditarPrescricaoRequest req, AppDbContext db, ClaimsPrincipal user) =>
         {
+            var medicoId = await ResolveMedicoId(db, user);
+            if (medicoId is null) return Results.Forbid();
+
             var horariosArray = req.Horarios.Select(h => TimeOnly.Parse(h)).ToArray();
 
+            // Tenant: o UPDATE só afeta prescrição de paciente do médico logado.
             var linhas = await db.Database.ExecuteRawAsync(@"
-                UPDATE prescricoes SET
+                UPDATE prescricoes pr SET
                   medicamento = {1}, dose_descricao = {2}, horarios = {3},
                   inicio_em = {4}, fim_em = {5}, receita_tipo = {6},
                   receita_validade = {7}, observacoes = {8}
-                WHERE id = {0} AND ativa = TRUE",
+                FROM pacientes p
+                WHERE pr.id = {0} AND pr.ativa = TRUE
+                  AND p.cliente_id = pr.paciente_id AND p.medico_responsavel_id = {9}",
                 id, req.Medicamento, req.DoseDescricao, horariosArray,
                 ToUtc(req.InicioEm) ?? DateTime.UtcNow.Date,
                 (object?)ToUtc(req.FimEm) ?? DBNull.Value,
                 (object?)req.ReceitaTipo ?? DBNull.Value,
                 (object?)ToUtc(req.ReceitaValidade) ?? DBNull.Value,
-                (object?)req.Observacoes ?? DBNull.Value);
+                (object?)req.Observacoes ?? DBNull.Value,
+                medicoId.Value);
 
             if (linhas == 0) return Results.NotFound();
 
-            var medicoId = await ResolveMedicoId(db, user);
             var pacienteId = await db.Database.ExecuteScalarAsync<Guid>(
                 "SELECT paciente_id FROM prescricoes WHERE id = {0}", id);
             await GravarEvento(db, pacienteId, medicoId, id, "ajuste", req.Medicamento, null, req.Motivo);
@@ -123,6 +152,9 @@ public static class PrescricoesEndpoints
         // ---- desativar (remoção) ----
         g.MapPatch("/{id:guid}/desativar", async (Guid id, HttpRequest http, AppDbContext db, ClaimsPrincipal user) =>
         {
+            var medicoId = await ResolveMedicoId(db, user);
+            if (medicoId is null) return Results.Forbid();
+
             string? motivo = null;
             if (http.ContentLength is > 0)
             {
@@ -134,16 +166,21 @@ public static class PrescricoesEndpoints
                 catch { /* sem corpo -> motivo null */ }
             }
 
-            var pacienteId = await db.Database.ExecuteScalarAsync<Guid?>(
-                "SELECT paciente_id FROM prescricoes WHERE id = {0}", id);
+            // Tenant: resolve a prescrição já ancorada no médico logado (JOIN pacientes).
+            var pacienteId = await db.Database.ExecuteScalarAsync<Guid?>(@"
+                SELECT pr.paciente_id FROM prescricoes pr
+                JOIN pacientes p ON p.cliente_id = pr.paciente_id
+                WHERE pr.id = {0} AND p.medico_responsavel_id = {1}", id, medicoId.Value);
             if (pacienteId is null) return Results.NotFound();
             var medicamento = await db.Database.ExecuteScalarAsync<string?>(
                 "SELECT medicamento FROM prescricoes WHERE id = {0}", id);
 
-            await db.Database.ExecuteRawAsync(
-                "UPDATE prescricoes SET ativa = FALSE, fim_em = CURRENT_DATE WHERE id = {0}", id);
+            await db.Database.ExecuteRawAsync(@"
+                UPDATE prescricoes pr SET ativa = FALSE, fim_em = CURRENT_DATE
+                FROM pacientes p
+                WHERE pr.id = {0} AND p.cliente_id = pr.paciente_id
+                  AND p.medico_responsavel_id = {1}", id, medicoId.Value);
 
-            var medicoId = await ResolveMedicoId(db, user);
             await GravarEvento(db, pacienteId.Value, medicoId, id,
                 "remocao", medicamento ?? "(medicamento)", null, motivo);
 
@@ -284,19 +321,35 @@ public static class NotificacoesEndpoints
             return Results.Ok(rows);
         });
 
-        g.MapPost("/{id:guid}/marcar-lida", async (Guid id, AppDbContext db) =>
+        g.MapPost("/{id:guid}/marcar-lida", async (Guid id, AppDbContext db, ClaimsPrincipal user) =>
         {
+            var medicoId = await ResolveMedicoIdNotif(db, user);
+            if (medicoId is null) return Results.Forbid();
+            // Tenant: só altera notificação do próprio médico.
             await db.Database.ExecuteRawAsync(
-                "UPDATE notificacoes_medico SET lida = TRUE, lida_em = NOW() WHERE id = {0}", id);
+                "UPDATE notificacoes_medico SET lida = TRUE, lida_em = NOW() WHERE id = {0} AND medico_id = {1}",
+                id, medicoId.Value);
             return Results.NoContent();
         });
 
-        g.MapPost("/{id:guid}/marcar-nao-lida", async (Guid id, AppDbContext db) =>
+        g.MapPost("/{id:guid}/marcar-nao-lida", async (Guid id, AppDbContext db, ClaimsPrincipal user) =>
         {
+            var medicoId = await ResolveMedicoIdNotif(db, user);
+            if (medicoId is null) return Results.Forbid();
+            // Tenant: só altera notificação do próprio médico.
             await db.Database.ExecuteRawAsync(
-                "UPDATE notificacoes_medico SET lida = FALSE, lida_em = NULL WHERE id = {0}", id);
+                "UPDATE notificacoes_medico SET lida = FALSE, lida_em = NULL WHERE id = {0} AND medico_id = {1}",
+                id, medicoId.Value);
             return Results.NoContent();
         });
+    }
+
+    static async Task<Guid?> ResolveMedicoIdNotif(AppDbContext db, ClaimsPrincipal user)
+    {
+        var sub = user.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(sub, out var userId)) return null;
+        return await db.Database.ExecuteScalarAsync<Guid?>(
+            "SELECT id FROM medicos WHERE usuario_id = {0}", userId);
     }
 }
 
