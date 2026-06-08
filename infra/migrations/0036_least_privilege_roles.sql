@@ -59,6 +59,12 @@ $$;
 -- ── Privilégios sobre o schema atual (tabelas/sequences/funcs já existentes) ──
 GRANT USAGE ON SCHEMA public TO cerebro_gateway, cerebro_workers;
 
+-- cerebro_workers precisa CREATE no schema: o orchestrator-py usa o checkpointer
+-- do LangGraph (AsyncPostgresSaver.setup()), que cria/mantém as tabelas de
+-- checkpoint em runtime. O gateway NÃO cria tabelas (migrations são aplicadas por
+-- cerebroadmin) → fica SEM CREATE (least-privilege).
+GRANT CREATE ON SCHEMA public TO cerebro_workers;
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public
     TO cerebro_gateway, cerebro_workers;
 
