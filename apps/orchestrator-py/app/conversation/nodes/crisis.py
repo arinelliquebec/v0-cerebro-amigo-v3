@@ -1,20 +1,26 @@
 """Nós de detecção e protocolo de crise.
 
 `detect_crisis`: Haiku, fail-safe (exceção → trata como crise).
-`crisis_protocol`: SEM LLM. Texto fixo, grava trilha e notifica médico.
+`crisis_protocol`: SEM LLM. Texto fixo, grava trilha e aciona o alerta ao médico.
 
-Ordem em `crisis_protocol`:
-  1. INSERT protocolos_crise_acionados (referencia mensagens.id)
-  2. INSERT notificacoes_medico (severidade='critica')
-  3. UPDATE conversas.status = 'humano'
-  4. UPDATE pacientes.automacao_pausada = TRUE (defesa em camadas)
-  5. INSERT mensagens (papel='assistant', conteudo=texto_protocolo)
-  6. Envio WhatsApp (somente se não shadow_mode)
+Ordem em `crisis_protocol` (tudo numa transação):
+  1. INSERT protocolos_crise_acionados (RETURNING id) — fonte da verdade da crise
+  2. INSERT notificacoes_medico (severidade='critica') — canal in-app
+  3. INSERT crise_alerta_eventos (canal='in_app') — abre a trilha de entrega (ADR-041)
+  4. UPDATE conversas.status = 'humano'
+  5. UPDATE pacientes.automacao_pausada = TRUE (defesa em camadas)
+  6. INSERT mensagens (papel='assistant', conteudo=texto_protocolo, cifrado)
+
+Após o commit: trigger best-effort ao notifier (`/internal/crise/despachar`)
+para o e-mail sair em segundos. O watchdog do notifier é a rede durável se o
+trigger falhar. Entrega, escalonamento e ack vivem em `crise_alerta_eventos`.
 """
 
 from __future__ import annotations
 
+import asyncio
 import json
+from uuid import UUID
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -29,6 +35,47 @@ from app.core.crypto import encrypt
 from app.db import acquire
 
 logger = structlog.get_logger(__name__)
+
+# Referências fortes às tasks de trigger (evita GC enquanto rodam).
+_background_tasks: set[asyncio.Task] = set()
+
+
+def _schedule_notifier_trigger(protocolo_id: UUID) -> None:
+    """Dispara o alerta ao notifier SEM bloquear a resposta ao paciente.
+
+    Best-effort: sem event loop ou em falha de rede, o watchdog do notifier
+    (varre `protocolos_crise_acionados` abertos) é a rede durável."""
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:  # pragma: no cover
+        logger.warning("crise.trigger.no_loop", protocolo_id=str(protocolo_id))
+        return
+    task = loop.create_task(_notificar_notifier(protocolo_id))
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
+
+async def _notificar_notifier(protocolo_id: UUID) -> None:
+    settings = get_settings()
+    try:
+        import httpx
+    except ImportError:  # pragma: no cover
+        logger.warning("crise.trigger.no_httpx", protocolo_id=str(protocolo_id))
+        return
+    url = settings.notifier_url.rstrip("/") + "/internal/crise/despachar"
+    token = settings.internal_api_token.get_secret_value()
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            await client.post(
+                url,
+                headers={"Authorization": f"Bearer {token}"},
+                json={"protocolo_id": str(protocolo_id)},
+            )
+        logger.info("crise.trigger.ok", protocolo_id=str(protocolo_id))
+    except Exception as exc:
+        logger.warning(
+            "crise.trigger.failed", protocolo_id=str(protocolo_id), error=str(exc)
+        )
 
 
 async def detect_crisis(state: ConversaState) -> dict:
@@ -98,16 +145,20 @@ async def crisis_protocol(state: ConversaState) -> dict:
     }
 
     async with acquire() as conn, conn.transaction():
-        # 1. Trilha de auditoria
-        await conn.execute(
+        # 1. Trilha de auditoria (fonte da verdade da crise). `medico_notificado`
+        #    aqui = "processo de alerta iniciado"; a entrega/ack REAIS vivem em
+        #    crise_alerta_eventos (ADR-041), já que esta linha é imutável.
+        protocolo_id = await conn.fetchval(
             """
             INSERT INTO protocolos_crise_acionados
-                (paciente_id, mensagem_id, gatilho, palavras_detectadas,
+                (paciente_id, medico_id, mensagem_id, gatilho, palavras_detectadas,
                  confianca, resposta_enviada, medico_notificado,
                  medico_notificado_em)
-            VALUES ($1, $2, $3, $4, $5, $6, TRUE, NOW())
+            VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE, NOW())
+            RETURNING id
             """,
             paciente_id,
+            medico_id,
             mensagem_db_id,
             _gatilho_principal(crise["gatilhos"], crise["nivel"]),
             crise["gatilhos"],
@@ -115,7 +166,7 @@ async def crisis_protocol(state: ConversaState) -> dict:
             texto,
         )
 
-        # 2. Notifica médico
+        # 2. Notifica médico (canal in-app — aparece no dashboard)
         await conn.execute(
             """
             INSERT INTO notificacoes_medico
@@ -136,19 +187,31 @@ async def crisis_protocol(state: ConversaState) -> dict:
             json.dumps(metadata, ensure_ascii=False),
         )
 
-        # 3. Escala conversa para humano
+        # 3. Abre a trilha de entrega do alerta (ADR-041). O canal in-app já
+        #    está entregue (a notificação acima aparece no dashboard).
+        await conn.execute(
+            """
+            INSERT INTO crise_alerta_eventos
+                (protocolo_id, medico_id, canal, evento, estagio, detalhe)
+            VALUES ($1, $2, 'in_app', 'enviado', 0, 'notificacao_dashboard')
+            """,
+            protocolo_id,
+            medico_id,
+        )
+
+        # 4. Escala conversa para humano
         await conn.execute(
             "UPDATE conversas SET status = 'humano' WHERE id = $1",
             conversa_id,
         )
 
-        # 4. Pausa automação do paciente (toggle global)
+        # 5. Pausa automação do paciente (toggle global)
         await conn.execute(
             "UPDATE pacientes SET automacao_pausada = TRUE WHERE cliente_id = $1",
             paciente_id,
         )
 
-        # 5. Mensagem do bot persistida — texto fixo de protocolo (cifrado)
+        # 6. Mensagem do bot persistida — texto fixo de protocolo (cifrado)
         key = get_settings().encryption_key
         key_str = key.get_secret_value() if key else None
         await conn.execute(
@@ -160,6 +223,9 @@ async def crisis_protocol(state: ConversaState) -> dict:
             encrypt(texto, key_str),
             f"crisis_copy:{CRISIS_COPY.versao}",
         )
+
+    # Trigger imediato ao notifier (best-effort; watchdog é a rede durável).
+    _schedule_notifier_trigger(protocolo_id)
 
     # O texto vai pro paciente via SSE/PWA — não há envio HTTP aqui.
     logger.warning(

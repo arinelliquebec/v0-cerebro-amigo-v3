@@ -28,7 +28,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        service: [orchestrator-py, agents-py]
+        service: [orchestrator-py, agents-py, notifier-py]
     steps:
       - name: Checkout
         uses: actions/checkout@v6

@@ -85,7 +85,7 @@ async def send_push(sub: Subscription, *, titulo: str, corpo: str, url: str = "/
         log.warning("push.transient_error", code=code, error=str(exc))
         return PushResult(status="transient_error", detail=f"HTTP {code}: {exc}")
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.exception("push.unexpected_error", error=str(exc))
         return PushResult(status="transient_error", detail=f"unexpected: {exc}")
 
@@ -97,5 +97,5 @@ def _redact_endpoint(endpoint: str) -> str:
         from urllib.parse import urlparse
 
         return urlparse(endpoint).hostname or "<unknown>"
-    except Exception:  # noqa: BLE001
+    except Exception:
         return "<unparseable>"

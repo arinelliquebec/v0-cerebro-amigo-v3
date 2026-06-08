@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { ShieldAlert, Loader2 } from "lucide-react"
+import { ShieldAlert, Loader2, Check } from "lucide-react"
 import { tempoRelativo } from "@/lib/tempo"
 
 interface CriseDetalhe {
@@ -41,12 +41,17 @@ export function BannerCrise({
   const [observacao, setObservacao] = useState("")
   const [busy, setBusy] = useState(false)
   const [erroRetomada, setErroRetomada] = useState<string | null>(null)
+  const [cienteOk, setCienteOk] = useState(false)
+  const [acking, setAcking] = useState(false)
+  const [erroCiente, setErroCiente] = useState<string | null>(null)
 
   useEffect(() => {
     let vivo = true
     setCrise(null)
     setConfirmando(false)
     setObservacao("")
+    setCienteOk(false)
+    setErroCiente(null)
     fetch(`/api/crise/${pacienteId}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (vivo) setCrise(d) })
@@ -83,6 +88,27 @@ export function BannerCrise({
     }
   }
 
+  async function confirmarCiencia() {
+    setAcking(true)
+    setErroCiente(null)
+    try {
+      const r = await fetch(`/api/crise/${pacienteId}/ciente`, { method: "POST" })
+      if (r.ok) {
+        setCienteOk(true)
+      } else {
+        setErroCiente(
+          "Não foi possível confirmar ciência agora. Tente novamente; o alerta segue ativo.",
+        )
+      }
+    } catch {
+      setErroCiente(
+        "Não foi possível confirmar ciência agora. Tente novamente; o alerta segue ativo.",
+      )
+    } finally {
+      setAcking(false)
+    }
+  }
+
   return (
     <div className="rounded-2xl border border-coral/30 bg-coral/7 p-5">
       <div className="flex items-start gap-3">
@@ -110,15 +136,39 @@ export function BannerCrise({
             </blockquote>
           )}
 
-          {!confirmando ? (
-            <Button
-              onClick={() => setConfirmando(true)}
-              className="mt-4 h-9 bg-coral text-white hover:bg-coral/90"
-            >
-              Retomar automação
-            </Button>
-          ) : (
-            <div className="mt-4 space-y-2">
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            {cienteOk ? (
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-600">
+                <Check className="h-3.5 w-3.5" /> Ciência confirmada — alerta encerrado
+              </span>
+            ) : (
+              <Button
+                variant="outline"
+                onClick={confirmarCiencia}
+                disabled={acking}
+                className="h-9"
+              >
+                {acking ? <Loader2 className="h-4 w-4 animate-spin" /> : "Estou ciente"}
+              </Button>
+            )}
+            {!confirmando && (
+              <Button
+                onClick={() => setConfirmando(true)}
+                className="h-9 bg-coral text-white hover:bg-coral/90"
+              >
+                Retomar automação
+              </Button>
+            )}
+          </div>
+
+          {erroCiente && (
+            <p role="alert" className="mt-2 text-xs text-coral">
+              {erroCiente}
+            </p>
+          )}
+
+          {confirmando && (
+            <div className="mt-3 space-y-2">
               <textarea
                 value={observacao}
                 onChange={(e) => setObservacao(e.target.value)}

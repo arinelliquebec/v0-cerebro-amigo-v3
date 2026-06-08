@@ -3,20 +3,20 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 from uuid import UUID
 
 import structlog
 from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 
+from app.consulta_lembretes import despachar_lembretes_consultas
 from app.core.config import get_settings
 from app.core.db import acquire, close_pool, init_pool
 from app.core.observability import redact_pii_processor
-from app.consulta_lembretes import despachar_lembretes_consultas
 from app.dispatcher import dispatch_for_patient, dispatch_pending, test_push_to_sub
-from app.medico_notify import despachar_crise_medico
+from app.medico_notify import despachar_crise_medico, despachar_crise_protocolo
 from app.scheduler import shutdown_scheduler, start_scheduler
 
 
@@ -116,8 +116,22 @@ class TestPushRequest(BaseModel):
 
 @app.post("/internal/medico/notificar-crise", dependencies=[Depends(_check_token)])
 async def notificar_crise_medico() -> dict:
-    """Envia e-mail de crise aos médicos opt-in (sem detalhe clínico)."""
+    """Watchdog manual: varre crises abertas e avança a escada de cada uma."""
     return await despachar_crise_medico()
+
+
+class DespacharCriseRequest(BaseModel):
+    protocolo_id: UUID
+
+
+@app.post("/internal/crise/despachar", dependencies=[Depends(_check_token)])
+async def despachar_crise(req: DespacharCriseRequest) -> dict:
+    """Caminho imediato: despacha o alerta de UM protocolo de crise agora.
+
+    Chamado pelo orchestrator logo após gravar o protocolo, para o médico ser
+    avisado em segundos (não no próximo tick do watchdog). O watchdog continua
+    como rede durável caso esta chamada falhe (notifier fora no T0)."""
+    return await despachar_crise_protocolo(req.protocolo_id)
 
 
 @app.post("/internal/consultas/lembretes", dependencies=[Depends(_check_token)])

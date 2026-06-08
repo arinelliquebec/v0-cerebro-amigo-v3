@@ -48,7 +48,7 @@ class LembreteStats:
 def _formatar_quando(inicia_em: datetime, tz_name: str | None) -> str:
     try:
         tz = ZoneInfo(tz_name or "America/Sao_Paulo")
-    except Exception:  # noqa: BLE001
+    except Exception:
         tz = ZoneInfo("America/Sao_Paulo")
     return inicia_em.astimezone(tz).strftime("%d/%m às %H:%M")
 

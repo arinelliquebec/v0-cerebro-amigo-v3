@@ -6,8 +6,8 @@ import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
-from app.core.config import get_settings
 from app.consulta_lembretes import despachar_lembretes_consultas
+from app.core.config import get_settings
 from app.dispatcher import dispatch_pending
 from app.medico_notify import despachar_crise_medico
 
@@ -19,21 +19,21 @@ _scheduler: AsyncIOScheduler | None = None
 async def _tick() -> None:
     try:
         await dispatch_pending()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception("scheduler.tick.failed", error=str(exc))
 
 
 async def _tick_medico_crise() -> None:
     try:
         await despachar_crise_medico()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception("scheduler.medico_crise.failed", error=str(exc))
 
 
 async def _tick_consulta_lembretes() -> None:
     try:
         await despachar_lembretes_consultas()
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception("scheduler.consulta_lembretes.failed", error=str(exc))
 
 
