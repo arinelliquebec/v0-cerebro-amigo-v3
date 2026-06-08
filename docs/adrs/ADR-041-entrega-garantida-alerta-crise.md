@@ -1,9 +1,9 @@
 # ADR-041: Entrega garantida e escalonamento do alerta de crise ao médico
 
-**Status:** Proposed — mecânica implementada (Fase 1); **timings e remoção do
-gate de opt-in pendentes de validação clínica** (psiquiatra responsável).
+**Status:** Accepted — Fase 1 implementada; parâmetros clínicos (timings e
+remoção do gate de opt-in) com **sign-off registrado em 2026-06-08** (ver "Timings").
 **Data:** 2026-06-08
-**Decisores:** Equipe de engenharia + (PENDENTE) psiquiatra responsável clínico
+**Decisores:** Equipe de engenharia + Rafael Arinelli (responsável pelo projeto)
 **Categoria:** Segurança clínica
 
 ## Contexto
@@ -84,14 +84,18 @@ só diz que um paciente precisa de atenção prioritária + link do painel; `det
 carrega apenas código de canal (ex.: `http_502`, `sem_email`). Crise ignora
 quiet-hours e opt-in de marketing.
 
-## Timings (PENDENTE validação clínica)
+## Timings — sign-off clínico (2026-06-08)
 
-`crise_ack_timeout_segundos=600` e `crise_ops_timeout_segundos=1800` são
-**defaults de engenharia**, configuráveis por env. A escada, a ordem dos canais
-e esses valores **carecem de sign-off do psiquiatra responsável** antes de
-`Accepted` (regra #2: o protocolo de crise é pré-aprovado; alterá-lo exige
-revisão clínica documentada). A remoção do gate de opt-in também entra no
-sign-off — embora seja correção direta da regra #3.
+`crise_ack_timeout_segundos=600` (10 min → reforço + OPS estágio 1) e
+`crise_ops_timeout_segundos=1800` (30 min → OPS estágio 2), configuráveis por env.
+
+**Sign-off (regra #2):** estes timings, a escada (e-mail → reforço+OPS → OPS
+crítico; SMS/WhatsApp/retaguarda ficam para F2/F3) e a **remoção do gate de
+opt-in** (crise passa a alertar sempre, independente de `notif_prefs.crise_email`)
+foram **APROVADOS por Rafael Arinelli (responsável pelo projeto) em 2026-06-08**.
+Se o responsável clínico formal for outra pessoa (ex.: psiquiatra do projeto),
+nomeá-la aqui ao revisar. Mudança futura desses parâmetros exige novo sign-off
+documentado.
 
 ## Fases
 
