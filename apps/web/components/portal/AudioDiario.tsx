@@ -153,14 +153,19 @@ export function AudioDiario({ onTranscricao, onCancelar, className }: AudioDiari
         body: form,
       })
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error((err as { erro?: string }).erro ?? `HTTP ${res.status}`)
+        // Não propagamos o corpo cru do backend (pode trazer texto técnico/
+        // upstream); só o status, que vira telemetria — nunca tela do paciente.
+        throw new Error(`HTTP ${res.status}`)
       }
       const data: TranscricaoResult = await res.json()
       onTranscricao(data)
     } catch (e) {
+      // Telemetria: registra o erro técnico real para ops (sem o conteúdo
+      // transcrito do áudio, que é clínico/PII). Nunca exibir isto na tela.
+      console.error("[AudioDiario] falha ao transcrever áudio:", e)
+      // Mensagem fixa, acolhedora e segura — nunca o erro cru do backend.
       setMensagemErro(
-        e instanceof Error ? e.message : "Não foi possível transcrever o áudio."
+        "Não consegui transcrever seu áudio agora. Tente gravar de novo em instantes — se preferir, você pode escrever sua entrada no diário pelo teclado.",
       )
       setFase("erro")
     }

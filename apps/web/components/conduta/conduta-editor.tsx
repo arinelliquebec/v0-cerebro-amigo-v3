@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Pill, ClipboardList, Smile, BellRing, Loader2, Check } from "lucide-react"
+import { Pill, ClipboardList, Smile, BellRing, Loader2, Check, AlertCircle } from "lucide-react"
 
 interface Conduta {
   id: string
@@ -62,6 +62,7 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState<string | null>(null)
   const [saved, setSaved] = useState<string | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
 
   const [medAtivo, setMedAtivo] = useState(true)
   const [medExpira, setMedExpira] = useState(4)
@@ -107,6 +108,7 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
   async function salvar(tipo: string, config: Record<string, unknown>) {
     setSaving(tipo)
     setSaved(null)
+    setErro(null)
     try {
       const r = await fetch(`/api/pacientes/${pacienteId}/condutas`, {
         method: "POST",
@@ -116,7 +118,11 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
       if (r.ok) {
         setSaved(tipo)
         setTimeout(() => setSaved(null), 2500)
+      } else {
+        setErro(tipo)
       }
+    } catch {
+      setErro(tipo)
     } finally {
       setSaving(null)
     }
@@ -164,6 +170,7 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
             tipo="lembrete_medicacao"
             saving={saving}
             saved={saved}
+            erro={erro}
             onSave={() =>
               salvar("lembrete_medicacao", { ativo: medAtivo, expira_horas: medExpira })
             }
@@ -200,6 +207,7 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
             tipo="questionario"
             saving={saving}
             saved={saved}
+            erro={erro}
             onSave={() =>
               salvar("questionario", {
                 ativo: qAtivo,
@@ -253,6 +261,7 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
             tipo="checkin_humor"
             saving={saving}
             saved={saved}
+            erro={erro}
             onSave={() =>
               salvar("checkin_humor", { ativo: chAtivo, dias: freqToDias(chFreq), hora_utc: chHora })
             }
@@ -296,6 +305,7 @@ export function CondutaEditor({ pacienteId }: { pacienteId: string }) {
             tipo="alerta_nao_adesao"
             saving={saving}
             saved={saved}
+            erro={erro}
             onSave={() =>
               salvar("alerta_nao_adesao", { ativo: alAtivo, limiar: alLimiar, janela_dias: alJanela })
             }
@@ -310,11 +320,13 @@ function SaveRow({
   tipo,
   saving,
   saved,
+  erro,
   onSave,
 }: {
   tipo: string
   saving: string | null
   saved: string | null
+  erro?: string | null
   onSave: () => void
 }) {
   return (
@@ -325,6 +337,12 @@ function SaveRow({
       {saved === tipo && (
         <span className="flex items-center gap-1 text-xs text-success">
           <Check className="h-3.5 w-3.5" /> Salvo
+        </span>
+      )}
+      {erro === tipo && saving !== tipo && (
+        <span className="flex items-center gap-1 text-xs text-destructive">
+          <AlertCircle className="h-3.5 w-3.5" /> Não foi possível salvar esta regra de
+          acompanhamento. Verifique sua conexão e tente novamente.
         </span>
       )}
     </div>

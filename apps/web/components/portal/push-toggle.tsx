@@ -5,7 +5,7 @@ import { Bell, BellOff, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ativarPush, desativarPush, pushSuportado, statusPush } from "@/lib/push"
 
-type Estado = "carregando" | "ativo" | "inativo" | "negado" | "indisponivel"
+type Estado = "carregando" | "ativo" | "inativo" | "negado" | "indisponivel" | "erro"
 
 export function PushToggle() {
   const [estado, setEstado] = useState<Estado>("carregando")
@@ -29,7 +29,7 @@ export function PushToggle() {
         setEstado("inativo")
       } else {
         const r = await ativarPush()
-        setEstado(r === "ativo" ? "ativo" : r === "negado" ? "negado" : "inativo")
+        setEstado(r === "ativo" ? "ativo" : r === "negado" ? "negado" : "erro")
       }
     } finally {
       setOcupado(false)
@@ -51,7 +51,9 @@ export function PushToggle() {
               ? "Você recebe lembretes de medicação e check-ins."
               : estado === "negado"
                 ? "Bloqueado nas configurações do navegador."
-                : "Ative para não esquecer suas medicações."}
+                : estado === "erro"
+                  ? "Não consegui ativar os lembretes agora. Tente de novo daqui a pouco — eles ajudam a não esquecer suas medicações."
+                  : "Ative para não esquecer suas medicações."}
           </p>
         </div>
       </div>

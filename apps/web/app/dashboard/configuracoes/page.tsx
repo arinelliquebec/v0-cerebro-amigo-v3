@@ -70,6 +70,7 @@ const DURACOES = ["15", "30", "45", "60"] as const
 export default function ConfiguracoesPage() {
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
+  const [erroSalvar, setErroSalvar] = useState<string | null>(null)
 
   const {
     register,
@@ -138,6 +139,7 @@ export default function ConfiguracoesPage() {
 
   async function salvar(data: ConfiguracaoFormData) {
     setSaved(false)
+    setErroSalvar(null)
     const almoco = data.almocoInicio && data.almocoFim ? [data.almocoInicio, data.almocoFim] : undefined
     try {
       const r = await fetch("/api/configuracoes", {
@@ -160,8 +162,14 @@ export default function ConfiguracoesPage() {
       if (r.ok) {
         setSaved(true)
         setTimeout(() => setSaved(false), 2500)
+      } else {
+        console.error("Falha ao salvar configurações: status", r.status)
+        setErroSalvar("Não foi possível salvar suas configurações. Verifique sua conexão e tente novamente.")
       }
-    } catch {}
+    } catch (e) {
+      console.error("Erro ao salvar configurações", e)
+      setErroSalvar("Não foi possível salvar suas configurações. Verifique sua conexão e tente novamente.")
+    }
   }
 
   return (
@@ -307,6 +315,11 @@ export default function ConfiguracoesPage() {
               {saved && (
                 <span className="flex items-center gap-1 text-sm text-success">
                   <Check className="h-4 w-4" /> Salvo
+                </span>
+              )}
+              {erroSalvar && (
+                <span className="text-sm text-destructive" role="alert">
+                  {erroSalvar}
                 </span>
               )}
             </div>

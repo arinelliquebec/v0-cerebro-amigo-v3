@@ -173,12 +173,56 @@ async def transcrever_diario(req: TranscreverAudioRequest) -> dict:
     O áudio é deletado do S3 logo após a transcrição (LGPD).
     """
     import base64
+    import binascii
 
-    audio_bytes = base64.b64decode(req.audio_base64)
+    log = structlog.get_logger(__name__)
+
+    try:
+        audio_bytes = base64.b64decode(req.audio_base64)
+    except (binascii.Error, ValueError) as exc:
+        # Falha de validação de entrada (ex.: gravação truncada no celular).
+        # Logamos só internamente — sem áudio/PII — e devolvemos 400 acolhedor.
+        log.warning(
+            "diario.transcrever.audio_base64_invalido",
+            paciente_id=str(req.paciente_id),
+            erro=type(exc).__name__,
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Houve um problema ao receber o áudio. Tente gravar novamente, "
+                "por favor. Se preferir, você também pode escrever no diário."
+            ),
+        ) from exc
+
     if len(audio_bytes) > 10 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="áudio maior que 10 MB")
 
-    result = await transcrever_audio(audio_bytes, req.content_type, req.paciente_id)
+    try:
+        result = await transcrever_audio(audio_bytes, req.content_type, req.paciente_id)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        # Falha de infraestrutura (Transcribe/S3/timeout). A triagem de crise
+        # acontece DENTRO de transcrever_audio e retorna normalmente (não por
+        # exceção), então protocolos_crise_acionados e o acolhimento fixo não
+        # são afetados aqui. Logamos o erro real para ops (sem PII e sem o
+        # FailureReason do Transcribe no detail) e devolvemos copy amigável.
+        log.error(
+            "diario.transcrever.falha_infra",
+            paciente_id=str(req.paciente_id),
+            erro=type(exc).__name__,
+            exc_info=exc,
+        )
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Não consegui transcrever seu áudio agora. Isso não foi culpa sua. "
+                "Você pode tentar de novo em alguns instantes ou registrar como está "
+                "se sentindo por texto. Seu médico continua acompanhando você."
+            ),
+        ) from exc
+
     return {
         "transcricao": result.transcricao,
         "humor_estimado": result.humor_estimado,

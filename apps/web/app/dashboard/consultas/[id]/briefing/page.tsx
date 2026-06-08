@@ -94,9 +94,11 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState(false)
   const [gerando, setGerando] = useState(false)
+  const [erroResumo, setErroResumo] = useState<string | null>(null)
   const [notas, setNotas] = useState("")
   const [salvandoDesfecho, setSalvandoDesfecho] = useState(false)
   const [desfechoSalvo, setDesfechoSalvo] = useState(false)
+  const [erroDesfecho, setErroDesfecho] = useState<string | null>(null)
   const [linkCopiado, setLinkCopiado] = useState(false)
 
   useEffect(() => {
@@ -131,10 +133,17 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
   async function gerarResumo() {
     if (!consulta) return
     setGerando(true)
+    setErroResumo(null)
     try {
       const r = await fetch(`/api/pacientes/${consulta.pacienteId}/resumo-pre-consulta`, { method: "POST" })
+      if (!r.ok) {
+        setErroResumo("Não foi possível gerar a síntese pré-consulta agora. Tente novamente em instantes.")
+        return
+      }
       const data = await r.json().catch(() => null)
       setResumo(data?.resumo ?? data?.ultimo ?? null)
+    } catch {
+      setErroResumo("Não foi possível gerar a síntese pré-consulta agora. Tente novamente em instantes.")
     } finally {
       setGerando(false)
     }
@@ -143,6 +152,7 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
   async function salvarDesfecho() {
     setSalvandoDesfecho(true)
     setDesfechoSalvo(false)
+    setErroDesfecho(null)
     try {
       const r = await fetch(`/api/consultas/${id}/desfecho`, {
         method: "POST",
@@ -153,7 +163,11 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
         setDesfechoSalvo(true)
         setConsulta((c) => (c ? { ...c, status: "realizada" } : c))
         setTimeout(() => setDesfechoSalvo(false), 2500)
+      } else {
+        setErroDesfecho("Não foi possível registrar o desfecho da consulta. Tente novamente.")
       }
+    } catch {
+      setErroDesfecho("Não foi possível registrar o desfecho da consulta. Tente novamente.")
     } finally {
       setSalvandoDesfecho(false)
     }
@@ -331,6 +345,8 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
                 Gerado em {new Date(resumo.criadoEm).toLocaleString("pt-BR")} · revisão do médico obrigatória
               </p>
             </>
+          ) : erroResumo && !gerando ? (
+            <p className="text-sm text-destructive">{erroResumo}</p>
           ) : (
             <p className="text-sm text-muted-foreground">
               {gerando ? "Gerando resumo do período…" : "Nenhum resumo gerado ainda. Clique em Gerar."}
@@ -357,6 +373,7 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
                 <Check className="h-3.5 w-3.5" /> Registrado
               </span>
             )}
+            {erroDesfecho && <span className="text-xs text-destructive">{erroDesfecho}</span>}
             <span className="text-xs text-muted-foreground">
               Marca a consulta como realizada. As condutas vão na aba Conduta do prontuário.
             </span>

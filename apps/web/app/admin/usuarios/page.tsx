@@ -191,7 +191,13 @@ function RoleDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
         body: JSON.stringify({ role: data.role }),
       })
       const d = await r.json().catch(() => ({}))
-      if (!r.ok) return setErro(d?.error ?? "Erro ao atualizar.")
+      if (!r.ok) {
+        const map: Record<string, string> = {
+          nao_pode_desativar_owner: "Não é possível rebaixar o último owner.",
+          nao_pode_alterar_propria_role: "Você não pode alterar a própria role.",
+        }
+        return setErro(map[d?.error] ?? "Não foi possível atualizar a role deste usuário. Tente novamente.")
+      }
       const anterior = u.role
       onSalvo(); setOpen(false)
       if (data.role !== anterior) {
@@ -321,7 +327,7 @@ function ExcluirDialog({ u, onExcluido }: { u: Usuario; onExcluido: () => void }
           nao_pode_desativar_propria_conta: "Você não pode desativar a própria conta.",
           nao_pode_desativar_owner: "Não é possível desativar um owner.",
         }
-        return setErro(map[d?.error] ?? d?.error ?? "Erro ao desativar.")
+        return setErro(map[d?.error] ?? "Não foi possível desativar este usuário. Tente novamente.")
       }
       onExcluido()
       setOpen(false)
@@ -431,7 +437,10 @@ function ReativarDialog({ u, onReativado }: { u: Usuario; onReativado: () => voi
       const r = await fetch(`/api/admin/usuarios/${u.id}`, { method: "POST" })
       if (!r.ok) {
         const d = await r.json().catch(() => ({}))
-        return setErro(d?.error ?? "Erro ao reativar.")
+        const map: Record<string, string> = {
+          limite_usuarios_atingido: "Limite de usuários ativos atingido para este plano.",
+        }
+        return setErro(map[d?.error] ?? "Não foi possível reativar este usuário. Tente novamente.")
       }
       onReativado()
       setOpen(false)

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ShieldAlert, ShieldCheck, Loader2, Search } from "lucide-react"
+import { ShieldAlert, ShieldCheck, ShieldQuestion, Loader2, Search } from "lucide-react"
 
 interface Alerta {
   tipo: string // "interacao" | "duplicidade"
@@ -32,11 +32,15 @@ interface Resposta {
 export function VerificadorInteracoes({ pacienteId }: { pacienteId: string }) {
   const [resp, setResp] = useState<Resposta | null>(null)
   const [loading, setLoading] = useState(true)
+  // Erro distingue "a checagem FALHOU" de "rodou e não achou nada". Nunca
+  // colapsar os dois: uma 2ª barreira que falhou não pode parecer "sem interações".
+  const [erro, setErro] = useState(false)
   const [candidato, setCandidato] = useState("")
 
   const checar = useCallback(
     async (medicamentos?: string[]) => {
       setLoading(true)
+      setErro(false)
       try {
         const r = await fetch("/api/prescricoes/checar-interacoes", {
           method: "POST",
@@ -44,9 +48,15 @@ export function VerificadorInteracoes({ pacienteId }: { pacienteId: string }) {
           body: JSON.stringify({ pacienteId, medicamentos: medicamentos ?? [] }),
         })
         const d = await r.json().catch(() => null)
-        setResp(r.ok && d ? d : null)
+        if (r.ok && d) {
+          setResp(d)
+        } else {
+          setResp(null)
+          setErro(true)
+        }
       } catch {
         setResp(null)
+        setErro(true)
       } finally {
         setLoading(false)
       }
@@ -64,7 +74,9 @@ export function VerificadorInteracoes({ pacienteId }: { pacienteId: string }) {
   return (
     <div className="rounded-xl border border-border/70 bg-card/50 p-4">
       <div className="mb-3 flex items-center gap-2">
-        {alertas.length > 0 ? (
+        {erro ? (
+          <ShieldQuestion className="h-4 w-4 text-warning" />
+        ) : alertas.length > 0 ? (
           <ShieldAlert className={`h-4 w-4 ${temGrave ? "text-coral" : "text-warning"}`} />
         ) : (
           <ShieldCheck className="h-4 w-4 text-primary" />
@@ -97,6 +109,24 @@ export function VerificadorInteracoes({ pacienteId }: { pacienteId: string }) {
       {loading ? (
         <div className="flex justify-center py-4 text-muted-foreground">
           <Loader2 className="h-5 w-5 animate-spin" />
+        </div>
+      ) : erro ? (
+        <div
+          role="alert"
+          className="rounded-lg border-l-2 border-warning bg-warning/5 p-2.5 text-sm"
+        >
+          <p className="font-medium text-foreground">Não foi possível verificar interações agora.</p>
+          <p className="mt-0.5 text-muted-foreground">
+            A 2ª barreira não foi concluída — <span className="font-medium text-foreground">não trate esta tela como &quot;sem interações&quot;</span>. Verifique novamente antes de prescrever.
+          </p>
+          <Button
+            type="button"
+            variant="secondary"
+            className="mt-2 h-8 gap-1.5"
+            onClick={() => void checar(candidato.trim() ? [candidato.trim()] : undefined)}
+          >
+            <Search className="h-3.5 w-3.5" /> Tentar novamente
+          </Button>
         </div>
       ) : alertas.length === 0 ? (
         <p className="py-2 text-sm text-muted-foreground">

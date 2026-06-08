@@ -98,32 +98,50 @@ export default function ProntuariosPage() {
   const [loadingList, setLoadingList] = useState(true)
   const [loadingTimeline, setLoadingTimeline] = useState(false)
   const [loadingPrescricoes, setLoadingPrescricoes] = useState(false)
+  const [erroLista, setErroLista] = useState(false)
+  const [erroTimeline, setErroTimeline] = useState(false)
+  const [erroPrescricoes, setErroPrescricoes] = useState(false)
 
   useEffect(() => {
+    setErroLista(false)
     fetch("/api/pacientes")
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("falha ao carregar pacientes")
+        return r.json()
+      })
       .then((data: Paciente[]) => {
         setPacientes(data)
         if (data.length > 0) setSelected(data[0])
       })
+      .catch(() => setErroLista(true))
       .finally(() => setLoadingList(false))
   }, [])
 
   const fetchTimeline = useCallback((id: string) => {
     setLoadingTimeline(true)
+    setErroTimeline(false)
     setTimeline([])
     fetch(`/api/pacientes/${id}/timeline?dias=60`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("falha ao carregar timeline")
+        return r.json()
+      })
       .then(setTimeline)
+      .catch(() => setErroTimeline(true))
       .finally(() => setLoadingTimeline(false))
   }, [])
 
   const fetchPrescricoes = useCallback((id: string) => {
     setLoadingPrescricoes(true)
+    setErroPrescricoes(false)
     setPrescricoes([])
     fetch(`/api/pacientes/${id}/prescricoes`)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error("falha ao carregar prescrições")
+        return r.json()
+      })
       .then(setPrescricoes)
+      .catch(() => setErroPrescricoes(true))
       .finally(() => setLoadingPrescricoes(false))
   }, [])
 
@@ -161,6 +179,35 @@ export default function ProntuariosPage() {
               {loadingList ? (
                 <div className="flex justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                </div>
+              ) : erroLista ? (
+                <div className="text-center py-8 px-4">
+                  <AlertTriangle className="h-8 w-8 text-amber-500 mx-auto mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    Não foi possível carregar a lista de pacientes.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={() => {
+                      setLoadingList(true)
+                      setErroLista(false)
+                      fetch("/api/pacientes")
+                        .then((r) => {
+                          if (!r.ok) throw new Error("falha ao carregar pacientes")
+                          return r.json()
+                        })
+                        .then((data: Paciente[]) => {
+                          setPacientes(data)
+                          if (data.length > 0) setSelected(data[0])
+                        })
+                        .catch(() => setErroLista(true))
+                        .finally(() => setLoadingList(false))
+                    }}
+                  >
+                    Tentar novamente
+                  </Button>
                 </div>
               ) : filtered.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
@@ -283,6 +330,26 @@ export default function ProntuariosPage() {
                     <div className="flex justify-center py-10">
                       <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     </div>
+                  ) : erroTimeline ? (
+                    <Card className="border-amber-500/40 bg-amber-500/5">
+                      <CardContent className="p-6 text-center py-8">
+                        <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+                        <p className="text-sm text-foreground font-medium">
+                          Não foi possível carregar o histórico deste paciente.
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Recarregue antes de tomar decisões clínicas — a lista abaixo pode estar incompleta.
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-4"
+                          onClick={() => selected && fetchTimeline(selected.id)}
+                        >
+                          Tentar novamente
+                        </Button>
+                      </CardContent>
+                    </Card>
                   ) : timeline.length === 0 ? (
                     <Card className="border-border/50">
                       <CardContent className="p-6 text-center py-8">
@@ -331,6 +398,26 @@ export default function ProntuariosPage() {
                     <div className="flex justify-center py-10">
                       <Loader2 className="h-6 w-6 animate-spin text-primary" />
                     </div>
+                  ) : erroPrescricoes ? (
+                    <Card className="border-amber-500/40 bg-amber-500/5">
+                      <CardContent className="p-6 text-center py-8">
+                        <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+                        <p className="text-sm text-foreground font-medium">
+                          Não foi possível carregar as prescrições deste paciente.
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Recarregue antes de tomar decisões clínicas — a lista pode estar incompleta.
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="mt-4"
+                          onClick={() => selected && fetchPrescricoes(selected.id)}
+                        >
+                          Tentar novamente
+                        </Button>
+                      </CardContent>
+                    </Card>
                   ) : prescricoes.length === 0 ? (
                     <Card className="border-border/50">
                       <CardContent className="p-6 text-center py-8">

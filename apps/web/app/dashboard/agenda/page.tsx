@@ -18,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
-import { ChevronLeft, ChevronRight, Clock, Video, MapPin, FileText, Loader2, CheckCircle2 } from "lucide-react"
+import { ChevronLeft, ChevronRight, Clock, Video, MapPin, FileText, Loader2, CheckCircle2, AlertTriangle } from "lucide-react"
 import { NovaConsultaDialog } from "@/components/agenda/nova-consulta-dialog"
 import { SemanaView } from "@/components/agenda/semana-view"
 import { MesView } from "@/components/agenda/mes-view"
@@ -74,6 +74,7 @@ export default function AgendaPage() {
   const [consultas, setConsultas] = useState<Consulta[]>([])
   const [loading, setLoading] = useState(true)
   const [acao, setAcao] = useState<string | null>(null)
+  const [erroAcao, setErroAcao] = useState<string | null>(null)
 
   const carregar = useCallback(async (v: Vista, a: Date) => {
     setLoading(true)
@@ -108,13 +109,20 @@ export default function AgendaPage() {
 
   async function mudarStatus(id: string, status: string) {
     setAcao(id)
+    setErroAcao(null)
     try {
       const r = await fetch(`/api/consultas/${id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       })
-      if (r.ok) setConsultas((cs) => cs.map((c) => (c.id === id ? { ...c, status } : c)))
+      if (r.ok) {
+        setConsultas((cs) => cs.map((c) => (c.id === id ? { ...c, status } : c)))
+      } else {
+        setErroAcao("Não foi possível atualizar o status da consulta. Tente novamente.")
+      }
+    } catch {
+      setErroAcao("Não foi possível atualizar o status da consulta. Verifique sua conexão e tente novamente.")
     } finally {
       setAcao(null)
     }
@@ -172,6 +180,17 @@ export default function AgendaPage() {
             <NovaConsultaDialog diaInicial={ymd(anchor)} onCriada={() => carregar(vista, anchor)} />
           </div>
         </div>
+
+        {/* Aviso de erro de ação */}
+        {erroAcao && (
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{erroAcao}</span>
+          </div>
+        )}
 
         {/* Conteúdo */}
         {loading ? (
