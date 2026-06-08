@@ -23,6 +23,8 @@ node_modules/
 # .NET
 apps/api-gateway/bin/
 apps/api-gateway/obj/
+apps/api-gateway-tests/bin/
+apps/api-gateway-tests/obj/
 
 # Python
 **/__pycache__/

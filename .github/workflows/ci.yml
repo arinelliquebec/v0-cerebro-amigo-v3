@@ -75,6 +75,27 @@ jobs:
         working-directory: apps/api-gateway
         run: dotnet build --no-restore --configuration Release
 
+  # Regressão de isolamento de tenant (Camada B / Estágio 3). Sobe Postgres real
+  # (pgvector) via Testcontainers, aplica as migrations, seeda 2 médicos e prova
+  # que médico A não lê/altera dado do paciente de B. Pega os IDOR cross-tenant
+  # (classe dos 7 achados em 2026-06-08) ANTES do merge. Docker já vem no runner.
+  dotnet-tests:
+    name: api-gateway — testes de isolamento de tenant
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Test
+        working-directory: apps/api-gateway-tests
+        run: dotnet test --configuration Release --logger "console;verbosity=normal"
+
   # Build Next.js — pega erro de compilação/TS do web no PR (antes só no deploy
   # ou no Vercel preview). Espelha o Dockerfile: Node 24 + pnpm 10 + next build.
   web:

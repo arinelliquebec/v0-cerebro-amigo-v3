@@ -319,3 +319,7 @@ SeedEndpoint.Map(app);
 SeedDemoEndpoint.Map(app);
 
 app.Run();
+
+// Expõe a classe Program (top-level statements) para WebApplicationFactory<Program>
+// nos testes de integração (apps/api-gateway-tests). Sem efeito em runtime.
+public partial class Program { }
