@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     # ─── Auth interna ───
     internal_api_token: SecretStr
 
+    # ─── Serviços internos ───
+    notifier_url: str = Field(
+        default="http://localhost:8083", validation_alias="NOTIFIER_PY_URL"
+    )
+
     # ─── Cifragem em repouso (ADR-018) ───
     # Modo legacy: None/vazio = não cifra (dev). Em prod é obrigatória.
     encryption_key: SecretStr | None = Field(default=None, validation_alias="ENCRYPTION_KEY")

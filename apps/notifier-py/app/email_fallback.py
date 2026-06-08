@@ -88,7 +88,7 @@ async def enviar_email_fallback(
         )
         return False
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception(
             "email_fallback.error",
             paciente_id=paciente_id,

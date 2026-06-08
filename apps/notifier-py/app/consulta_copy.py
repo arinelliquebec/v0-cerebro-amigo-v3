@@ -28,7 +28,7 @@ class LembreteCopy:
 
 def _versionar(versao: str, titulo: str, corpo_template: str) -> LembreteCopy:
     digest = hashlib.sha256(
-        f"{versao}|{titulo}|{corpo_template}".encode("utf-8")
+        f"{versao}|{titulo}|{corpo_template}".encode()
     ).hexdigest()
     return LembreteCopy(
         versao=versao, titulo=titulo, corpo_template=corpo_template, hash_sha256=digest

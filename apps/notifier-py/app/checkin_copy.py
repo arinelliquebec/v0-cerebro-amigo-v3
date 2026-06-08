@@ -30,7 +30,7 @@ class PushCopy:
 
 
 def _versionar(versao: str, titulo: str, corpo: str) -> PushCopy:
-    digest = hashlib.sha256(f"{versao}|{titulo}|{corpo}".encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(f"{versao}|{titulo}|{corpo}".encode()).hexdigest()
     return PushCopy(versao=versao, titulo=titulo, corpo=corpo, hash_sha256=digest)
 
 

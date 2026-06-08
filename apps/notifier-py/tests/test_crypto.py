@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from cryptography.exceptions import InvalidTag
 
 from app.core.crypto import decrypt, encrypt, is_encrypted
-
 
 _TEST_KEY = "a" * 64
 
@@ -25,7 +25,7 @@ def test_different_nonces():
 
 def test_decrypt_with_wrong_key_fails():
     ct = encrypt("segredo", _TEST_KEY)
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidTag):
         decrypt(ct, "b" * 64)
 
 

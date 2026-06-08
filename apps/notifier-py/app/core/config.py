@@ -45,6 +45,13 @@ class Settings(BaseSettings):
     # Lembretes de consulta (push/email 24h e 1h antes). Desligar = não despacha.
     consulta_lembretes_enabled: bool = Field(default=True)
 
+    # Crise — entrega garantida do alerta ao médico (ADR-041, Fase 1).
+    # Timings da escada de escalonamento (sem ack do médico → sobe de estágio).
+    # Valores carecem de validação clínica (ver ADR-041) — ajustáveis por env.
+    crise_ack_timeout_segundos: int = 600   # sem ack > 10min → estágio 1 (reforço + OPS)
+    crise_ops_timeout_segundos: int = 1800  # sem ack > 30min → estágio 2 (OPS crítico)
+    crise_email_max_tentativas: int = 5     # falhas de e-mail antes de OPS "indisponível"
+
 
 @lru_cache
 def get_settings() -> Settings:
