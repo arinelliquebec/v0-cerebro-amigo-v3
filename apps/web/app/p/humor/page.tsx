@@ -14,10 +14,12 @@ export default function HumorPage() {
   const [nota, setNota] = useState("")
   const [enviando, setEnviando] = useState(false)
   const [feito, setFeito] = useState(false)
+  const [erro, setErro] = useState(false)
 
   async function registrar() {
     if (humor == null) return
     setEnviando(true)
+    setErro(false)
     try {
       const r = await fetch("/api/paciente/humor", {
         method: "POST",
@@ -27,7 +29,11 @@ export default function HumorPage() {
       if (r.ok) {
         setFeito(true)
         setTimeout(() => router.push("/p"), 1200)
+      } else {
+        setErro(true)
       }
+    } catch {
+      setErro(true)
     } finally {
       setEnviando(false)
     }
@@ -105,6 +111,15 @@ export default function HumorPage() {
           className="w-full resize-none rounded-xl border border-border bg-card p-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
         />
       </div>
+
+      {erro && (
+        <p
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+        >
+          Não conseguimos salvar seu humor agora. Verifique sua conexão e tente novamente em instantes.
+        </p>
+      )}
 
       <Button
         onClick={registrar}

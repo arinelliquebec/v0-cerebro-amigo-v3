@@ -24,6 +24,7 @@ export function EscalacaoInbox() {
   const [itens, setItens] = useState<Escalacao[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
+  const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/escalacoes")
@@ -35,9 +36,19 @@ export function EscalacaoInbox() {
 
   async function assumir(conversaId: string) {
     setBusy(conversaId)
+    setErro(null)
     try {
       const r = await fetch(`/api/escalacoes/${conversaId}/assumir`, { method: "POST" })
-      if (r.ok) setItens((prev) => prev.filter((x) => x.conversaId !== conversaId))
+      if (r.ok) {
+        setItens((prev) => prev.filter((x) => x.conversaId !== conversaId))
+      } else {
+        // Falha conhecida do backend: mantém o item na fila (estado seguro,
+        // a conversa continua com dono pendente) e avisa o médico.
+        setErro(conversaId)
+      }
+    } catch {
+      // Falha de rede/inesperada: idem — não some da fila, só avisa.
+      setErro(conversaId)
     } finally {
       setBusy(null)
     }
@@ -53,29 +64,33 @@ export function EscalacaoInbox() {
       </div>
       <div className="space-y-1.5">
         {itens.map((e) => (
-          <div
-            key={e.conversaId}
-            className="flex items-center gap-3 rounded-xl bg-background/70 px-3 py-2"
-          >
-            <AlertTriangle className="h-4 w-4 shrink-0 text-coral" />
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-foreground">
-                {e.pacienteNome ?? "Paciente"}
-              </p>
-              <p className="truncate text-xs text-muted-foreground">
-                {e.motivo ?? "Conversa em atendimento humano"} ·{" "}
-                {tempoRelativo(e.ultimaEm ?? e.criadaEm)}
-              </p>
+          <div key={e.conversaId} className="rounded-xl bg-background/70 px-3 py-2">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-4 w-4 shrink-0 text-coral" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">
+                  {e.pacienteNome ?? "Paciente"}
+                </p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {e.motivo ?? "Conversa em atendimento humano"} ·{" "}
+                  {tempoRelativo(e.ultimaEm ?? e.criadaEm)}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 shrink-0"
+                disabled={busy === e.conversaId}
+                onClick={() => assumir(e.conversaId)}
+              >
+                {busy === e.conversaId ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assumir"}
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="h-8 shrink-0"
-              disabled={busy === e.conversaId}
-              onClick={() => assumir(e.conversaId)}
-            >
-              {busy === e.conversaId ? <Loader2 className="h-4 w-4 animate-spin" /> : "Assumir"}
-            </Button>
+            {erro === e.conversaId && (
+              <p className="mt-1.5 pl-7 text-xs text-coral" role="alert">
+                Não foi possível assumir esta conversa agora. Tente novamente em instantes.
+              </p>
+            )}
           </div>
         ))}
       </div>

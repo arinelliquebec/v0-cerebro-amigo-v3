@@ -53,6 +53,7 @@ export function ExamesPanel({ pacienteId }: { pacienteId: string }) {
   const [loading, setLoading] = useState(true)
   const [valores, setValores] = useState<Record<string, string>>({})
   const [salvando, setSalvando] = useState<string | null>(null)
+  const [erros, setErros] = useState<Record<string, string>>({})
 
   const carregar = useCallback(() => {
     setLoading(true)
@@ -70,6 +71,7 @@ export function ExamesPanel({ pacienteId }: { pacienteId: string }) {
     const valor = Number(raw)
     if (!raw || Number.isNaN(valor)) return
     setSalvando(ex.id)
+    setErros((e) => ({ ...e, [ex.id]: "" }))
     try {
       const r = await fetch(`/api/exames/${ex.id}/resultado`, {
         method: "POST",
@@ -79,7 +81,17 @@ export function ExamesPanel({ pacienteId }: { pacienteId: string }) {
       if (r.ok) {
         setValores((v) => ({ ...v, [ex.id]: "" }))
         carregar()
+      } else {
+        setErros((e) => ({
+          ...e,
+          [ex.id]: "Não foi possível registrar o resultado do exame. Tente novamente.",
+        }))
       }
+    } catch {
+      setErros((e) => ({
+        ...e,
+        [ex.id]: "Não foi possível registrar o resultado do exame. Tente novamente.",
+      }))
     } finally {
       setSalvando(null)
     }
@@ -152,6 +164,11 @@ export function ExamesPanel({ pacienteId }: { pacienteId: string }) {
                     {salvando === e.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Registrar"}
                   </Button>
                 </div>
+                {erros[e.id] ? (
+                  <p className="flex items-center gap-1 text-xs text-destructive" role="alert">
+                    <AlertTriangle className="h-3 w-3 shrink-0" /> {erros[e.id]}
+                  </p>
+                ) : null}
               </CardContent>
             </Card>
           ))}

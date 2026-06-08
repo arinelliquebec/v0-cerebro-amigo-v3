@@ -36,6 +36,10 @@ function taxa(a: AgenteSaude) {
 function quando(iso: string | null) {
   return iso ? new Date(iso).toLocaleString("pt-BR") : "—"
 }
+// LGPD categoria especial: a string crua de `agente_execucoes.erro` pode arrastar
+// conteúdo clínico/PII de uma exceção Python. Não exibimos o erro cru na tela —
+// só uma mensagem genérica. O detalhe real permanece no log interno / na trilha.
+const ERRO_REDIGIDO = "Falha técnica no agente (detalhe redigido por segurança — consulte o log interno)."
 
 export default function AgentesPage() {
   const [data, setData] = useState<Resposta>({ agentes: [], errosRecentes: [] })
@@ -154,7 +158,7 @@ export default function AgentesPage() {
                   <span className="font-mono text-xs text-foreground">{e.agente}</span>
                   <span className="text-[11px] text-muted-foreground">{quando(e.iniciadoEm)}</span>
                 </div>
-                <p className="mt-1 line-clamp-2 font-mono text-xs text-destructive/80">{e.erro}</p>
+                <p className="mt-1 line-clamp-2 font-mono text-xs text-destructive/80">{e.erro ? ERRO_REDIGIDO : "—"}</p>
               </div>
             ))}
           </div>

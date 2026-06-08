@@ -34,9 +34,11 @@ export default function AdminPromptEditPage() {
   const [salvando, setSalvando] = useState(false)
   const [erro, setErro] = useState("")
   const [sucesso, setSucesso] = useState("")
+  const [erroCarga, setErroCarga] = useState(false)
 
   const recarregar = useCallback(() => {
     setLoading(true)
+    setErroCarga(false)
     fetch(`/api/prompts/${encodeURIComponent(agente)}/${encodeURIComponent(nome)}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
       .then((data: PromptVersao[]) => {
@@ -44,7 +46,11 @@ export default function AdminPromptEditPage() {
         const ativo = data.find((v) => v.ativo)
         if (ativo) setConteudo(ativo.conteudo)
       })
-      .catch(() => setVersoes([]))
+      .catch(() => {
+        // Falha de carga (sessão/gateway): não confundir com "nenhuma versão editada".
+        setVersoes([])
+        setErroCarga(true)
+      })
       .finally(() => setLoading(false))
   }, [agente, nome])
 
@@ -64,14 +70,15 @@ export default function AdminPromptEditPage() {
         body: JSON.stringify({ agente, nome, conteudo }),
       })
       if (!res.ok) {
-        const data = await res.json().catch(() => ({}))
-        throw new Error(data.error || `Erro ${res.status}`)
+        throw new Error("Não foi possível salvar a nova versão do prompt agora. Tente novamente em instantes.")
       }
       const data = await res.json()
       setSucesso(`Nova versão v${data.versao} criada.`)
       recarregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao salvar.")
+      setErro(
+        e instanceof Error ? e.message : "Não foi possível salvar a nova versão do prompt agora. Tente novamente em instantes.",
+      )
     } finally {
       setSalvando(false)
     }
@@ -83,11 +90,13 @@ export default function AdminPromptEditPage() {
     setSucesso("")
     try {
       const res = await fetch(`/api/prompts/ativar/${id}`, { method: "POST" })
-      if (!res.ok) throw new Error(`Erro ${res.status}`)
+      if (!res.ok) throw new Error("Não foi possível ativar esta versão do prompt agora. Tente novamente em instantes.")
       setSucesso("Versão ativada com sucesso.")
       recarregar()
     } catch (e) {
-      setErro(e instanceof Error ? e.message : "Falha ao ativar.")
+      setErro(
+        e instanceof Error ? e.message : "Não foi possível ativar esta versão do prompt agora. Tente novamente em instantes.",
+      )
     }
   }
 
@@ -117,6 +126,20 @@ export default function AdminPromptEditPage() {
             <strong>Prompt de segurança clínica — somente leitura.</strong> Detecção de crise e auditoria da resposta
             ao paciente são salvaguardas (clinical-safety, regras 2 e 3). Alterá-las exige decisão clínica, validação
             em SHADOW_MODE e ADR — não é editável pelo painel.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {erroCarga && (
+        <Alert variant="destructive">
+          <AlertCircle className="w-4 h-4" />
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            <span>
+              Não foi possível carregar as versões deste prompt. Verifique a conexão/sessão e tente novamente.
+            </span>
+            <Button size="sm" variant="outline" onClick={recarregar} disabled={loading}>
+              Recarregar
+            </Button>
           </AlertDescription>
         </Alert>
       )}
@@ -180,6 +203,10 @@ export default function AdminPromptEditPage() {
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>
+          ) : erroCarga ? (
+            <p className="text-sm text-muted-foreground">
+              Não foi possível carregar o histórico de versões. Clique em Recarregar para tentar de novo.
+            </p>
           ) : versoes.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma versão editada. O prompt builtin está em uso.</p>
           ) : (

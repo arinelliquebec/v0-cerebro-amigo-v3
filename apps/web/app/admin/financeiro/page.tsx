@@ -19,6 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { ErroCarregar } from "@/components/admin/erro-carregar"
 
 // Máscara de moeda BRL
 function moedaBrlMask(valor: string): string {
@@ -151,8 +152,9 @@ function PagamentoDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: () => voi
         body: JSON.stringify({ valor: v, moeda: asn.moeda, referencia: data.referencia, metodo: data.metodo, pagoEm: new Date().toISOString() }),
       })
       if (!r.ok) {
-        const d = await r.json().catch(() => null)
-        const msg = d?.detalhe || d?.error || "Erro ao registrar."
+        await r.json().catch(() => null)
+        // Não expor o detalhe técnico cru do gateway; só uma mensagem amigável.
+        const msg = "Não foi possível registrar o pagamento agora. Tente novamente em instantes."
         setErro(msg); toast.error(msg)
         return
       }
@@ -250,8 +252,9 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
         body: JSON.stringify({ plano: data.plano, valorMensal: v, status: data.status, notas: data.notas || null, cpf: data.cpf ? cpfDigits(data.cpf) : null }),
       })
       if (!r.ok) {
-        const d = await r.json().catch(() => null)
-        const msg = d?.detalhe || d?.error || "Erro ao atualizar."
+        await r.json().catch(() => null)
+        // Não expor o detalhe técnico cru do gateway; só uma mensagem amigável.
+        const msg = "Não foi possível atualizar a assinatura agora. Tente novamente em instantes."
         setErro(msg); toast.error(msg)
         return
       }
@@ -392,7 +395,8 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
         } else if (d?.error === "cfm_indisponivel") {
           setErro("Não foi possível validar o CRM agora (CFM indisponível). Tente novamente em instantes.")
         } else if (d?.error === "crm_validacao_nao_configurada") {
-          setErro("INFOSIMPLES_TOKEN não configurado no servidor. Defina a variável de ambiente no EC2 ou set CRM_VALIDATION_ENABLED=false para bypass.")
+          // A instrução de configuração (env/EC2/bypass) já está logada no servidor; não expor internals de infra na UI.
+          setErro("A validação automática de CRM está temporariamente indisponível. Tente novamente mais tarde ou contate o suporte técnico.")
         } else if (d?.error === "crm_uf_obrigatorio") {
           setError("crmUf", { message: "UF é obrigatória para validar o CRM" })
           setErro("UF do CRM é obrigatória.")
@@ -558,7 +562,8 @@ function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () =>
         if (r.status === 503) return setErro("Configure ASAAS_API_KEY no servidor.")
         if (d?.error === "medico_sem_cpf") return setErro("Médico sem CPF cadastrado.")
         if (d?.error === "valor_mensal_zero") return setErro("Defina o valor mensal (Editar) antes.")
-        return setErro(d?.detalhe || "Falha ao ativar cobrança.")
+        // Não expor o detalhe técnico cru do Asaas/gateway; ele fica só em log/telemetria do servidor.
+        return setErro("Não foi possível ativar a cobrança no Asaas agora. Tente novamente em instantes; se persistir, contate o suporte técnico.")
       }
       setLink(d?.invoiceUrl ?? null); setOpen(true) // refresh só ao fechar (senão o branch troca e o dialog some)
     } catch { setErro("Erro de conexão.") }
@@ -570,8 +575,9 @@ function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () =>
     try {
       const r = await fetch(`/api/admin/assinaturas/${asn.id}/cobranca-asaas`, { method: "DELETE" })
       if (!r.ok) {
-        const d = await r.json().catch(() => null)
-        const msg = d?.detalhe || d?.error || "Falha ao cancelar a cobrança no Asaas."
+        await r.json().catch(() => null)
+        // Não expor o detalhe técnico cru do Asaas/gateway; fica só em log/telemetria do servidor.
+        const msg = "Não foi possível concluir a operação de cobrança no Asaas agora. Tente novamente em instantes."
         setErro(msg); toast.error(msg)
         return
       }
@@ -637,19 +643,26 @@ function AsaasCobrancaButton({ asn, onMudou }: { asn: Assinatura; onMudou: () =>
 export default function FinanceiroPage() {
   const [assinaturas, setAssinaturas] = useState<Assinatura[]>([])
   const [loading, setLoading] = useState(true)
+  const [erro, setErro] = useState<string | null>(null)
   const [busca, setBusca] = useState("")
   const [statusFiltro, setStatusFiltro] = useState("todos")
   const [soSemCpf, setSoSemCpf] = useState(false)
   const [soSemAsaas, setSoSemAsaas] = useState(false)
 
   const carregar = useCallback(async () => {
+    setLoading(true); setErro(null)
     try {
       const r = await fetch("/api/admin/assinaturas")
+      if (r.status === 401) { window.location.href = "/login"; return }
+      if (!r.ok) {
+        setErro("Não foi possível carregar as assinaturas — a chamada ao servidor falhou (isto não significa que não há dados). Verifique a conexão/sessão e tente de novo.")
+        return
+      }
       const data = await r.json()
       if (Array.isArray(data)) setAssinaturas(data)
-      else setAssinaturas([])
+      else setErro("Não foi possível carregar as assinaturas — resposta inesperada do servidor. Tente de novo.")
     } catch {
-      setAssinaturas([])
+      setErro("Erro de conexão ao carregar as assinaturas. Verifique a conexão e tente de novo.")
     } finally {
       setLoading(false)
     }
@@ -692,12 +705,12 @@ export default function FinanceiroPage() {
         </div>
       </div>
 
-      {/* KPIs */}
+      {/* KPIs — exibe "—" enquanto carrega ou se a chamada falhou, p/ não ler zeros como reais */}
       <div className="grid gap-4 sm:grid-cols-3">
         {[
-          { label: "MRR", value: `R$ ${mrr.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: TrendingUp, cls: "text-accent" },
-          { label: "Receita total", value: `R$ ${receitaTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, cls: "text-success" },
-          { label: "Assinaturas", value: String(assinaturas.length), icon: CreditCard, cls: "text-primary" },
+          { label: "MRR", value: loading || erro ? "—" : `R$ ${mrr.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: TrendingUp, cls: "text-accent" },
+          { label: "Receita total", value: loading || erro ? "—" : `R$ ${receitaTotal.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, icon: DollarSign, cls: "text-success" },
+          { label: "Assinaturas", value: loading || erro ? "—" : String(assinaturas.length), icon: CreditCard, cls: "text-primary" },
         ].map((k) => (
           <div key={k.label} className="rounded-2xl border border-noir-line bg-noir-surface p-5">
             <div className="flex items-center justify-between mb-3">
@@ -711,6 +724,8 @@ export default function FinanceiroPage() {
 
       {loading ? (
         <div className="flex justify-center py-16 text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : erro ? (
+        <ErroCarregar mensagem={erro} onRetry={carregar} />
       ) : (
         <>
           <div className="mb-4 flex flex-wrap items-center gap-2">

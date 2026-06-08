@@ -41,7 +41,30 @@ async def generate_response(state: ConversaState) -> dict:
         )
     msgs.append(HumanMessage(content=state["mensagem"]))
 
-    response = await sonnet(temperature=0.3).ainvoke(msgs)
+    try:
+        response = await sonnet(temperature=0.3).ainvoke(msgs)
+    except Exception as exc:  # pragma: no cover
+        # Falha do gerador (ex.: Bedrock indisponível). NÃO deixar a exceção
+        # subir e morrer silenciosa: degrada graciosamente forçando uma
+        # auditoria 'bloquear', o que faz o grafo rotear para
+        # `escalate_to_human` e preservar a trilha em `notificacoes_medico`
+        # (médico no loop). Loga só `str(exc)` — nunca a mensagem do paciente.
+        logger.exception(
+            "response.generate.failed",
+            retry_count=state.get("retry_count", 0),
+            error=str(exc),
+        )
+        return {
+            "resposta_rascunho": "",
+            "resposta_final": None,
+            "retry_count": state.get("retry_count", 0),
+            "audit": {
+                "decisao": "bloquear",
+                "motivo": "gerador_indisponivel",
+                "flags": ["gerador_error"],
+            },
+        }
+
     rascunho = (
         response.content if isinstance(response.content, str) else str(response.content)
     ).strip()
@@ -75,6 +98,23 @@ async def generate_response(state: ConversaState) -> dict:
 
 async def audit_response(state: ConversaState) -> dict:
     rascunho = state["resposta_rascunho"]
+
+    # O gerador falhou (rascunho vazio + audit 'bloquear' já forçado). Não há o
+    # que auditar; preserva a decisão de bloqueio para o grafo escalar ao médico
+    # em vez de rodar o auditor sobre texto vazio (que sobrescreveria o estado).
+    if not rascunho.strip():
+        audit = state.get("audit") or {
+            "decisao": "bloquear",
+            "motivo": "gerador_indisponivel",
+            "flags": ["gerador_error"],
+        }
+        logger.warning("audit.skipped_empty_draft", motivo=audit.get("motivo"))
+        return {
+            "audit": audit,
+            "retry_count": state.get("retry_count", 0),
+            "resposta_final": None,
+        }
+
     llm = with_schema(haiku(), AuditOutput)
 
     try:

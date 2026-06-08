@@ -74,7 +74,12 @@ export default function MedicoPerfilPage() {
     setErro("")
     try {
       const r = await fetch(`/api/admin/medicos/${id}`)
-      if (!r.ok) throw new Error(r.status === 404 ? "Médico não encontrado." : `Erro ${r.status}`)
+      if (!r.ok)
+        throw new Error(
+          r.status === 404
+            ? "Médico não encontrado."
+            : "Não foi possível carregar o perfil deste médico. Verifique a conexão/sessão e tente de novo.",
+        )
       setM(await r.json())
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Falha ao carregar.")

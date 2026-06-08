@@ -105,7 +105,9 @@ export function NovaConsultaDialog({
         if (r.status === 409 || d?.erro === "horario_ocupado") {
           setErro("Esse horário acabou de ser ocupado. Escolha outro.")
         } else {
-          setErro(d?.erro ?? d?.error ?? "Não foi possível agendar.")
+          // Não expor a mensagem crua do backend (pode vir técnica ou em inglês).
+          console.error("Falha ao agendar consulta", { status: r.status, detalhe: d?.erro ?? d?.error })
+          setErro("Não foi possível agendar a consulta. Tente novamente em instantes.")
         }
         return
       }

@@ -40,6 +40,7 @@ export function BannerCrise({
   const [confirmando, setConfirmando] = useState(false)
   const [observacao, setObservacao] = useState("")
   const [busy, setBusy] = useState(false)
+  const [erroRetomada, setErroRetomada] = useState<string | null>(null)
 
   useEffect(() => {
     let vivo = true
@@ -58,6 +59,7 @@ export function BannerCrise({
 
   async function retomar() {
     setBusy(true)
+    setErroRetomada(null)
     try {
       const r = await fetch(`/api/crise/${pacienteId}/retomar`, {
         method: "POST",
@@ -67,7 +69,15 @@ export function BannerCrise({
       if (r.ok) {
         setCrise(null)
         onRetomado?.()
+      } else {
+        setErroRetomada(
+          "Não foi possível retomar a automação agora. A pausa de segurança continua ativa. Tente novamente em instantes.",
+        )
       }
+    } catch {
+      setErroRetomada(
+        "Não foi possível retomar a automação agora. A pausa de segurança continua ativa. Tente novamente em instantes.",
+      )
     } finally {
       setBusy(false)
     }
@@ -133,6 +143,11 @@ export function BannerCrise({
                   Cancelar
                 </Button>
               </div>
+              {erroRetomada && (
+                <p role="alert" className="text-xs text-coral">
+                  {erroRetomada}
+                </p>
+              )}
             </div>
           )}
         </div>

@@ -126,7 +126,9 @@ export function BotaoReceitaMemed({
         })
       }
     } catch (e: any) {
-      setErro(e?.message ?? "Erro ao abrir o MEMED.")
+      // Detalhe técnico só no console (pode ser texto cru/em inglês do SDK do MEMED) — nunca na tela do médico.
+      console.error("[BotaoReceitaMemed] falha ao abrir o MEMED:", e)
+      setErro("Não foi possível abrir o MEMED para emitir a receita. Verifique sua conexão e tente novamente.")
     } finally {
       setCarregando(false)
     }

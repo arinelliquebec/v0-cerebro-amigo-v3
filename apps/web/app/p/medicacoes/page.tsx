@@ -22,6 +22,7 @@ export default function MedicacoesPage() {
   const [loading, setLoading] = useState(true)
   const [confirmando, setConfirmando] = useState<string | null>(null)
   const [feito, setFeito] = useState<Record<string, boolean>>({})
+  const [erro, setErro] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     fetch("/api/paciente/medicacoes")
@@ -34,13 +35,20 @@ export default function MedicacoesPage() {
   // Confirma a tomada de uma medicação (cria/atualiza a tomada de hoje no backend).
   async function confirmar(id: string) {
     setConfirmando(id)
+    setErro((e) => ({ ...e, [id]: false }))
     try {
       const r = await fetch(`/api/paciente/medicacoes/confirmar/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: "tomada" }),
       })
-      if (r.ok) setFeito((f) => ({ ...f, [id]: true }))
+      if (r.ok) {
+        setFeito((f) => ({ ...f, [id]: true }))
+      } else {
+        setErro((e) => ({ ...e, [id]: true }))
+      }
+    } catch {
+      setErro((e) => ({ ...e, [id]: true }))
     } finally {
       setConfirmando(null)
     }
@@ -102,6 +110,11 @@ export default function MedicacoesPage() {
               )}
               {m.observacoes && (
                 <p className="text-xs text-muted-foreground">{m.observacoes}</p>
+              )}
+              {erro[m.id] && (
+                <p className="text-xs text-destructive">
+                  Não conseguimos registrar agora. Verifique sua conexão e toque em Confirmar de novo. Isso não muda sua rotina de medicação.
+                </p>
               )}
             </li>
           ))}

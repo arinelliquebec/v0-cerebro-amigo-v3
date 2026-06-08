@@ -816,8 +816,9 @@ public static class AdminEndpoints
         // ── Cobrança recorrente do médico via Asaas (Fluxo A, ADR-034) ──────────
         // Plataforma cobra o médico (assinatura SaaS). Sem split, dinheiro direto.
         g.MapPost("/assinaturas/{id:guid}/cobranca-asaas", async (
-            Guid id, AppDbContext db, AsaasClient asaas) =>
+            Guid id, AppDbContext db, AsaasClient asaas, ILoggerFactory loggerFactory) =>
         {
+            var log = loggerFactory.CreateLogger("AdminEndpoints.CobrancaAsaas");
             if (!asaas.Configurado)
                 return Results.Json(new { error = "asaas_nao_configurado" }, statusCode: 503);
 
@@ -845,7 +846,16 @@ public static class AdminEndpoints
                 var cust = await asaas.CriarCustomerAsync(
                     row.MedicoId.ToString(), row.MedicoNome, row.Cpf, row.MedicoEmail, row.Telefone);
                 if (!cust.Sucesso)
-                    return Results.Json(new { error = "asaas_customer_falhou", detalhe = cust.Erro }, statusCode: 502);
+                {
+                    // Log interno preserva o erro cru do Asaas p/ ops; o body NÃO o expõe
+                    // (pode ecoar CPF/email do médico — LGPD categoria especial).
+                    log.LogWarning("Falha ao criar customer Asaas (assinatura {AssinaturaId}): {Erro}", id, cust.Erro);
+                    return Results.Json(new
+                    {
+                        error = "asaas_customer_falhou",
+                        detalhe = "Não foi possível ativar a cobrança no Asaas agora. Confira os dados de cadastro do médico e tente novamente em instantes.",
+                    }, statusCode: 502);
+                }
                 customerId = cust.CustomerId;
                 await db.Database.ExecuteRawAsync(
                     "UPDATE assinaturas SET asaas_customer_id = {1}, atualizado_em = NOW() WHERE id = {0}", id, customerId!);
@@ -858,7 +868,15 @@ public static class AdminEndpoints
             var desc = $"Assinatura Cérebro Amigo — {row.MedicoNome}";
             var sub = await asaas.CriarAssinaturaAsync(customerId!, row.ValorMensal, proximo, desc, id.ToString());
             if (!sub.Sucesso)
-                return Results.Json(new { error = "asaas_assinatura_falhou", detalhe = sub.Erro }, statusCode: 502);
+            {
+                // Erro cru do Asaas fica só no log interno; o body devolve texto fixo pt-BR.
+                log.LogWarning("Falha ao criar assinatura Asaas (assinatura {AssinaturaId}): {Erro}", id, sub.Erro);
+                return Results.Json(new
+                {
+                    error = "asaas_assinatura_falhou",
+                    detalhe = "Não foi possível ativar a assinatura no Asaas agora. Tente novamente em instantes.",
+                }, statusCode: 502);
+            }
 
             await db.Database.ExecuteRawAsync(
                 "UPDATE assinaturas SET asaas_subscription_id = {1}, atualizado_em = NOW() WHERE id = {0}", id, sub.SubscriptionId!);

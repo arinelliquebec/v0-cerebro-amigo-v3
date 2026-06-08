@@ -39,6 +39,7 @@ export default function EscribaRevisaoPage() {
   const [data, setData] = useState<EscribaData | null>(null)
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
+  const [erroSalvar, setErroSalvar] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [aprovado, setAprovado] = useState(false)
   const [verTranscricao, setVerTranscricao] = useState(false)
@@ -82,14 +83,23 @@ export default function EscribaRevisaoPage() {
     mencao_risco: data?.mencaoRisco ?? false,
   })
 
-  async function salvarRascunho() {
+  async function salvarRascunho(): Promise<boolean> {
     setSalvando(true)
+    setErroSalvar(false)
     try {
-      await fetch(`/api/consultas/${id}/escriba`, {
+      const r = await fetch(`/api/consultas/${id}/escriba`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ rascunho: rascunhoAtual() }),
       })
+      if (!r.ok) {
+        setErroSalvar(true)
+        return false
+      }
+      return true
+    } catch {
+      setErroSalvar(true)
+      return false
     } finally {
       setSalvando(false)
     }
@@ -116,7 +126,11 @@ export default function EscribaRevisaoPage() {
     setSalvando(true)
     setErro(null)
     try {
-      await salvarRascunho()
+      const salvou = await salvarRascunho()
+      if (!salvou) {
+        setErro("erro_aprovar")
+        return
+      }
       const r = await fetch(`/api/consultas/${id}/escriba/aprovar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -141,6 +155,12 @@ export default function EscribaRevisaoPage() {
         <Card><CardContent className="py-12 text-center space-y-3">
           <p className="text-sm text-muted-foreground">Nenhum rascunho ainda. Grave a teleconsulta (com consentimento do paciente) para gerar a nota.</p>
           <Button asChild variant="outline"><Link href={`/dashboard/consultas/${id}/teleconsulta`}><ArrowLeft className="h-4 w-4 mr-2" />Ir para a teleconsulta</Link></Button>
+        </CardContent></Card>
+      ) : erro === "erro" ? (
+        <Card><CardContent className="py-12 text-center space-y-3">
+          <ShieldAlert className="mx-auto h-8 w-8 text-coral" />
+          <p className="text-sm text-muted-foreground">Não foi possível carregar a nota desta consulta agora. Atualize a página ou tente novamente em instantes.</p>
+          <Button variant="outline" onClick={() => window.location.reload()}>Tentar novamente</Button>
         </CardContent></Card>
       ) : aprovado ? (
         <Card className="border-success/40 bg-success/5"><CardContent className="py-12 text-center space-y-3">
@@ -220,6 +240,9 @@ export default function EscribaRevisaoPage() {
               <Check className="h-4 w-4" /> Aprovar e salvar evolução
             </Button>
           </div>
+          {erroSalvar && (
+            <p className="text-xs text-coral">Não foi possível salvar o rascunho da nota. Tente novamente.</p>
+          )}
         </>
       )}
     </div>

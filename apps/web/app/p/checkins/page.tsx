@@ -25,6 +25,7 @@ export default function CheckinsPage() {
   const [loading, setLoading] = useState(true)
   const [respondendo, setRespondendo] = useState<string | null>(null)
   const [feitos, setFeitos] = useState<Record<string, boolean>>({})
+  const [erros, setErros] = useState<Record<string, string>>({})
 
   function carregar() {
     fetch("/api/paciente/checkins")
@@ -37,13 +38,29 @@ export default function CheckinsPage() {
 
   async function responder(c: Checkin, resposta: Record<string, unknown>) {
     setRespondendo(c.id)
+    setErros((e) => {
+      const { [c.id]: _, ...resto } = e
+      return resto
+    })
     try {
       const r = await fetch(`/api/paciente/checkins/${c.id}/responder`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resposta }),
       })
-      if (r.ok) setFeitos((f) => ({ ...f, [c.id]: true }))
+      if (r.ok) {
+        setFeitos((f) => ({ ...f, [c.id]: true }))
+      } else {
+        setErros((e) => ({
+          ...e,
+          [c.id]: "Não conseguimos enviar sua resposta agora. Verifique sua conexão e tente de novo.",
+        }))
+      }
+    } catch {
+      setErros((e) => ({
+        ...e,
+        [c.id]: "Não conseguimos enviar sua resposta agora. Verifique sua conexão e tente de novo.",
+      }))
     } finally {
       setRespondendo(null)
     }
@@ -122,6 +139,10 @@ export default function CheckinsPage() {
                 <p className="text-xs text-muted-foreground">
                   Responda este check-in com sua psiquiatra na próxima consulta.
                 </p>
+              )}
+
+              {erros[c.id] && (
+                <p className="text-sm text-destructive">{erros[c.id]}</p>
               )}
             </li>
           ))}

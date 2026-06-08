@@ -157,10 +157,20 @@ async def portal_conversation_message(req: PortalMessageRequest):
                 elif ev["event"] == "error":
                     final_status = "failed"
         except Exception as exc:  # pragma: no cover
-            logger.exception("portal.stream.failed", error=str(exc))
+            logger.exception(
+                "portal.stream.failed",
+                error=str(exc),
+                error_type=exc.__class__.__name__,
+            )
             yield _sse_format(
                 "error",
-                {"message": "Erro interno", "type": exc.__class__.__name__},
+                {
+                    "message": (
+                        "Tive um probleminha para responder agora. Sua "
+                        "mensagem foi registrada e sua psiquiatra pode ser "
+                        "avisada se precisar. Pode tentar de novo daqui a pouco."
+                    )
+                },
             )
             final_status = "failed"
         finally:

@@ -23,6 +23,7 @@ export default function PerfilPage() {
   const [loading, setLoading] = useState(true)
   const [salvando, setSalvando] = useState(false)
   const [salvo, setSalvo] = useState(false)
+  const [erro, setErro] = useState(false)
 
   useEffect(() => {
     fetch("/api/paciente/perfil")
@@ -39,6 +40,7 @@ export default function PerfilPage() {
   async function salvar() {
     setSalvando(true)
     setSalvo(false)
+    setErro(false)
     try {
       const r = await fetch("/api/paciente/perfil", {
         method: "PATCH",
@@ -48,7 +50,11 @@ export default function PerfilPage() {
       if (r.ok) {
         setSalvo(true)
         setTimeout(() => setSalvo(false), 2000)
+      } else {
+        setErro(true)
       }
+    } catch {
+      setErro(true)
     } finally {
       setSalvando(false)
     }
@@ -100,6 +106,11 @@ export default function PerfilPage() {
             "Salvar"
           )}
         </Button>
+        {erro && (
+          <p role="alert" className="text-sm text-destructive">
+            Não conseguimos salvar suas alterações agora. Verifique a conexão e tente novamente em instantes.
+          </p>
+        )}
       </div>
 
       <PushToggle />
