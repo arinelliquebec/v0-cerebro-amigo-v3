@@ -53,6 +53,10 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
     public Guid PrescricaoA { get; } = Guid.NewGuid();   // prescrição do paciente A (controle +)
     public Guid NotificacaoB { get; } = Guid.NewGuid();  // notificação do médico B
 
+    // ── Iteração 2 (0038): conversa/mensagem + trilhas que faltavam ──
+    public Guid ConversaB { get; } = Guid.NewGuid();     // conversa do paciente B (2-hop por cliente_id)
+    public Guid ConversaA { get; } = Guid.NewGuid();     // conversa do paciente A (controle +)
+
     public async Task InitializeAsync()
     {
         await _pg.StartAsync();
@@ -237,6 +241,46 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
         await Exec(@"INSERT INTO notificacoes_medico (id, medico_id, paciente_id, severidade, tipo, titulo, mensagem, lida)
                      VALUES (@p0,@p1,@p2,'critico','crise','Alerta','Paciente B em risco',FALSE)",
             NotificacaoB, MedicoB, PacienteB);
+
+        // ── Iteração 2 (0038) ──
+        // conversa do paciente B (2-hop via cliente_id) + do A (controle +), com
+        // uma mensagem cada (3-hop via conversa_id). O conteúdo de B é o alvo.
+        await Exec(@"INSERT INTO conversas (id, cliente_id, status)
+                     VALUES (@p0,@p1,'aberta'),(@p2,@p3,'aberta')",
+            ConversaB, PacienteB, ConversaA, PacienteA);
+        await Exec(@"INSERT INTO mensagens (conversa_id, papel, conteudo)
+                     VALUES (@p0,'user','Mensagem secreta de B'),
+                            (@p1,'user','Mensagem de A')",
+            ConversaB, ConversaA);
+
+        // crise_alerta_eventos do médico B (tenant direto por medico_id; precisa do
+        // protocolo pai). É o leak que a 0038 fecha: alerta de crise entre tenants.
+        var protocoloB = Guid.NewGuid();
+        await Exec(@"INSERT INTO protocolos_crise_acionados (id, paciente_id, medico_id, gatilho)
+                     VALUES (@p0,@p1,@p2,'ideacao')",
+            protocoloB, PacienteB, MedicoB);
+        await Exec(@"INSERT INTO crise_alerta_eventos (protocolo_id, medico_id, canal, evento)
+                     VALUES (@p0,@p1,'email','enviado')",
+            protocoloB, MedicoB);
+
+        // condutas_eventos do médico B (paciente_id 1-hop; precisa da conduta pai)
+        var condutaB = Guid.NewGuid();
+        await Exec(@"INSERT INTO condutas_automacao (id, paciente_id, medico_id, tipo)
+                     VALUES (@p0,@p1,@p2,'checkin_humor')",
+            condutaB, PacienteB, MedicoB);
+        await Exec(@"INSERT INTO condutas_eventos (conduta_id, paciente_id, medico_id, acao)
+                     VALUES (@p0,@p1,@p2,'configurada')",
+            condutaB, PacienteB, MedicoB);
+
+        // receitas_memed do médico B (paciente_id 1-hop)
+        await Exec(@"INSERT INTO receitas_memed (paciente_id, medico_id, memed_prescricao_id)
+                     VALUES (@p0,@p1,'memed-b-1')",
+            PacienteB, MedicoB);
+
+        // acesso ao prontuário do paciente B pelo médico B (tenant direto por medico_id)
+        await Exec(@"INSERT INTO acessos_prontuario (medico_id, paciente_id, recurso)
+                     VALUES (@p0,@p1,'timeline')",
+            MedicoB, PacienteB);
     }
 }
 
