@@ -34,7 +34,11 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
     public const string InternalToken = "test-internal-token";
 
     private WebApplicationFactory<Program> _factory = default!;
+    // Conexão de admin (superuser do container) — migrations, seed e asserts.
     public string ConnectionString { get; private set; } = "";
+    // Conexão que o GATEWAY usa: role restrito (NOBYPASSRLS) p/ a RLS valer.
+    public string GatewayConnectionString { get; private set; } = "";
+    private const string GwRolePassword = "gw_test_pw";
 
     // ── IDs seedados (preenchidos no InitializeAsync) ──
     public Guid UsuarioA { get; } = Guid.NewGuid();
@@ -56,11 +60,13 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
 
         await ApplyMigrationsAsync();
         await SeedAsync();
+        await CreateRestrictedGatewayRoleAsync();
 
         // Override via env vars (separador __): prioridade acima de appsettings e,
         // com ambiente "Testing", os user-secrets (Development-only) não carregam.
         // ConfigureAppConfiguration no WebApplicationFactory não vencia o appsettings.
-        Environment.SetEnvironmentVariable("ConnectionStrings__Postgres", ConnectionString);
+        // O gateway conecta como gw_test (NOBYPASSRLS) → a RLS da 0037 VALE.
+        Environment.SetEnvironmentVariable("ConnectionStrings__Postgres", GatewayConnectionString);
         Environment.SetEnvironmentVariable("Jwt__Secret", JwtSecret);
         Environment.SetEnvironmentVariable("Jwt__Issuer", "cerebro-amigo");
         Environment.SetEnvironmentVariable("Jwt__Audience", "dashboard");
@@ -110,6 +116,37 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
         var conn = new NpgsqlConnection(ConnectionString);
         await conn.OpenAsync();
         return conn;
+    }
+
+    /// <summary>Abre conexão como o role restrito do gateway (RLS VALE aqui).</summary>
+    public async Task<NpgsqlConnection> OpenGatewayDbAsync()
+    {
+        var conn = new NpgsqlConnection(GatewayConnectionString);
+        await conn.OpenAsync();
+        return conn;
+    }
+
+    // Cria gw_test (NOSUPERUSER, NOBYPASSRLS) + grants. Espelha cerebro_gateway de
+    // prod (0036): a RLS da 0037 só filtra um role não-dono e sem BYPASSRLS.
+    private async Task CreateRestrictedGatewayRoleAsync()
+    {
+        await using var conn = new NpgsqlConnection(ConnectionString);
+        await conn.OpenAsync();
+        await using (var cmd = new NpgsqlCommand($@"
+            DROP ROLE IF EXISTS gw_test;
+            CREATE ROLE gw_test LOGIN PASSWORD '{GwRolePassword}' NOSUPERUSER NOBYPASSRLS;
+            GRANT USAGE ON SCHEMA public TO gw_test;
+            GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gw_test;
+            GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO gw_test;", conn))
+        {
+            await cmd.ExecuteNonQueryAsync();
+        }
+
+        GatewayConnectionString = new NpgsqlConnectionStringBuilder(ConnectionString)
+        {
+            Username = "gw_test",
+            Password = GwRolePassword,
+        }.ToString();
     }
 
     // ── Aplica infra/migrations/0*.sql em ordem ──
