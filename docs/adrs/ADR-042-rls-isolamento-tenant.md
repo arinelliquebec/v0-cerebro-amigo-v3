@@ -1,8 +1,8 @@
 # ADR-042: Isolamento de tenant em profundidade — least-privilege + RLS
 
-**Status:** Accepted — Camada A (guards) + Estágios 0 (roles) e 3 (testes) em
-produção; Estágios 1+2 (middleware + RLS) implementados e **validados em harness
-Testcontainers**, rollout em prod pendente (ver "Rollout").
+**Status:** Accepted — TODAS as camadas em produção. Camada A (guards), Estágios 0
+(roles + swap de DSN), 3 (testes/CI) e 1+2 (middleware + RLS) deployados e
+verificados em 2026-06-08. RLS LIVE: 17 tabelas, fail-closed confirmado em prod.
 **Data:** 2026-06-08
 **Decisores:** Equipe de engenharia + Rafael Arinelli (responsável pelo projeto)
 **Categoria:** Segurança / LGPD (categoria especial — saúde mental)
