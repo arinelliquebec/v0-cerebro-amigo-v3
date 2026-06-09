@@ -97,9 +97,21 @@ Defesa em profundidade, em camadas independentes:
 
 ## Iteração 2 — estender RLS às tabelas que faltaram (0038)
 
-**Status:** implementado (migration `0038_rls_tenant_iteracao2.sql` + testes); deploy
-em prod pendente. Mesma mecânica/ordem da iteração 1 (middleware já LIVE → basta
-aplicar a 0038).
+**Status:** **DEPLOYADO + verificado em prod (`cerebro_v3`) 2026-06-09.** Migration
+`0038_rls_tenant_iteracao2.sql` aplicada via SSM como `cerebroadmin` (atômica, -1);
+6 tabelas com `rowsecurity=true` + policy `tenant_iso` (total RLS 17→23). Motor RLS
+re-confirmado vivo (prescricoes, 5 linhas: `cerebro_gateway` sem GUC → 0 fail-closed,
+GUC=médico A → 5, GUC=médico B → 0 isolado, bypass → 5). As 6 tabelas-alvo estão
+vazias em prod hoje (portal conversacional sem uso real), então a prova positiva
+veio dos 30 testes locais + do motor em prescricoes; as policies estão instaladas e
+filtram quando houver dado. 0 erro de RLS/permissão nos 5 containers; gateway
+/ready=200; watchdog de crise do notifier (cerebro_workers, BYPASSRLS) intacto.
+
+> ⚠️ **Gotcha de deploy (custou um susto):** o `/opt/cerebro/.env` do EC2 está STALE
+> (`POSTGRES_DB=cerebro` = V2 legado). O app de prod usa o database **`cerebro_v3`**
+> (provado pelos 5 containers em runtime). A 1ª tentativa aplicou mirando o `.env` →
+> caiu no `cerebro` legado e **falhou atômica (zero dano)**. Sempre FORCE
+> `PGDATABASE=cerebro_v3` ao aplicar migration via SSM. Ver runbook.
 
 Recon de 2026-06-08 (5 frentes) resolveu uma premissa errada das notas: os 3
 serviços Python **já** conectam como `cerebro_workers` (lêem `POSTGRES_DSN_URL`,

@@ -16,22 +16,34 @@ de DSN feito 2026-06-08). Logo **NÃO há o risco de ordem da iteração 1** —
    quando a 0038 rodar). Migrations **não** são aplicadas pelo `deploy.yml` — é à
    mão (passo 2).
 
-2. **Aplicar a 0038 no RDS via SSM**, como dono (`cerebroadmin`). O `.env` do EC2
-   tem `POSTGRES_DSN` em formato Npgsql (`Host=...;Port=...;Database=...;Username=...;Password=...`)
-   — NÃO dá `source` (quebra no `;`). Os componentes `POSTGRES_USER/PASSWORD/HOST/...`
-   (não trocados no swap) seguem = `cerebroadmin` e servem p/ a conexão de dono.
+2. **Aplicar a 0038 no RDS via SSM**, como dono (`cerebroadmin`).
+
+   > ⚠️ **DB ALVO = `cerebro_v3`** (NÃO `cerebro`). O `/opt/cerebro/.env` do EC2 está
+   > **STALE**: tem `POSTGRES_DB=cerebro` e um `POSTGRES_DSN` apontando p/ o database
+   > `cerebro` — que é o **V2 legado** (36 tabelas, 0 RLS). O app de produção roda em
+   > **`cerebro_v3`** (67 tabelas, RLS viva): confirmado pelos 5 containers em runtime
+   > (`docker exec <c> env | grep Database` → `Database=cerebro_v3`, gateway=`cerebro_gateway`,
+   > Python=`cerebro_workers`). **FORCE `PGDATABASE=cerebro_v3`** ao aplicar; não confie
+   > no `POSTGRES_DB` do `.env`. (As credenciais `cerebroadmin`/host/porta do `.env`
+   > servem — é o mesmo servidor RDS e cerebroadmin é dono dos dois databases.)
+
+   Técnica usada (gotchas SSM: aspas e parênteses inline quebram o parser do AWS CLI):
+   **base64 do script**. Resumo do que o script faz no host:
 
    ```bash
-   # no EC2 i-057860cd97edafefb (via SSM). psql está em /usr/bin/psql no host.
-   # Aplicar atômico (-1). Converter as chaves do DSN Npgsql p/ conninfo libpq.
-   cd /opt/cerebro-amigo   # onde está o repo + infra/migrations
-   PGUSER=cerebroadmin PGPASSWORD=<senha-owner> PGHOST=<host> PGPORT=5432 PGDATABASE=<db> \
-     psql -1 -f infra/migrations/0038_rls_tenant_iteracao2.sql
+   # no EC2 i-057860cd97edafefb (via SSM). psql em /usr/bin/psql.
+   ENV=/opt/cerebro/.env
+   export PGUSER=$(sed -n 's/^POSTGRES_USER=//p' $ENV | head -1)       # cerebroadmin
+   export PGPASSWORD=$(sed -n 's/^POSTGRES_PASSWORD=//p' $ENV | head -1)
+   export PGHOST=$(sed -n 's/^POSTGRES_HOST=//p' $ENV | head -1)
+   export PGPORT=$(sed -n 's/^POSTGRES_PORT=//p' $ENV | head -1)
+   export PGDATABASE=cerebro_v3        # <<< FORÇADO (ignora POSTGRES_DB=cerebro stale)
+   psql -1 -v ON_ERROR_STOP=1 -f infra/migrations/0038_rls_tenant_iteracao2.sql
    ```
 
-   > Gotchas SSM: aspas simples em `psql -c` e parênteses em `echo` quebram. Use
-   > `-f arquivo`, ou `base64` do script. A 0038 é idempotente (DROP POLICY IF
-   > EXISTS + ENABLE).
+   Aplicar atômico (`-1 -v ON_ERROR_STOP=1`): se errar, NADA aplica. A 0038 é
+   idempotente (DROP POLICY IF EXISTS + ENABLE). Embutir o SQL via base64 dispensa
+   esperar o `git pull` do deploy trazer o arquivo ao host.
 
 3. **Verificar** (como cerebro_gateway — o role filtrado):
 
