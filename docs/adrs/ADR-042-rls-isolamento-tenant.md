@@ -95,9 +95,49 @@ Defesa em profundidade, em camadas independentes:
 > Invertendo a ordem (0037 antes do middleware) o gateway fail-close TUDO (sem
 > GUC, RLS nega) e o app cai. Nunca aplicar 0037 sem o middleware já no ar.
 
+## Iteração 2 — estender RLS às tabelas que faltaram (0038)
+
+**Status:** implementado (migration `0038_rls_tenant_iteracao2.sql` + testes); deploy
+em prod pendente. Mesma mecânica/ordem da iteração 1 (middleware já LIVE → basta
+aplicar a 0038).
+
+Recon de 2026-06-08 (5 frentes) resolveu uma premissa errada das notas: os 3
+serviços Python **já** conectam como `cerebro_workers` (lêem `POSTGRES_DSN_URL`,
+não os componentes `POSTGRES_*`) — o objetivo "role não-superuser p/ Python" já
+estava cumprido na iteração 1. O que faltava era cobertura de tabelas.
+
+A 0038 habilita RLS (ENABLE, policy `tenant_iso`, fail-closed) em 6 tabelas que a
+0037 não pegou, todas lidas/escritas diretamente pelo `cerebro_gateway`:
+
+| Tabela | Âncora de tenant | Policy |
+| --- | --- | --- |
+| `conversas` | `cliente_id` (= `clientes.id`) | 2-hop: paciente dono OU médico via `pacientes` |
+| `mensagens` | `conversa_id` → `conversas` | 3-hop: subquery reusa a regra de `conversas` |
+| `crise_alerta_eventos` | `medico_id` (nullable) | direto (igual `notificacoes_medico`) — fecha leak de alerta de crise entre tenants |
+| `condutas_eventos` | `paciente_id` | 1-hop (irmã de `condutas_automacao`, passou batido na 0037) |
+| `receitas_memed` | `paciente_id` | 1-hop |
+| `acessos_prontuario` | `medico_id` | direto (log de acesso pertence ao médico-ator) |
+
+**Fora de escopo (decisões):**
+- **`cobrancas`:** o webhook do Asaas (`POST /api/v1/asaas/webhook`,
+  `AllowAnonymous`) escreve sem JWT → o middleware não seta GUC → a RLS barraria o
+  `UPDATE` de pagamento (fail-closed). O isolamento segue no WHERE da aplicação até
+  o webhook ganhar um `app.tenant_bypass` explícito (follow-up).
+- **`social_*`** (rede médico↔médico): modelo de acesso distinto, não é tenant de
+  paciente.
+- **Apertar o orchestrator** (BYPASSRLS → role própria + `set_config` por request):
+  **iteração 3**. Refactor Python com risco no caminho de crise; o recon mostrou
+  que toda query do orchestrator já é escopada por paciente, então o ganho é
+  defesa-em-profundidade, não fechar um vazamento aberto.
+
+**Validação:** testes de regressão (apps/api-gateway-tests) estendidos com deny
+cross-tenant em conversas/mensagens + controles positivos; gateway de teste conecta
+como role NOBYPASSRLS para a RLS valer.
+
 ## Estágios futuros
 
-- Estender a RLS às demais tabelas clínicas (conversas/mensagens 2-hop, etc.).
-- Apertar `cerebro_workers`: o orchestrator (por-tenant) poderia setar
-  `app.current_medico` por request em vez de BYPASSRLS.
+- **Iteração 3** — apertar `cerebro_workers`/orchestrator: role própria
+  (NOBYPASSRLS) + `set_config(app.current_medico/paciente)` por request de conversa,
+  tratando o checkpointer do LangGraph (CREATE) e os INSERTs de crise sob RLS.
+- Webhook Asaas com bypass explícito → então cobrir `cobrancas` com RLS.
 - Ver memória `project-tenant-isolation` e `project-infalivel-top5`.
