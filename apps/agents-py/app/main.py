@@ -16,7 +16,7 @@ from app.agents import AGENT_REGISTRY, AgentPayload
 from app.agents.resumidor import ResumidorAgent
 from app.core.config import get_settings
 from app.core.db import acquire, close_pool, init_pool
-from app.core.observability import configure_observability, redact_pii_processor
+from app.core.observability import configure_observability, configure_sentry, redact_pii_processor
 from app.jobs.indexador_rag import reindexar_kb, reindexar_paciente
 from app.scheduler import (
     run_for_patient,
@@ -62,6 +62,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     log.info("app.startup.begin", env=settings.app_env, mode=settings.agents_mode)
 
     configure_observability()
+    configure_sentry()
     await init_pool()
 
     if settings.agents_mode == "scheduled":

@@ -62,6 +62,37 @@ def make_redacting_hooks() -> tuple[Callable[..., Any], Callable[..., Any]]:
     return hide_inputs, hide_outputs
 
 
+def configure_sentry() -> None:
+    """Inicializa o Sentry para captura de ERROS do backend — LGPD-safe.
+
+    Regra #4 da clinical-safety (PII redatada em traces): `send_default_pii=False`
+    + `max_request_body_size='never'` + `before_send` que redige PII de TODO o
+    evento (reusa `_redact_recursive`). Sem `SENTRY_DSN` → no-op. Só erros.
+    """
+    dsn = os.environ.get("SENTRY_DSN")
+    if not dsn:
+        logger.info("sentry.disabled")
+        return
+    try:
+        import sentry_sdk
+    except ImportError:
+        logger.warning("sentry.sdk_ausente")
+        return
+
+    def _before_send(event: dict[str, Any], _hint: dict[str, Any]) -> dict[str, Any]:
+        return _redact_recursive(event)  # type: ignore[return-value]
+
+    sentry_sdk.init(
+        dsn=dsn,
+        environment=os.environ.get("APP_ENV", "production"),
+        send_default_pii=False,
+        max_request_body_size="never",
+        traces_sample_rate=0.0,
+        before_send=_before_send,
+    )
+    logger.info("sentry.configured")
+
+
 def configure_observability() -> Client | None:
     settings = get_settings()
 

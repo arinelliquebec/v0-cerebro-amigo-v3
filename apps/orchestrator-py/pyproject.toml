@@ -8,6 +8,7 @@ dependencies = [
     # Web
     "fastapi>=0.118.0",
     "uvicorn[standard]>=0.32.0",
+    "sentry-sdk[fastapi]>=2.0.0",
     "httpx>=0.28.0",
 
     # LangChain / LangGraph / LangSmith

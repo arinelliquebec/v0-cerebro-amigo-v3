@@ -16,7 +16,7 @@ from app.config import get_settings
 from app.conversation import process_message
 from app.conversation.graph import get_compiled_app, shutdown_graph
 from app.db import acquire, close_pool, init_pool
-from app.observability import configure_observability, redact_pii_processor
+from app.observability import configure_observability, configure_sentry, redact_pii_processor
 
 
 def _configure_logging() -> None:
@@ -44,6 +44,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     log.info("app.startup.begin", env=get_settings().app_env)
 
     configure_observability()
+    configure_sentry()
     await init_pool()
     await get_compiled_app()  # pré-compila grafo + checkpointer
 

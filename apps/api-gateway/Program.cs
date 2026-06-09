@@ -27,6 +27,20 @@ using System.Text;
 var builder = WebApplication.CreateBuilder(args);
 
 // -----------------------------------------------------------------------------
+// Sentry — rastreio de erros do backend. LGPD/clinical-safety regra #4: nunca PII
+// em traces. SendDefaultPii=false + corpo de request desligado. Sem SENTRY_DSN no
+// ambiente → SDK no-op (desligado). Só erros (TracesSampleRate=0).
+// -----------------------------------------------------------------------------
+builder.WebHost.UseSentry(o =>
+{
+    o.Dsn = builder.Configuration["SENTRY_DSN"] ?? "";
+    o.Environment = builder.Configuration["APP_ENV"] ?? "production";
+    o.SendDefaultPii = false;
+    o.MaxRequestBodySize = Sentry.Extensibility.RequestSize.None;
+    o.TracesSampleRate = 0;
+});
+
+// -----------------------------------------------------------------------------
 // EF Core 10 + Npgsql
 // -----------------------------------------------------------------------------
 // Prioridade de connection string:
