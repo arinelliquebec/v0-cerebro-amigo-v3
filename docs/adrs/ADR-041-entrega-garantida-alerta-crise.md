@@ -2,6 +2,13 @@
 
 **Status:** Accepted — Fase 1 implementada; parâmetros clínicos (timings e
 remoção do gate de opt-in) com **sign-off registrado em 2026-06-08** (ver "Timings").
+**Deploy:** em produção desde 2026-06-09 (merge na `main`, run "Deploy to EC2"
+success; migration 0035 aplicada no RDS em 2026-06-08).
+**Revisão clinical-safety:** concluída em 2026-06-10 — APROVADA contra as 5
+regras inegociáveis. Observações registradas: (a) o e-mail de alerta carrega o
+nome do paciente via Resend — PII mínima, sem detalhe clínico, mesmo padrão
+anterior; (b) timings da escada permanecem ajustáveis por env e qualquer
+mudança exige novo sign-off (ver "Timings").
 **Data:** 2026-06-08
 **Decisores:** Equipe de engenharia + Rafael Arinelli (responsável pelo projeto)
 **Categoria:** Segurança clínica
