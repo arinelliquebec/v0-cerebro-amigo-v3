@@ -9,7 +9,7 @@ Documento vivo. Itens são removidos quando resolvidos, adicionados quando desco
 | T0-1 | **Nenhuma coluna está cifrada** (ADR-018) | ~~🔴 Alta~~ ✅ **Resolvido** | Fase 1 implementada: `mensagens.conteudo` cifrada no INSERT (orchestrator-py) e decifrada no SELECT (gateway .NET). Script one-off `migrate_mensagens_cifra.py` para dados legados. | — |
 | T0-2 | **PII regex: conflito CPF/telefone** em celulares sem separador (11 dígitos) | ~~🟡 Média~~ ✅ **Resolvido** | Comportamento atual é intencional e correto: CPF roda antes de PHONE, então 11 dígitos sem separador sempre são redatados (como `[CPF_REDACTED]`). Falso positivo de label aceitável — cobertura é 100%. Comentário adicionado em ambos os serviços para documentar a invariante. | — |
 | T0-3 | **No NER offline** para campos livres | 🟡 Média | Comentado em `observability.py`. Regex não pega nome próprio, endereço, etc. | Integrar modelo NER leve (spaCy `pt_core_news_sm` ou regex expansiva) em pipeline de log. |
-| T0-4 | **LangSmith não auto-hospedado**; `HIDE_INPUTS/OUTPUTS` não é default | 🟡 Média | Traces enviam conteúdo para terceiro (LangSmith cloud). LGPD prefere dados no Brasil. | `settings.langsmith_hide_inputs=true` por default em prod; avaliar self-hosted. |
+| T0-4 | **LangSmith não auto-hospedado**; `HIDE_INPUTS/OUTPUTS` não é default | ~~🟡 Média~~ ✅ **Parcial** | `langsmith_hide_inputs/outputs=true` por default (orchestrator-py + agents-py): traces sobem só com metadata; dev opt-out explícito via env. Redação de PII por regex mantida como defesa em profundidade. **Pendente (🟢 Baixa):** avaliar LangSmith self-hosted para reabrir inputs/outputs com dado no Brasil. | Self-hosted: avaliar quando houver volume que justifique. |
 
 ## Tier 1 — Segurança de plataforma (pendências pós-entrega)
 
@@ -32,6 +32,15 @@ Documento vivo. Itens são removidos quando resolvidos, adicionados quando desco
 | T4-4 | **SW não tem página offline HTML** | ~~🟢 Baixa~~ ✅ **Resolvido** | `public/offline.html` criada (UI minimalista pt-BR + botão recarregar). SW precacheia e serve como fallback de navegação antes de `/p`. | — |
 | T4-5 | **Background sync não implementado** | 🟢 Baixa | Checkins respondidos offline não são enviados quando a conexão volta. | Usar `navigator.serviceWorker.ready.then(r => r.sync.register('checkins'))`. |
 | T4-6 | **Ícones do PWA são placeholders** | ~~🟢 Baixa~~ ✅ **Resolvido** | Substituídos pela marca real (`brain-logo.png`) em todos os tamanhos (favicon 16/32/48, apple 180, PWA 192/512, push). Falta só uma versão maskable com safe-zone dedicada (polish de design). | — |
+
+## Teleconsulta (ADR-026) / Escriba (ADR-040)
+
+| # | Item | Severidade | Rationale | Caminho para resolver |
+|---|---|---|---|---|
+| TC-1 | **Validação manual de call real atrás de NAT** nunca registrada | 🟡 Média | Teste sintético não exercita CGNAT/TURN relay — exatamente o cenário onde teleconsulta falha em produção. Exige duas pessoas em redes diferentes (ex.: 4G × wifi). | Call médico↔paciente com `COMPOSE_PROFILES=turn` em prod; conferir em `chrome://webrtc-internals` se o candidato selecionado é `relay` quando P2P falha. Registrar resultado aqui. |
+| TC-2 | **Sem observabilidade de WebRTC** | 🟡 Média | Falha de TURN/ICE é invisível: eventos `falhou` vão para `consulta_video_eventos`, mas ninguém alerta. | Métrica/alerta sobre taxa de `falhou` vs `conectou` em `consulta_video_eventos` (watchdog existente pode consultar). |
+| TC-3 | **Upload do áudio do escriba em base64 via gateway (limite 25 MB)** | 🟢 Baixa | Consulta longa pode estourar o limite; base64 infla 33%. ADR-040 já prevê evolução. | S3 presigned URL direto do browser + notificação ao gateway para disparar a transcrição. |
+| TC-4 | **Sem testes do fluxo teleconsulta** | ~~🟡 Média~~ ✅ **Parcial** | Unit tests adicionados: escriba (diarização, pipeline efêmero S3, guardrails do prompt — agents-py) e gateway (TurnCredentialService HMAC/TTL, TeleconsultaSignalingHub pareamento/presença/reconexão). **Pendente (🟢):** endpoint HTTP de vídeo no fixture de Testcontainers + E2E do `SalaVideo.tsx`. | Estender `TenantIsolationTests` para `/video/entrar`; Playwright com `--use-fake-device-for-media-stream`. |
 
 ## Geral / Cross-cutting
 

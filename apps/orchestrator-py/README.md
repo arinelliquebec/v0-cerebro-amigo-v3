@@ -112,10 +112,12 @@ curl -N -X POST http://localhost:8081/internal/portal/conversation/message \
 
 ## LGPD
 
-Saúde mental é categoria especial (art. 11 LGPD). Antes de habilitar
-LangSmith em produção, escolha entre self-hosted, `LANGSMITH_HIDE_INPUTS/OUTPUTS=true`,
-ou `PII_REDACTION_ENABLED=true` (redação de CPF/email/telefone/data por regex).
-Documente a decisão no RIPD/DPIA.
+Saúde mental é categoria especial (art. 11 LGPD). `LANGSMITH_HIDE_INPUTS` e
+`LANGSMITH_HIDE_OUTPUTS` são **true por default** (DEBT T0-4): traces sobem só
+com metadata. `PII_REDACTION_ENABLED=true` (redação de CPF/email/telefone/data
+por regex) segue ativa como defesa em profundidade caso alguém abra os traces
+em dev. Self-hosted LangSmith continua sendo a opção ideal de longo prazo.
+Documente qualquer desvio no RIPD/DPIA.
 
 ## Texto de crise
 

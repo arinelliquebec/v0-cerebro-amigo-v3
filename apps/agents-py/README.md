@@ -92,10 +92,10 @@ ORDER BY i.criado_em DESC LIMIT 5;"
 
 ## LGPD
 
-Mesma estratégia do orchestrator-py: redação de PII por callback antes
-do envio ao LangSmith, ou `LANGSMITH_HIDE_*=true` em produção sem
-self-hosted. Resumos persistidos em `insights` ficam na sua DB — não
-saem para terceiros.
+Mesma estratégia do orchestrator-py: `LANGSMITH_HIDE_*` é **true por
+default** (DEBT T0-4) — traces sobem só com metadata — e a redação de PII
+por callback segue como defesa em profundidade. Resumos persistidos em
+`insights` ficam na sua DB — não saem para terceiros.
 
 ## Thresholds clínicos
 

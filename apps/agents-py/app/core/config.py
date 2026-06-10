@@ -95,8 +95,11 @@ class Settings(BaseSettings):
     langsmith_tracing: bool = True
     langsmith_api_key: SecretStr | None = None
     langsmith_project: str = "cerebro-amigo-v3"
-    langsmith_hide_inputs: bool = False
-    langsmith_hide_outputs: bool = False
+    # Default fail-safe (DEBT T0-4): LangSmith é cloud de terceiro fora do
+    # Brasil; traces sobem só com metadata. Dev pode setar
+    # LANGSMITH_HIDE_INPUTS/OUTPUTS=false explicitamente para depurar.
+    langsmith_hide_inputs: bool = True
+    langsmith_hide_outputs: bool = True
     pii_redaction_enabled: bool = True
 
     # Postgres — URL format para asyncpg
