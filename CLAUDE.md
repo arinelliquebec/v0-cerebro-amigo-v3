@@ -102,3 +102,29 @@ Tudo isto já existe, tem testes e está deployado em prod (EC2 + RDS, sa-east-1
 - Responda e comente em **pt-BR**. Domínio em português (`pacientes`, `prontuarios`, `consultas`).
 - Não reintroduza Azure, Go no gateway, nem `ANTHROPIC_API_KEY`. Se algo no código antigo usar isso, é resíduo do V2 — migre.
 - Ao terminar uma mudança relevante de arquitetura, registre um ADR em `docs/adrs/`.
+
+# Snippet para o CLAUDE.md / CONTEXT.md raiz do monorepo
+
+Acrescentar a seção abaixo ao documento raiz do Cérebro Amigo, junto da lista de serviços:
+
+---
+
+## apps/checkup — Check-up Mental (:3001)
+
+Triagem pública e gratuita de saúde mental (PHQ-9, GAD-7, ASRS-18) com devolutiva
+por IA e relatório PDF. É o motor de aquisição do lançamento — SEO do lado paciente,
+QR no PDF do lado médico. Regras completas em `apps/checkup/CLAUDE.md`.
+
+Regras de fronteira (valem para qualquer trabalho no monorepo):
+
+1. **Isolamento clínico ⇄ público.** `apps/checkup` não importa código de
+   `gateway`, `orchestrator`, `agents` ou `notifier`, e nenhum serviço clínico
+   importa nada do checkup. Compartilhamento permitido: apenas design tokens
+   (paleta, fontes) e utilitários puros sem dados.
+2. **Dados separados.** O checkup usa exclusivamente o schema `checkup` no RDS.
+   Nunca criar FK entre schemas. Respostas de triagem jamais entram no prontuário.
+3. **LLM**: Bedrock direto (IAM role, sa-east-1), Haiku. O checkup não passa pelo
+   orchestrator.
+4. **Tráfego**: o checkup é a única superfície pública anônima do sistema; mudanças
+   de infra nele não podem aumentar o risco dos serviços clínicos (limites de
+   memória/CPU no compose são obrigatórios).
