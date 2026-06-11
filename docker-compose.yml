@@ -193,4 +193,4 @@ services:
       options:
         awslogs-region: sa-east-1
         awslogs-group: /cerebro-amigo/checkup
-        awslogs-stream-prefix: checkup
+        tag: checkup
