@@ -40,5 +40,5 @@ feature de conversão.
 ## Testes obrigatórios
 
 - Unitário: item 9 > 0 ⇒ `crisisFlag` true para qualquer combinação dos demais itens.
-- E2E: fluxo desvia antes de qualquer chamada ao Bedrock e antes de persistir respostas.
+- E2E: fluxo desvia antes de qualquer chamada de IA e antes de persistir respostas.
 - Revisão humana do texto final da tela antes do deploy (Patrick aprova explicitamente).

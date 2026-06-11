@@ -28,7 +28,7 @@ Fase 1 (faça apenas isto, nesta ordem, e pare ao final para minha revisão):
    o que ficou pendente para a Fase 2.
 
 Fase 2 (somente após minha aprovação da Fase 1): fluxo de UI do teste (uma pergunta
-por tela), devolutiva via Bedrock com fallbacks, PDF com QR, landings SEO, eventos
+por tela), devolutiva via Anthropic API com fallbacks, PDF com QR, landings SEO, eventos
 de funil no schema `checkup`.
 
 Não implemente nada listado em "Fora de escopo do MVP". Em qualquer conflito entre
