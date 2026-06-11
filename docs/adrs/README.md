@@ -35,6 +35,7 @@ contexto regulatório, sem dependência da memória do autor.
 | [017](017-imutabilidade-audit-trail-no-banco.md) | Imutabilidade do audit trail garantida no banco | Accepted | Segurança clínica / Compliance |
 | [018](018-cifragem-em-repouso.md) | Cifragem em repouso de dados clínicos (application-level) | Accepted | Segurança clínica / Compliance |
 | [026](026-rede-social-medicos.md) | Rede Social Cérebro Amigo (médicos verificados) — Onda 0 + feed | Proposed | Produto / Arquitetura / Compliance |
+| [045](ADR-045-validacao-escalas-checkup.md) | Validação e fidelidade das escalas do Check-up (PHQ-9, GAD-7, ASRS-18) | Accepted | Segurança clínica / Produto |
 
 ## Status possíveis
 
