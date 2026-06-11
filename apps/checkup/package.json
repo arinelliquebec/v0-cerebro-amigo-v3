@@ -13,7 +13,6 @@
     "next": "^16",
     "react": "^19",
     "react-dom": "^19",
-    "@sentry/nextjs": "^10.56.0",
     "@anthropic-ai/sdk": "latest",
     "@react-pdf/renderer": "^4",
     "drizzle-orm": "^0.44",
