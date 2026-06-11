@@ -14,7 +14,9 @@
     "react": "^19",
     "react-dom": "^19",
     "@anthropic-ai/sdk": "latest",
+    "@aws-sdk/client-sesv2": "^3",
     "@react-pdf/renderer": "^4",
+    "bcryptjs": "^2.4.3",
     "drizzle-orm": "^0.44",
     "postgres": "^3",
     "zod": "^4",
@@ -31,7 +33,8 @@
     "drizzle-kit": "^0.31",
     "@types/node": "^22",
     "@types/react": "^19",
-    "@types/qrcode": "^1"
+    "@types/qrcode": "^1",
+    "@types/bcryptjs": "^2.4.6"
   },
   "//": "Versões: alinhar com o lockfile do monorepo (pnpm). shadcn/ui via CLI (estilo new-york), copiando components.json de apps/web."
 }
