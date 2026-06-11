@@ -7,8 +7,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   cacheComponents: true,
   reactCompiler: true,
-  output: "standalone",
-  transpilePackages: ["@react-pdf/renderer"],
+  output: process.env.VERCEL ? undefined : "standalone",
+transpilePackages: ["@react-pdf/renderer"],
 };
 
 export default nextConfig;
