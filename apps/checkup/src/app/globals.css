@@ -1,114 +1,65 @@
 @import 'tailwindcss';
 
-/*
-  Tokens do Cérebro Amigo (espelhados de apps/web), adaptados ao tom do checkup:
-  fundos claros, mais respiro, coral reservado a acentos pequenos.
-  REGRA (docs/CRISIS-PROTOCOL.md): telas de crise e pós-crise NUNCA usam coral
-  nem animação — paleta sóbria, sem dark patterns.
-*/
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #f8fafb;
-  --foreground: #0f2137;
-  --card: #ffffff;
-  --card-foreground: #0f2137;
-  --popover: #ffffff;
-  --popover-foreground: #0f2137;
+  --background: #F9FAFB;
+  --foreground: #0F2137;
+  --card: #FFFFFF;
+  --card-foreground: #0F2137;
+  --popover: #FFFFFF;
+  --popover-foreground: #0F2137;
 
-  --primary: #5e4b8b;
-  --primary-foreground: #ffffff;
-  --secondary: #efeaf6;
-  --secondary-foreground: #4a3a70;
+  --primary: #5E4B8B;
+  --primary-foreground: #FFFFFF;
+  --secondary: #EFEAF6;
+  --secondary-foreground: #4A3A70;
 
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
 
-  --accent: #e57373;
-  --accent-foreground: #ffffff;
+  --accent: #E57373;
+  --accent-foreground: #FFFFFF;
 
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive: #EF4444;
+  --destructive-foreground: #FFFFFF;
 
-  --border: #e2e8f0;
-  --input: #e2e8f0;
-  --ring: #5e4b8b;
+  --border: #E2E8F0;
+  --input: #E2E8F0;
+  --ring: #5E4B8B;
 
   --radius: 0.75rem;
 
-  /* Tokens de marca Cérebro Amigo */
-  --purple: #5e4b8b;
-  --purple-light: #7a66a8;
-  --purple-dark: #4a3a70;
-  --navy: #0f2137;
-  --navy-light: #1e3a5a;
-  --coral: #e57373;
-  --coral-dark: #ef5350;
-  --success: #10b981;
-  --warning: #f59e0b;
+  --purple: #5E4B8B;
+  --purple-light: #7A66A8;
+  --purple-dark: #4A3A70;
+  --navy: #0F2137;
+  --coral: #E57373;
+  --success: #10B981;
+
+  --font-inter: 'Inter', sans-serif;
+  --font-playfair: 'Playfair Display', serif;
 }
 
-@theme inline {
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-serif: var(--font-playfair), 'Playfair Display', Georgia, serif;
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-card: var(--card);
-  --color-card-foreground: var(--card-foreground);
-  --color-popover: var(--popover);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-primary: var(--primary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-secondary: var(--secondary);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-muted: var(--muted);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-accent: var(--accent);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-destructive: var(--destructive);
-  --color-destructive-foreground: var(--destructive-foreground);
-  --color-border: var(--border);
-  --color-input: var(--input);
-  --color-ring: var(--ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-
-  --color-purple: var(--purple);
-  --color-purple-light: var(--purple-light);
-  --color-purple-dark: var(--purple-dark);
-  --color-navy: var(--navy);
-  --color-navy-light: var(--navy-light);
-  --color-coral: var(--coral);
-  --color-coral-dark: var(--coral-dark);
-  --color-success: var(--success);
-  --color-warning: var(--warning);
+* {
+  box-sizing: border-box;
 }
 
-@layer base {
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@media (prefers-reduced-motion: reduce) {
   * {
-    border-color: var(--color-border);
-  }
-  body {
-    background-color: var(--color-background);
-    color: var(--color-foreground);
-    font-family: var(--font-sans);
-    -webkit-font-smoothing: antialiased;
-  }
-  /* Acessibilidade: foco visível em tudo que é interativo (WCAG AA) */
-  :focus-visible {
-    outline: 2px solid var(--color-ring);
-    outline-offset: 2px;
-  }
-  /* Público pode estar em sofrimento + WCAG: respeitar reduced motion */
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-      scroll-behavior: auto !important;
-    }
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

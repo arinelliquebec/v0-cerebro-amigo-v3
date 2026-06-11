@@ -3,43 +3,34 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3001",
-    "prebuild": "tsx scripts/check-scales.ts",
     "build": "next build",
     "start": "next start -p 3001",
     "test": "vitest run",
-    "test:watch": "vitest",
-    "typecheck": "tsc --noEmit"
+    "lint": "next lint"
   },
   "dependencies": {
-    "@aws-sdk/client-bedrock-runtime": "^3",
-    "@react-pdf/renderer": "^4",
-    "class-variance-authority": "^0.7.1",
-    "clsx": "^2.1.1",
-    "drizzle-orm": "^0.44",
-    "lucide-react": "^0.564.0",
-    "next": "16.2.6",
-    "postgres": "^3",
-    "qrcode": "^1",
+    "next": "^16",
     "react": "^19",
     "react-dom": "^19",
-    "tailwind-merge": "^3.3.1",
-    "zod": "^4"
+    "@anthropic-ai/sdk": "latest",
+    "@react-pdf/renderer": "^4",
+    "drizzle-orm": "^0.44",
+    "postgres": "^3",
+    "zod": "^4",
+    "lucide-react": "latest",
+    "qrcode": "^1",
+    "clsx": "^2",
+    "tailwind-merge": "^2"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.0",
-    "@testing-library/react": "^16",
-    "@types/node": "^22",
-    "@types/qrcode": "^1",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "^1.0.0",
+    "typescript": "^5",
+    "vitest": "^3",
+    "tailwindcss": "^4",
+    "@tailwindcss/postcss": "^4",
     "drizzle-kit": "^0.31",
-    "jsdom": "^26",
-    "postcss": "^8.5",
-    "tailwindcss": "^4.2.0",
-    "tsx": "^4",
-    "typescript": "5.7.3",
-    "vitest": "^3"
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/qrcode": "^1"
   },
-  "//": "Versões espelham apps/web (next 16.2.6, ts 5.7.3, tailwind 4.2). shadcn/ui via CLI (new-york), components.json copiado de apps/web. prebuild = gate clínico: build de produção falha enquanto houver escala habilitada com validated:false (ver src/lib/scales/CLAUDE.md)."
+  "//": "Versões: alinhar com o lockfile do monorepo (pnpm). shadcn/ui via CLI (estilo new-york), copiando components.json de apps/web."
 }

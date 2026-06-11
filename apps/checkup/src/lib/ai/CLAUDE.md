@@ -5,14 +5,16 @@ A devolutiva é o momento de mais valor percebido — e de mais risco. Por isso 
 
 ## Arquitetura
 
-- Bedrock `sa-east-1`, modelo **Haiku** (custo/latência), via
-  `@aws-sdk/client-bedrock-runtime` com IAM role da EC2. Nunca API key.
+- Anthropic API direta, modelo **`claude-haiku-4-5`** (custo/latência), via
+  `@anthropic-ai/sdk`. Chave somente por env `ANTHROPIC_API_KEY` — nunca em
+  código, imagem ou log. Interface única atrás da flag `LLM_PROVIDER`
+  (default `anthropic`); trocar de provedor no futuro deve ser config, não refactor.
 - Entrada: APENAS dados estruturados — `{ scaleId, totalScore, band, bandLabel,
   partAPositives? }`. **Nunca enviar respostas item a item nem texto livre do usuário**
   (não existe campo de texto livre no produto; manter assim).
 - Saída: JSON com estrutura fixa, validado com Zod. Se o parse falhar → retry 1x →
   **fallback estático** (templates por banda, escritos à mão, revisados — sempre
-  disponíveis em `fallbacks.ts`). O produto NUNCA quebra se o Bedrock cair.
+  disponíveis em `fallbacks.ts`). O produto NUNCA quebra se a API cair.
 - `temperature` baixa (≤ 0.4). `max_tokens` ~600.
 
 ## Estrutura fixa da resposta
@@ -54,5 +56,5 @@ nos próximos passos; tom caloroso e direto, para um adulto.
 ## Testes
 
 - Snapshot tests dos fallbacks (são produto, não emergência).
-- Teste de contrato: saída do Bedrock → Zod → render. Mock do client nos testes.
+- Teste de contrato: saída do modelo → Zod → render. Mock do client Anthropic nos testes.
 - Lista de proibições coberta por teste de regex sobre a saída antes do render.
