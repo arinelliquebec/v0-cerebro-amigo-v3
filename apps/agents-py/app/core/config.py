@@ -59,6 +59,15 @@ class Settings(BaseSettings):
     padroes_interval_hours: int = 12        # PADROES_INTERVAL_HOURS
     risco_silencioso_interval_hours: int = 24  # RISCO_SILENCIOSO_INTERVAL_HOURS
 
+    # ─── Gate de custo LLM diário (ADR-011) ───
+    # Teto diário (America/Sao_Paulo) que PAUSA o despacho de agentes batch
+    # NÃO-críticos. risco_silencioso (safety-relevant) e o plano interativo
+    # (orchestrator: crise/conversa) NUNCA são gateados. Fail-open por design:
+    # se a contagem falhar, o batch prossegue — a trava real é o limite mensal
+    # na Console da Anthropic. <= 0 desabilita o gate. $5 é placeholder; calibrar
+    # com custo_usd real acumulado.
+    max_daily_llm_usd: float = 5.0          # MAX_DAILY_LLM_USD
+
     # ─── Provider LLM (ADR-015) ───
     # anthropic = API direta (default operacional). bedrock = AWS, atrás da flag.
     llm_provider: Literal["anthropic", "bedrock"] = "anthropic"
