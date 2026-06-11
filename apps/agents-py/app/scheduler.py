@@ -30,6 +30,7 @@ from apscheduler.triggers.interval import IntervalTrigger
 
 from app.agents import AGENT_REGISTRY, get_agent
 from app.core.config import get_settings
+from app.core.cost_gate import should_dispatch
 from app.jobs import JOB_REGISTRY, get_job
 
 logger = structlog.get_logger(__name__)
@@ -123,6 +124,14 @@ def _build_agent_schedules() -> dict[str, _Schedule]:
 async def _tick_agent(name: str) -> None:
     """Roda um ciclo de um agente, com isolamento de falhas."""
     log = logger.bind(agente=name)
+
+    # Gate de custo diário (ADR-011): pausa batch NÃO-crítico ao estourar o teto.
+    # risco_silencioso é isento; fail-open se a contagem falhar. NUNCA afeta o
+    # plano interativo (crise/conversa do orchestrator — não passa por aqui).
+    settings = get_settings()
+    if not await should_dispatch(name, settings.max_daily_llm_usd):
+        return
+
     try:
         agent = get_agent(name)
         stats = await agent.run_once()

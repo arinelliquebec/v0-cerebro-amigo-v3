@@ -1,6 +1,6 @@
 # ADR-011: Enforcement do teto de custo diário de LLM (`MAX_DAILY_LLM_USD`)
 
-- **Status:** Aceito — implementação adiada. A decisão (o *desenho seguro*) está registrada; só implementar o gate quando houver motivo concreto: tráfego real, custo real medido, ou um susto de gasto. Até lá, a posição vigente é a Alternativa B (ver abaixo).
+- **Status:** Aceito — **implementado 2026-06-11** (ver Amendment no fim). O gate descrito na Decisão está em vigor no `agents-py`; sai-se da Alternativa B.
 - **Data:** 2026-06-01
 - **Depende de:** [ADR-015](015-llm-provider-switchavel.md) (camada LLM provider-switchável), que introduziu o price map provider-aware, o `compute_cost()` e a gravação de `custo_usd`.
 
@@ -43,3 +43,19 @@ O sistema tem dois planos com perfis de risco opostos:
 - **Positivas:** caminhos safety-critical isentos por design; gasto do batch contível em granularidade diária; reaproveita a observabilidade já entregue no ADR-015.
 - **Tradeoffs:** lógica extra no despacho do scheduler; exige definição clara da fronteira de dia; analytics podem atrasar em dias caros (aceitável — são deferíveis); o gate é poroso de propósito, logo **não** é teto de gasto rígido — a trava mensal de plataforma é.
 - **Se não implementado:** permanecemos na Alternativa B (observabilidade + limite de plataforma + alertas), que é aceitável por ora.
+
+## Amendment — implementação (2026-06-11)
+
+Gate implementado no `agents-py`, fiel à Decisão:
+
+- **`app/core/cost_gate.py`** (novo): `should_dispatch(agent_name, cap)` decide o despacho.
+  - **Interativo nunca gateado:** o módulo só é importado pelo scheduler do `agents-py` (plano batch); o orchestrator (crise/conversa) não toca nisto.
+  - **`risco_silencioso` isento** via `EXEMPT_AGENTS` — sempre despacha, mesmo acima do teto.
+  - **Fail-open:** erro ao contar custo → `True` + log `llm_cost.count_failed`. `cap <= 0` desabilita.
+  - **Fronteira do dia = `America/Sao_Paulo`** (recomendação do ADR): soma `agente_execucoes.custo_usd` com `iniciado_em >= início-do-dia-local` (usa o índice `(agente, sucesso, iniciado_em)`).
+  - **Alertas 50/80/100%** via log estruturado `llm_cost.alert`, uma vez por nível por dia (dedupe in-process). Pausa logada como `llm_cost.batch_paused` — nunca silenciosa.
+- **`app/scheduler.py`**: checagem pré-despacho em `_tick_agent` (só agentes; jobs operacionais não-LLM não passam pelo gate).
+- **`app/core/config.py`** + `.env.example`: `MAX_DAILY_LLM_USD` (default `5.0`, placeholder a calibrar; `<= 0` desliga).
+- **Testes:** `tests/test_daily_cost_gate.py` — fronteiras de alerta, isenção do `risco_silencioso`, fail-open, cap≤0, gate só no batch não-crítico, dedupe de alerta, fronteira de dia local. 17 testes; suíte do serviço 109/109 verde.
+
+**Escopo:** o gate soma o custo do **plano batch** (`agente_execucoes`). O custo do interativo segue coberto pela **trava mensal de plataforma** (Console da Anthropic) — backstop de última linha, conforme a Decisão. Threshold `$5` é placeholder; calibrar com `custo_usd` real acumulado.
