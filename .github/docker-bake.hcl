@@ -1,4 +1,4 @@
-// docker-bake.hcl — define os 5 targets de build do Cérebro Amigo V3.
+// docker-bake.hcl — define os 6 targets de build do Cérebro Amigo V3.
 // Usado pelo deploy.yml com docker/bake-action para builds paralelos + cache GHA.
 // IMAGE_TAG é injetado via env pelo CI (${{ github.sha }}).
 
@@ -10,10 +10,10 @@ variable "TAG" {
   default = "latest"
 }
 
-// Grupo "default" constrói e pusha os 5 serviços em paralelo.
+// Grupo "default" constrói e pusha os 6 serviços em paralelo.
 // bake-action sem target explícito resolve este grupo.
 group "default" {
-  targets = ["web", "api-gateway", "orchestrator-py", "agents-py", "notifier-py"]
+  targets = ["web", "api-gateway", "orchestrator-py", "agents-py", "notifier-py", "checkup"]
 }
 
 target "web" {
@@ -48,5 +48,12 @@ target "notifier-py" {
   context    = "apps/notifier-py"
   dockerfile = "Dockerfile"
   tags       = ["${ECR}/cerebro-amigo/notifier-py:${TAG}"]
+  platforms  = ["linux/amd64"]
+}
+
+target "checkup" {
+  context    = "."
+  dockerfile = "apps/checkup/Dockerfile"
+  tags       = ["${ECR}/cerebro-amigo/checkup:${TAG}"]
   platforms  = ["linux/amd64"]
 }

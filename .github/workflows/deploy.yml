@@ -143,6 +143,7 @@ jobs:
               "for i in $(seq 1 30); do curl -sf http://localhost:8081/health | grep -q ok && curl -sf http://localhost:8081/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo orchestrator-py nao saudavel; exit 1; }; done && echo orchestrator-py ok",
               "for i in $(seq 1 30); do curl -sf http://localhost:8082/health | grep -q ok && curl -sf http://localhost:8082/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo agents-py nao saudavel; exit 1; }; done && echo agents-py ok",
               "for i in $(seq 1 30); do curl -sf http://localhost:8083/health | grep -q ok && curl -sf http://localhost:8083/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo notifier-py nao saudavel; exit 1; }; done && echo notifier-py ok",
+              "for i in $(seq 1 30); do curl -sf http://localhost:3001/api/health | grep -q ok && break; [ $i -lt 30 ] && sleep 3 || { echo checkup nao saudavel; exit 1; }; done && echo checkup ok",
               "echo deploy ok"
             ]' \
             --timeout-seconds 1200 \

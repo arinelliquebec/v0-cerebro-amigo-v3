@@ -3,8 +3,27 @@ import { NextRequest, NextResponse } from "next/server";
 const { renderToBuffer } = require("@react-pdf/renderer") as typeof import("@react-pdf/renderer");
 import { createElement } from "react";
 import { CheckupPDF } from "@/components/CheckupPDF";
+import { checkPdfLimit } from "@/lib/ratelimit";
+
+function getClientIP(req: NextRequest): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
 
 export async function GET(req: NextRequest) {
+  const ip = getClientIP(req);
+  const limit = checkPdfLimit(ip);
+  if (!limit.allowed) {
+    const retryAfter = Math.ceil((limit.retryAfterMs ?? 3600000) / 1000);
+    return NextResponse.json(
+      { error: "rate_limited" },
+      { status: 429, headers: { "Retry-After": String(retryAfter) } }
+    );
+  }
+
   const { searchParams } = new URL(req.url);
   const scale = searchParams.get("scale") ?? "";
   const scoreStr = searchParams.get("score") ?? "0";

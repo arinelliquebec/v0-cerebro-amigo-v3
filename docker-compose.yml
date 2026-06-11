@@ -157,3 +157,31 @@ services:
       --listening-port=3478
       --min-port=49152 --max-port=49251
       --external-ip=${TURN_EXTERNAL_IP}
+
+  # Check-up Mental — triagem pública (apps/checkup, :3001)
+  # Chave Anthropic PRÓPRIA e separada dos serviços clínicos (CHECKUP_ANTHROPIC_API_KEY).
+  # Limite de memória apertado: superfície pública não pode pressionar serviços clínicos.
+  checkup:
+    image: 004177894935.dkr.ecr.sa-east-1.amazonaws.com/cerebro-amigo/checkup:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: apps/checkup/Dockerfile
+    mem_limit: 256m
+    mem_reservation: 128m
+    cpus: "0.50"
+    ports:
+      - "3001:3001"
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      ANTHROPIC_API_KEY: ${CHECKUP_ANTHROPIC_API_KEY}
+      CHECKUP_DATABASE_URL: ${CHECKUP_DATABASE_URL}
+      NEXT_PUBLIC_SITE_URL: https://checkup.cerebroamigo.com.br
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3001/api/health', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s

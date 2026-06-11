@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { phq9, gad7 } from "@/lib/scales";
+import { isScaleAvailable } from "@/lib/scales/gate";
 import { QuizFlow } from "./QuizFlow";
 
 export function generateStaticParams() {
@@ -36,7 +37,7 @@ export default async function TestePage({ params }: Props) {
 
   if (!scale) notFound();
 
-  if (!scale.validated) {
+  if (!isScaleAvailable(scale)) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="max-w-sm text-center">

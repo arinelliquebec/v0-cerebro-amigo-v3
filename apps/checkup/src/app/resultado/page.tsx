@@ -63,11 +63,15 @@ function ResultContent() {
     fetch("/api/devolutiva", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(input),
+      body: JSON.stringify({ ...input, sessionId: sid || undefined }),
     })
-      .then((r) => r.json())
+      .then((r) => {
+        // 429 → fallback estático (não quebra o fluxo)
+        if (r.status === 429 || !r.ok) return null;
+        return r.json();
+      })
       .then((data) => {
-        setDevolutiva(data);
+        setDevolutiva(data ?? getFallback(input));
       })
       .catch(() => {
         setDevolutiva(getFallback(input));
