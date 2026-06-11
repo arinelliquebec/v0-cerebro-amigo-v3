@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Teste de TDAH Adulto Online — ASRS-18 em Português",
   description:
-    "Saiba mais sobre o ASRS-18, instrumento da OMS para triagem de TDAH em adultos. Disponível em breve — gratuito, anônimo e baseado em instrumento validado.",
+    "Faça a triagem de TDAH adulto com o ASRS-18, instrumento da OMS na versão brasileira validada. Gratuito, anônimo e sem cadastro.",
   keywords: [
     "teste TDAH adulto",
     "ASRS-18 português",
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "https://checkup.cerebroamigo.com.br/tdah-adulto" },
   openGraph: {
     title: "Teste de TDAH Adulto — ASRS-18",
-    description: "Triagem validada da OMS para TDAH em adultos. Em breve.",
+    description: "Triagem da OMS para TDAH em adultos, versão brasileira validada. Gratuito e anônimo.",
     url: "https://checkup.cerebroamigo.com.br/tdah-adulto",
   },
 };
@@ -44,18 +44,22 @@ export default function TDAHAdultoPage() {
         <div className="text-center mb-12">
           <span className="text-5xl mb-4 block">⚡</span>
           <p className="text-sm font-medium text-[--purple] uppercase tracking-widest mb-3">
-            Em breve · ASRS-18
+            ASRS-18 · OMS
           </p>
           <h1 className="font-[--font-playfair] text-4xl font-semibold text-[--navy] mb-4 leading-tight">
             Teste de TDAH para adultos
           </h1>
           <p className="text-[--muted-foreground] text-lg leading-relaxed mb-8">
-            Estamos preparando a triagem com o ASRS-18, instrumento da OMS validado para
-            adultos em português brasileiro. Em breve disponível.
+            Triagem com o ASRS-18, instrumento da OMS na versão brasileira validada (Mattos et al.,
+            2006). 18 perguntas sobre os últimos 6 meses — um ponto de partida para conversar com
+            um profissional, não um diagnóstico.
           </p>
-          <div className="inline-block py-4 px-10 bg-[--muted] text-[--muted-foreground] rounded-xl font-medium text-lg cursor-not-allowed">
-            Em breve
-          </div>
+          <Link
+            href="/teste/asrs18"
+            className="inline-block py-4 px-10 bg-[--purple] text-white rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px]"
+          >
+            Começar triagem
+          </Link>
           <p className="text-xs text-[--muted-foreground] mt-3">Gratuito · Anônimo · Sem cadastro</p>
         </div>
 
@@ -68,9 +72,10 @@ export default function TDAHAdultoPage() {
             brasileira validada foi publicada por Mattos et al. (Rev Psiq Clín, 2006).
           </p>
           <p className="text-[--muted-foreground] leading-relaxed">
-            O instrumento avalia 18 sintomas divididos em duas partes: a Parte A (6 itens) é
-            o screener principal, e a Parte B (12 itens) fornece informação qualitativa
-            complementar.
+            O instrumento avalia 18 sintomas em duas partes: a Parte A (9 itens) cobre
+            desatenção e a Parte B (9 itens) cobre hiperatividade e impulsividade. Como ainda
+            não há pontos de corte validados para a população brasileira, esta triagem
+            organiza suas respostas para você levar a um profissional — sem dar um veredito.
           </p>
         </section>
 
@@ -112,7 +117,7 @@ export default function TDAHAdultoPage() {
         {/* Links para outros testes */}
         <div className="bg-[--secondary] rounded-2xl p-6 text-center">
           <p className="text-[--navy] font-medium mb-4">
-            Enquanto isso, faça as triagens disponíveis agora:
+            Veja também as outras triagens:
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link

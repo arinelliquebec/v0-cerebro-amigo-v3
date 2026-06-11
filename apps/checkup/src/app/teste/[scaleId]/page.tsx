@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { phq9, gad7 } from "@/lib/scales";
+import { phq9, gad7, asrs18 } from "@/lib/scales";
 import { isScaleAvailable } from "@/lib/scales/gate";
 import { QuizFlow } from "./QuizFlow";
 
@@ -12,7 +12,7 @@ interface Props {
   params: Promise<{ scaleId: string }>;
 }
 
-const SCALES = { phq9, gad7 };
+const SCALES = { phq9, gad7, asrs18 };
 const SCALE_METADATA: Record<string, { title: string; description: string }> = {
   phq9: {
     title: "Triagem de Depressão — PHQ-9",
@@ -21,6 +21,10 @@ const SCALE_METADATA: Record<string, { title: string; description: string }> = {
   gad7: {
     title: "Triagem de Ansiedade — GAD-7",
     description: "Responda 7 perguntas sobre como você tem se sentido nas últimas 2 semanas.",
+  },
+  asrs18: {
+    title: "Triagem de TDAH Adulto — ASRS-18",
+    description: "Responda 18 perguntas sobre como você se sentiu nos últimos 6 meses.",
   },
 };
 

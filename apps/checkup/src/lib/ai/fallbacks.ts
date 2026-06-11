@@ -121,6 +121,22 @@ const GAD7_FALLBACKS: Record<string, Devolutiva> = {
   },
 };
 
+// ASRS-18: SEM verdict (Mattos 2006 não tem cutoff validado p/ BR). Único fallback,
+// independente do escore — nunca afirma triagem positiva/negativa.
+const ASRS_FALLBACK: Devolutiva = {
+  acolhimento: "Você fez bem em parar para observar como tem se sentido nos últimos meses.",
+  leitura: [
+    "O ASRS-18 é um instrumento que organiza sintomas frequentemente associados ao TDAH em adultos — desatenção, inquietação e impulsividade.",
+    "Ele é um ponto de partida para uma conversa, não um diagnóstico: no Brasil ainda não há pontos de corte validados para interpretar a pontuação isoladamente.",
+  ],
+  limites:
+    "Esta triagem não substitui uma avaliação por profissional de saúde, que considera história de vida, contexto e outros critérios.",
+  proximos_passos: [
+    "Leve suas respostas a um psiquiatra ou psicólogo para uma avaliação completa.",
+    "Anote exemplos concretos do dia a dia que ajudem a ilustrar o que você percebe.",
+  ],
+};
+
 const GENERIC_FALLBACK: Devolutiva = {
   acolhimento: "Você deu um passo importante ao parar para verificar como está.",
   leitura: [
@@ -135,6 +151,7 @@ const GENERIC_FALLBACK: Devolutiva = {
 };
 
 export function getFallback(input: DevolutivaInput): Devolutiva {
+  if (input.scaleId === "asrs18") return ASRS_FALLBACK;
   const map = input.scaleId === "phq9" ? PHQ9_FALLBACKS : GAD7_FALLBACKS;
   return map[input.band] ?? GENERIC_FALLBACK;
 }

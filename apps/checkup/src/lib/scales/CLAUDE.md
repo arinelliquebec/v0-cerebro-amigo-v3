@@ -43,17 +43,20 @@ Este diretório é o coração clínico do produto. Regras absolutas:
 - Uso livre, mesma família do PHQ.
 
 ### ASRS-18 v1.1 (TDAH adulto) — `asrs18.ts`
-- Instrumento da OMS, versão brasileira validada (Mattos et al., 2006).
-- 18 itens, respostas 0–4 (Nunca / Raramente / Às vezes / Frequentemente /
+- Instrumento da OMS, versão brasileira validada (Mattos et al., 2006, Rev Psiq Clín, Tabela 2).
+- 18 itens, respostas 0–4 (Nunca / Raramente / Algumas vezes / Frequentemente /
   Muito frequentemente).
-- **Parte A (itens 1–6) é o screener**: a positividade é por *células sombreadas*
-  que variam por item (alguns itens contam a partir de "Às vezes", outros a partir
-  de "Frequentemente"). **NÃO implementar a tabela de sombreamento de memória** —
-  transcrever do screener oficial (OMS/HCPA). `asrs18.ts` está como stub com a
-  estrutura pronta e `validated: false` até isso ser feito.
-- Resultado da triagem: ≥ 4 itens positivos na Parte A ⇒ "triagem positiva —
-  sintomas compatíveis com TDAH; procure avaliação". Parte B é relatada
-  qualitativamente no PDF, sem corte.
+- Estrutura real: **Parte A = 9 itens** (desatenção, 1–9), **Parte B = 9 itens**
+  (hiperatividade-impulsividade, 10–18). Itens transcritos verbatim da Tabela 2
+  (house style: ortografia moderna + notação (a)); `validated: true` desde 2026-06-11.
+- **SCORING QUALITATIVO, SEM VERDICT** (decisão Patrick/Rafael, 2026-06-11). Mattos 2006
+  adverte EXPLICITAMENTE que **não há pontos de corte validados para o Brasil** e recomenda
+  cautela em usar a pontuação dos itens ou tratar "algumas vezes" como positivo. Por isso
+  **NÃO** aplicamos os cutoffs americanos (Kessler) nem a tabela de células sombreadas:
+  `scoreAsrs18` só soma (totalScore informativo), band única `informative`; devolutiva fixa
+  (`ASRS_FALLBACK`, sem chamar LLM), nunca afirma positiva/negativa. "Triagem nunca é diagnóstico".
+- Reabrir só por novo ADR/decisão do Patrick (ex.: screener WHO 6 itens A4,A5,A6,A9+B1,B5,
+  ≥4 positivos) se houver cutoff validado p/ BR.
 
 ## Linguagem dos resultados
 

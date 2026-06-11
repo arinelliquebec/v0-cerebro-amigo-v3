@@ -19,6 +19,7 @@ const BAND_COLORS: Record<string, string> = {
   moderately_severe: "bg-red-50 text-red-800 border-red-200",
   severe: "bg-red-100 text-red-900 border-red-300",
   crisis: "bg-slate-100 text-slate-700 border-slate-300",
+  informative: "bg-slate-100 text-slate-700 border-slate-300",
 };
 
 function CrisisResources() {
@@ -86,17 +87,26 @@ function ResultContent() {
       {/* Crisis resources — top, always visible when crisis */}
       {isCrisis && <CrisisResources />}
 
-      {/* Score chip */}
+      {/* Score chip — escala com verdict (PHQ-9/GAD-7) mostra número + faixa.
+          Band "informative" (ASRS-18) é qualitativa: sem número, só rótulo neutro. */}
       <div className="mb-6">
         <p className="text-sm text-[--muted-foreground] mb-1">{SCALE_NAMES[scale] ?? scale}</p>
-        <div className="flex items-center gap-3">
-          <span className="text-4xl font-bold text-[--navy]">{score}</span>
+        {band === "informative" ? (
           <span
-            className={`text-sm px-3 py-1 rounded-full border font-medium ${BAND_COLORS[band] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}
+            className={`inline-block text-sm px-3 py-1 rounded-full border font-medium ${BAND_COLORS[band]}`}
           >
             {label}
           </span>
-        </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="text-4xl font-bold text-[--navy]">{score}</span>
+            <span
+              className={`text-sm px-3 py-1 rounded-full border font-medium ${BAND_COLORS[band] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}
+            >
+              {label}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Devolutiva */}

@@ -24,8 +24,9 @@ export interface ScaleItem {
 export interface ScoreBand {
   min: number;
   max: number;
-  /** chave neutra usada pela camada de devolutiva; não exibir crua na UI */
-  band: "minimal" | "mild" | "moderate" | "moderately_severe" | "severe" | "positive" | "negative";
+  /** chave neutra usada pela camada de devolutiva; não exibir crua na UI.
+   *  "informative" = sem verdict (ASRS-18: Mattos 2006 não tem cutoff validado p/ BR). */
+  band: "minimal" | "mild" | "moderate" | "moderately_severe" | "severe" | "positive" | "negative" | "informative";
   bandLabel: string;
 }
 

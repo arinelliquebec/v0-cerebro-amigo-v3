@@ -31,10 +31,10 @@ describe("isScaleAvailable — gate de produção", () => {
     expect(gad7.items.length).toBe(7);
   });
 
-  it("asrs18: validated=false + items=[] → BLOQUEADO (stub deliberado)", () => {
-    expect(isScaleAvailable(asrs18)).toBe(false);
-    expect(asrs18.validated).toBe(false);
-    expect(asrs18.items).toHaveLength(0);
+  it("asrs18: validated=true + 18 items → LIBERADO (Mattos 2006, scoring qualitativo sem verdict)", () => {
+    expect(isScaleAvailable(asrs18)).toBe(true);
+    expect(asrs18.validated).toBe(true);
+    expect(asrs18.items).toHaveLength(18);
   });
 
   it("escala totalmente pronta (validated=true + items preenchidos) → LIBERADA", () => {

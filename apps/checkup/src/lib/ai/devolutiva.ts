@@ -36,6 +36,10 @@ function buildUserMessage(input: DevolutivaInput): string {
 }
 
 export async function generateDevolutiva(input: DevolutivaInput): Promise<Devolutiva> {
+  // ASRS-18: devolutiva fixa, sem verdict. Não enviamos escore ao LLM — evita que ele
+  // infira "triagem positiva" (sem cutoff validado p/ BR) e reforça a minimização (LGPD).
+  if (input.scaleId === "asrs18") return getFallback(input);
+
   const client = getAnthropicClient();
   if (!client) return getFallback(input);
 

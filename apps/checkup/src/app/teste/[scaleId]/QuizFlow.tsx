@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation";
 import type { Scale, ScaleResult } from "@/lib/scales/types";
 import { scorePhq9 } from "@/lib/scales/phq9";
 import { scoreGad7 } from "@/lib/scales/gad7";
+import { scoreAsrs18 } from "@/lib/scales/asrs18";
 import { cn } from "@/lib/utils";
 
 function getScoreFn(scaleId: string) {
   if (scaleId === "phq9") return scorePhq9;
   if (scaleId === "gad7") return scoreGad7;
+  if (scaleId === "asrs18") return scoreAsrs18;
   throw new Error(`No score function for ${scaleId}`);
 }
 
