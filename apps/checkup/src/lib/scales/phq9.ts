@@ -1,7 +1,11 @@
 // src/lib/scales/phq9.ts
-// PHQ-9 — versão brasileira. Itens preenchidos a partir da versão validada
-// (Santos et al., 2013). TODO(validar): conferir caractere a caractere contra a
-// publicação e então marcar validated: true. Enquanto false, não usar em produção.
+// PHQ-9 — versão oficial brasileira, formato AUTORRELATO (tradução Pfizer/MapiTrust;
+// back-translation Fraguas Jr. et al., 2006), distribuída em phqscreeners.com.
+// NÃO confundir com a versão de Santos et al. (2013), que é aplicada por entrevistador
+// e usa opções de resposta modificadas (nenhum dia / menos de uma semana / ...).
+// TODO(validar): conferir caractere a caractere contra o PDF oficial
+// "Portuguese for Brazil" do phqscreeners.com e então marcar validated: true.
+// Enquanto false, não usar em produção.
 
 import type { Scale, ScaleResult } from "./types";
 
@@ -35,8 +39,8 @@ export const phq9: Scale = {
     { min: 15, max: 19, band: "moderately_severe", bandLabel: "sintomas moderadamente graves" },
     { min: 20, max: 27, band: "severe", bandLabel: "sintomas graves" },
   ],
-  validated: false, // TODO(validar)
-  source: "PHQ-9 versão brasileira (Santos IS et al., Cad. Saúde Pública, 2013)",
+  validated: false, // TODO(validar): conferir contra PDF oficial phqscreeners "Portuguese for Brazil"
+  source: "PHQ-9 oficial PT-BR, autorrelato (tradução Pfizer/MapiTrust; back-translation Fraguas Jr. et al., J Affect Disord 2006; phqscreeners.com)",
 };
 
 export function scorePhq9(answers: number[]): ScaleResult {

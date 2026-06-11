@@ -24,9 +24,13 @@ Este diretório é o coração clínico do produto. Regras absolutas:
 - **Item 9 é o item de crise**: resposta > 0 dispara `crisisFlag` no resultado,
   independentemente do escore total. O fluxo de UI trata isso ANTES de mostrar escore
   (ver docs/CRISIS-PROTOCOL.md).
-- Fonte do texto: versão brasileira validada (Santos et al., 2013). Os itens em
-  `phq9.ts` foram preenchidos a partir dela — **conferir caractere a caractere
-  contra a publicação antes de marcar `validated: true`.**
+- Fonte do texto: versão **oficial PT-BR autorrelato** (tradução Pfizer/MapiTrust;
+  back-translation Fraguas Jr. et al., 2006), distribuída em phqscreeners.com.
+  **NÃO é a versão de Santos et al. (2013)** — essa é aplicada por entrevistador e usa
+  opções de resposta modificadas (nenhum dia / menos de uma semana / uma semana ou mais /
+  quase todos os dias). O checkup é autoaplicado, então usa a versão autorrelato.
+  **Conferir caractere a caractere contra o PDF oficial "Portuguese for Brazil" do
+  phqscreeners.com antes de marcar `validated: true`.**
 - O PHQ-9 é de uso livre (Pfizer liberou os instrumentos PHQ sem necessidade de permissão).
 
 ### GAD-7 (ansiedade) — `gad7.ts`
