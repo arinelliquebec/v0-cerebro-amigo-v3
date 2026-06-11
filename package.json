@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "private": true,
   "pnpm": {
-    "onlyBuiltDependencies": ["sharp"]
+    "onlyBuiltDependencies": ["sharp"],
+    "overrides": {
+      "@hookform/resolvers": "3.9.1",
+      "zod": "3.25.76"
+    }
   }
 }
