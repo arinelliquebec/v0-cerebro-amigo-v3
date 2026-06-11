@@ -1,5 +1,5 @@
-// Healthcheck consumido pelo docker-compose (deploy/compose.snippet.yaml).
+import { NextResponse } from "next/server";
 
-export async function GET() {
-  return Response.json({ status: "ok", service: "checkup" });
+export function GET() {
+  return NextResponse.json({ status: "ok", service: "checkup" });
 }
