@@ -65,10 +65,53 @@ jobs:
           ruff check .
           pytest -q
 
+  # ─── Job 0.5: smoke do checkup (BLOQUEIA o deploy se falhar) ─────────────
+  #
+  # Builda o checkup, sobe o servidor e roda apps/checkup/scripts/smoke.sh contra
+  # localhost — pega regressão de RUNTIME que o build não vê (ex.: o 500 do
+  # /api/pdf quando o @react-pdf/renderer era bundlado pelo Turbopack, CK-1/CK-7).
+  # CI-safe: sem DB/Anthropic → devolutiva no fallback, events ok, PDF é puro SSR.
+  smoke-checkup:
+    name: Smoke — checkup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.3
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install (checkup)
+        run: pnpm install --frozen-lockfile --filter "./apps/checkup..."
+
+      - name: Build (checkup)
+        working-directory: apps/checkup
+        run: pnpm build
+
+      - name: Start + smoke
+        working-directory: apps/checkup
+        run: |
+          PORT=3001 node_modules/.bin/next start -p 3001 &
+          SV=$!
+          for i in $(seq 1 30); do curl -sf http://localhost:3001/api/health >/dev/null && break; sleep 2; done
+          bash scripts/smoke.sh http://localhost:3001
+          R=$?
+          kill $SV 2>/dev/null || true
+          exit $R
+
   # ─── Job 1: build e push das 5 imagens para o ECR (paralelo + cache) ─────
   build:
     name: Build & push to ECR
-    needs: test
+    needs: [test, smoke-checkup]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     outputs:
