@@ -7,7 +7,7 @@ container isolado na porta :3001.
 ## Decisão arquitetural (resumo)
 
 Dentro do monorepo, fora do caminho clínico:
-- Reusa: design tokens, pipeline ECR→SSM, IAM role p/ Bedrock, RDS (schema próprio).
+- Reusa: design tokens, pipeline ECR→SSM, RDS (schema próprio). LLM: Anthropic API direta.
 - Isola: container próprio, sem imports dos serviços clínicos, dados separados,
   postura LGPD anônima-por-padrão.
 - Custo/risco: 6º container na t3.small exige limites de memória (já no snippet);

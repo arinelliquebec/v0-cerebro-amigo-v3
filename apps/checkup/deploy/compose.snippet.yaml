@@ -10,8 +10,7 @@
       - "3001:3001"
     environment:
       NODE_ENV: production
-      AWS_REGION: sa-east-1
-      # Bedrock autentica pelo IAM role da instância (ADR-008) — sem chave aqui.
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY} # SSM Parameter Store (SecureString), injetada no deploy — nunca comitar
       DATABASE_URL: ${CHECKUP_DATABASE_URL} # RDS existente, schema "checkup"
       NEXT_PUBLIC_SITE_URL: https://checkup.cerebroamigo.com.br
       QR_TARGET_URL: https://www.cerebroamigo.com.br/medicos
