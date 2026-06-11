@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { renderToBuffer } = require("@react-pdf/renderer") as typeof import("@react-pdf/renderer");
+import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
 import { CheckupPDF } from "@/components/CheckupPDF";
 import { checkPdfLimit } from "@/lib/ratelimit";

@@ -8,7 +8,10 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   reactCompiler: true,
   output: process.env.VERCEL ? undefined : "standalone",
-transpilePackages: ["@react-pdf/renderer"],
+  // @react-pdf/renderer quebra quando empacotado pelo Turbopack — o reconciler estoura
+  // "Cannot read properties of undefined (reading 'S')" em runtime (appendChild). Externalizar
+  // carrega o pacote nativo de node_modules no servidor, sem bundlar. NÃO usar transpilePackages.
+  serverExternalPackages: ["@react-pdf/renderer"],
 };
 
 export default nextConfig;
