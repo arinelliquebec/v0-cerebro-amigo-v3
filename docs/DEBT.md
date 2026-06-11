@@ -42,6 +42,24 @@ Documento vivo. Itens são removidos quando resolvidos, adicionados quando desco
 | TC-3 | **Upload do áudio do escriba em base64 via gateway (limite 25 MB)** | 🟢 Baixa | Consulta longa pode estourar o limite; base64 infla 33%. ADR-040 já prevê evolução. | S3 presigned URL direto do browser + notificação ao gateway para disparar a transcrição. |
 | TC-4 | **Sem testes do fluxo teleconsulta** | ~~🟡 Média~~ ✅ **Parcial** | Unit tests adicionados: escriba (diarização, pipeline efêmero S3, guardrails do prompt — agents-py) e gateway (TurnCredentialService HMAC/TTL, TeleconsultaSignalingHub pareamento/presença/reconexão). **Pendente (🟢):** endpoint HTTP de vídeo no fixture de Testcontainers + E2E do `SalaVideo.tsx`. | Estender `TenantIsolationTests` para `/video/entrar`; Playwright com `--use-fake-device-for-media-stream`. |
 
+## Check-up Mental (apps/checkup)
+
+Contexto: as 3 escalas (PHQ-9, GAD-7, ASRS-18) estão validadas e live no EC2 (ADR-045);
+funil completo (landing → teste → crise/resultado → devolutiva → PDF) verificado por smoke
+E2E pelo domínio (12/12). Roda só no EC2 (`:3001`); o destino Vercel foi descartado porque
+us-east não alcança o RDS sa-east-1 (SG não libera + sem IP fixo). Itens pendentes:
+
+| # | Item | Severidade | Rationale | Caminho para resolver |
+|---|---|---|---|---|
+| CK-1 | **Sem observabilidade/alerta de erro no checkup** | 🔴 Alta | O `/api/pdf` retornava 500 em runtime (react-pdf bundlado pelo Turbopack) e ficou **invisível até o smoke manual** — o PDF/QR é o motor de aquisição de médicos. Superfície pública sem monitoramento de erro. | Sentry no checkup (LGPD-safe, como nos serviços Python) ou ao menos alerta sobre taxa de 5xx em `/api/*`. |
+| CK-2 | **Rota de eventos engole erro de DB silenciosamente** | 🟡 Média | `api/events` faz `.catch(() => {})` — analytics não bloqueia o fluxo (correto), mas isso **mascarou o bug de SSL por horas** (eventos retornavam `{ok:true}` gravando 0 rows). | Logar o erro de DB (sem PII) antes de engolir, para falhas futuras de persistência serem visíveis. |
+| CK-3 | **Conexão Postgres `ssl:"require"`, não `verify-full`** | 🟡 Média | `getDb` cifra mas não valida a CA do RDS (mesma classe do T1-4). RDS tem `rds.force_ssl=1`; o fix habilitou SSL, mas sem verificação de cert. | `ssl: { rejectUnauthorized: true, ca: <RDS CA> }` no container (alinhar com T1-4). |
+| CK-4 | **`test_results` (consentido) e `report_emails` não testados E2E** | 🟡 Média | O smoke verificou só `funnel_events` gravando. As gravações de resultado consentido e captura de e-mail (tabelas separadas, LGPD) dependem do mesmo caminho de DB, mas não foram exercitadas em prod. | Smoke do opt-in de consentimento + envio de e-mail; conferir `checkup.test_results`/`checkup.report_emails`. |
+| CK-5 | **Rate-limit do checkup é in-memory** | 🟡 Média | `ratelimit.ts` (3 devolutivas/sessão + 20/IP/h + 30 PDF/IP/h) é sliding window em memória. Single-instance no EC2 hoje OK, mas reinício zera e não escala horizontalmente (mesma classe do T1-1). | Mover contadores p/ Redis/Postgres se houver 2+ instâncias ou necessidade de persistir entre restarts. |
+| CK-6 | **Spend limit da Anthropic não confirmado no Console** | 🟡 Média | `checkup/CLAUDE.md` exige spend limit no Console da Anthropic antes do público (superfície anônima → risco de abuso de custo). Rate limit por sessão/IP existe, mas o teto de gasto não foi verificado nesta sessão. | Confirmar/configurar spend limit na key `CHECKUP_ANTHROPIC_API_KEY` no Console. |
+| CK-7 | **Sem smoke/E2E automatizado do checkup no CI** | 🟢 Baixa | O smoke das 3 escalas foi manual (curl). Regressões no funil (ex.: o 500 do PDF) só aparecem se alguém rodar à mão. | Job no CI/pós-deploy: health + 1 devolutiva + 1 PDF por escala + persistência de evento. |
+| CK-8 | **ASRS-18 sem verdict por falta de cutoff BR** | 🟢 Baixa | Por design (ADR-045): Mattos 2006 não tem ponto de corte validado p/ Brasil → triagem qualitativa, sem positivo/negativo. Não é bug; é gatilho de revisão. | Se publicarem cutoff BR validado, reabrir por novo ADR (ex.: screener WHO 6 itens). |
+
 ## Geral / Cross-cutting
 
 | # | Item | Severidade | Rationale | Caminho para resolver |
