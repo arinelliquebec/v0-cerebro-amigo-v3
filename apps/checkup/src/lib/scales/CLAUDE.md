@@ -36,7 +36,10 @@ Este diretório é o coração clínico do produto. Regras absolutas:
 ### GAD-7 (ansiedade) — `gad7.ts`
 - 7 itens, mesma janela e mesma escala de resposta 0–3 do PHQ-9.
 - Escore 0–21. Faixas: 0–4 mínimo · 5–9 leve · 10–14 moderado · 15–21 grave.
-- Fonte: versão brasileira validada (Moreno et al.). Mesma regra de conferência.
+- Fonte: versão **oficial PT-BR autorrelato** (tradução Pfizer/MapiTrust; phqscreeners.com),
+  **não** Moreno et al. (paper psicométrico, não reproduz o instrumento). Conferido
+  char-a-char contra o PDF oficial "Portuguese for Brazil" (2026-06-11): itens e opções
+  idênticos, sem defeito. Mesma regra de conferência do PHQ-9.
 - Uso livre, mesma família do PHQ.
 
 ### ASRS-18 v1.1 (TDAH adulto) — `asrs18.ts`

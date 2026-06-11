@@ -1,6 +1,10 @@
 // src/lib/scales/gad7.ts
-// GAD-7 — versão brasileira. TODO(validar): conferir contra a versão validada
-// (Moreno et al.) e marcar validated: true.
+// GAD-7 — versão oficial brasileira, formato AUTORRELATO (tradução Pfizer/MapiTrust),
+// distribuída em phqscreeners.com.
+// Conferido char-a-char contra PDF oficial phqscreeners "Portuguese for Brazil" (2026-06-11):
+// itens 1-7, opções e enunciado IDÊNTICOS, sem defeito de conteúdo.
+// Falta SÓ decisão cosmética antes do flip (com Patrick), igual ao PHQ-9: notação de gênero
+// /a vs (a) e ortografia "freqüência"(trema) vs "frequência". Não é mudança de conteúdo.
 
 import type { Scale, ScaleResult } from "./types";
 
@@ -31,8 +35,8 @@ export const gad7: Scale = {
     { min: 10, max: 14, band: "moderate", bandLabel: "sintomas moderados" },
     { min: 15, max: 21, band: "severe", bandLabel: "sintomas graves" },
   ],
-  validated: false, // TODO(validar)
-  source: "GAD-7 versão brasileira (Moreno AL et al.)",
+  validated: false, // TODO(validar): decidir cosmética (notação gênero, trema) com Patrick e então virar true
+  source: "GAD-7 oficial PT-BR, autorrelato (tradução Pfizer/MapiTrust; phqscreeners.com)",
 };
 
 export function scoreGad7(answers: number[]): ScaleResult {
