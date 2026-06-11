@@ -34,6 +34,8 @@ export const asrs18: Scale = {
   source: "ASRS-18 v1.1, versão brasileira (Mattos P et al., Rev Psiq Clín, 2006)",
 };
 
-export function scoreAsrs18(answers: number[]): ScaleResult {
-  throw new Error("not implemented — ver TODO(validar) acima");
+export function scoreAsrs18(_answers: number[]): ScaleResult {
+  throw new Error(
+    `Scale "${asrs18.id}" não está pronta: validated=false e itens não transcritos. Ver TODO(validar) em asrs18.ts.`
+  );
 }

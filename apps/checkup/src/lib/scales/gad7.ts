@@ -26,43 +26,34 @@ export const gad7: Scale = {
     { index: 7, text: "Sentir medo como se algo horrível fosse acontecer" },
   ],
   bands: [
-    { min: 0,  max: 4,  band: "minimal",  bandLabel: "sintomas mínimos" },
-    { min: 5,  max: 9,  band: "mild",     bandLabel: "sintomas leves" },
+    { min: 0, max: 4, band: "minimal", bandLabel: "sintomas mínimos" },
+    { min: 5, max: 9, band: "mild", bandLabel: "sintomas leves" },
     { min: 10, max: 14, band: "moderate", bandLabel: "sintomas moderados" },
-    { min: 15, max: 21, band: "severe",   bandLabel: "sintomas graves" },
+    { min: 15, max: 21, band: "severe", bandLabel: "sintomas graves" },
   ],
-  validated: false, // TODO(validar): conferir itens contra Moreno AL et al.
+  validated: false, // TODO(validar)
   source: "GAD-7 versão brasileira (Moreno AL et al.)",
 };
 
 export function scoreGad7(answers: number[]): ScaleResult {
   if (answers.length !== gad7.items.length) {
     throw new Error(
-      `GAD-7 espera ${gad7.items.length} respostas, recebeu ${answers.length}`
+      `scoreGad7: esperado ${gad7.items.length} respostas, recebido ${answers.length}`
     );
   }
-  for (let i = 0; i < answers.length; i++) {
-    const v = answers[i];
-    if (!Number.isInteger(v) || v < 0 || v > 3) {
-      throw new Error(
-        `GAD-7 item ${i + 1}: resposta inválida ${v} (esperado 0–3)`
-      );
+  for (const a of answers) {
+    if (!Number.isInteger(a) || a < 0 || a > 3) {
+      throw new Error(`scoreGad7: valor inválido ${a}; deve ser 0–3`);
     }
   }
-
-  const totalScore = answers.reduce((sum, v) => sum + v, 0);
-
-  const band = gad7.bands.find((b) => totalScore >= b.min && totalScore <= b.max);
-  if (!band) {
-    throw new Error(`GAD-7: escore ${totalScore} fora das faixas definidas`);
-  }
-
+  const totalScore = answers.reduce((sum, a) => sum + a, 0);
+  const scoreBand = gad7.bands.find((b) => totalScore >= b.min && totalScore <= b.max)!;
   return {
     scaleId: "gad7",
-    answers,
+    answers: [...answers],
     totalScore,
-    band: band.band,
-    bandLabel: band.bandLabel,
-    crisisFlag: false, // GAD-7 não tem item de crise
+    band: scoreBand.band,
+    bandLabel: scoreBand.bandLabel,
+    crisisFlag: false,
   };
 }

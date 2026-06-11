@@ -29,48 +29,36 @@ export const phq9: Scale = {
     { index: 9, text: "Pensar em se ferir de alguma maneira ou que seria melhor estar morto(a)", isCrisisItem: true },
   ],
   bands: [
-    { min: 0,  max: 4,  band: "minimal",           bandLabel: "sintomas mínimos" },
-    { min: 5,  max: 9,  band: "mild",               bandLabel: "sintomas leves" },
-    { min: 10, max: 14, band: "moderate",            bandLabel: "sintomas moderados" },
-    { min: 15, max: 19, band: "moderately_severe",   bandLabel: "sintomas moderadamente graves" },
-    { min: 20, max: 27, band: "severe",              bandLabel: "sintomas graves" },
+    { min: 0, max: 4, band: "minimal", bandLabel: "sintomas mínimos" },
+    { min: 5, max: 9, band: "mild", bandLabel: "sintomas leves" },
+    { min: 10, max: 14, band: "moderate", bandLabel: "sintomas moderados" },
+    { min: 15, max: 19, band: "moderately_severe", bandLabel: "sintomas moderadamente graves" },
+    { min: 20, max: 27, band: "severe", bandLabel: "sintomas graves" },
   ],
-  validated: false, // TODO(validar): conferir itens contra Santos IS et al., Cad. Saúde Pública, 2013
+  validated: false, // TODO(validar)
   source: "PHQ-9 versão brasileira (Santos IS et al., Cad. Saúde Pública, 2013)",
 };
 
 export function scorePhq9(answers: number[]): ScaleResult {
   if (answers.length !== phq9.items.length) {
     throw new Error(
-      `PHQ-9 espera ${phq9.items.length} respostas, recebeu ${answers.length}`
+      `scorePhq9: esperado ${phq9.items.length} respostas, recebido ${answers.length}`
     );
   }
-  for (let i = 0; i < answers.length; i++) {
-    const v = answers[i];
-    if (!Number.isInteger(v) || v < 0 || v > 3) {
-      throw new Error(
-        `PHQ-9 item ${i + 1}: resposta inválida ${v} (esperado 0–3)`
-      );
+  for (const a of answers) {
+    if (!Number.isInteger(a) || a < 0 || a > 3) {
+      throw new Error(`scorePhq9: valor inválido ${a}; deve ser 0–3`);
     }
   }
-
-  const totalScore = answers.reduce((sum, v) => sum + v, 0);
-
-  // item 9 (índice 8) > 0 dispara fluxo de crise antes de qualquer resultado
-  // Fonte: docs/CRISIS-PROTOCOL.md §1, src/lib/scales/CLAUDE.md §PHQ-9
+  const totalScore = answers.reduce((sum, a) => sum + a, 0);
   const crisisFlag = answers[8] > 0;
-
-  const band = phq9.bands.find((b) => totalScore >= b.min && totalScore <= b.max);
-  if (!band) {
-    throw new Error(`PHQ-9: escore ${totalScore} fora das faixas definidas`);
-  }
-
+  const scoreBand = phq9.bands.find((b) => totalScore >= b.min && totalScore <= b.max)!;
   return {
     scaleId: "phq9",
-    answers,
+    answers: [...answers],
     totalScore,
-    band: band.band,
-    bandLabel: band.bandLabel,
+    band: scoreBand.band,
+    bandLabel: scoreBand.bandLabel,
     crisisFlag,
   };
 }
