@@ -93,6 +93,10 @@ jobs:
       - name: Install (checkup)
         run: pnpm install --frozen-lockfile --filter "./apps/checkup..."
 
+      - name: Unit tests (vitest)
+        working-directory: apps/checkup
+        run: pnpm test
+
       - name: Build (checkup)
         working-directory: apps/checkup
         run: pnpm build

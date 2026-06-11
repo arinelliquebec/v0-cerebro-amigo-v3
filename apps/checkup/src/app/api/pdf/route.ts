@@ -14,7 +14,7 @@ function getClientIP(req: NextRequest): string {
 
 export async function GET(req: NextRequest) {
   const ip = getClientIP(req);
-  const limit = checkPdfLimit(ip);
+  const limit = await checkPdfLimit(ip);
   if (!limit.allowed) {
     const retryAfter = Math.ceil((limit.retryAfterMs ?? 3600000) / 1000);
     return NextResponse.json(

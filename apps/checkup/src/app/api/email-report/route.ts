@@ -74,7 +74,7 @@ function buildRawEmail(to: string, pdf: Buffer, scale: string): Buffer {
 
 export async function POST(req: NextRequest) {
   const ip = getClientIP(req);
-  const limit = checkPdfLimit(ip); // mesmo teto do PDF (envio gera 1 PDF; anti-spam por IP)
+  const limit = await checkPdfLimit(ip); // mesmo teto do PDF (envio gera 1 PDF; anti-spam por IP)
   if (!limit.allowed) {
     const retryAfter = Math.ceil((limit.retryAfterMs ?? 3600000) / 1000);
     return NextResponse.json(

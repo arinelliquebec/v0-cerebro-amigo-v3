@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   const ip = getClientIP(req);
   const sessionId = parsed.data.sessionId ?? `anon-${ip}`;
-  const limit = checkDevolutivaLimit(ip, sessionId);
+  const limit = await checkDevolutivaLimit(ip, sessionId);
 
   if (!limit.allowed) {
     const retryAfter = Math.ceil(((limit.retryAfterMs ?? 3600000)) / 1000);
