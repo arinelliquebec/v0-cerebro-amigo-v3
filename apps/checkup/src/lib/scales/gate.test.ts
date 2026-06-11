@@ -19,14 +19,16 @@ const MOCK_VALIDATED_SCALE: Scale = {
 };
 
 describe("isScaleAvailable — gate de produção", () => {
-  it("phq9: validated=false → BLOQUEADO (aguarda conferência do texto)", () => {
-    expect(isScaleAvailable(phq9)).toBe(false);
-    expect(phq9.validated).toBe(false); // confirma: ninguém flipou sem revisão
+  it("phq9: validated=true + items preenchidos → LIBERADO (conferido vs PDF oficial Pfizer, 2026-06-11)", () => {
+    expect(isScaleAvailable(phq9)).toBe(true);
+    expect(phq9.validated).toBe(true);
+    expect(phq9.items.length).toBe(9);
   });
 
-  it("gad7: validated=false → BLOQUEADO (aguarda conferência do texto)", () => {
-    expect(isScaleAvailable(gad7)).toBe(false);
-    expect(gad7.validated).toBe(false); // confirma: ninguém flipou sem revisão
+  it("gad7: validated=true + items preenchidos → LIBERADO (conferido vs PDF oficial Pfizer, 2026-06-11)", () => {
+    expect(isScaleAvailable(gad7)).toBe(true);
+    expect(gad7.validated).toBe(true);
+    expect(gad7.items.length).toBe(7);
   });
 
   it("asrs18: validated=false + items=[] → BLOQUEADO (stub deliberado)", () => {

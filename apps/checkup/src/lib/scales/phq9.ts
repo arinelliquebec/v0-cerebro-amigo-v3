@@ -3,9 +3,9 @@
 // back-translation Fraguas Jr. et al., 2006), distribuída em phqscreeners.com.
 // NÃO confundir com a versão de Santos et al. (2013), que é aplicada por entrevistador
 // e usa opções de resposta modificadas (nenhum dia / menos de uma semana / ...).
-// TODO(validar): conferir caractere a caractere contra o PDF oficial
-// "Portuguese for Brazil" do phqscreeners.com e então marcar validated: true.
-// Enquanto false, não usar em produção.
+// VALIDADO: conferido caractere a caractere contra o PDF oficial "Portuguese for Brazil"
+// do phqscreeners.com (2026-06-11). Notação de gênero (a)/(o) e ortografia moderna são
+// house style do app — não alteram o conteúdo clínico do instrumento oficial.
 
 import type { Scale, ScaleResult } from "./types";
 
@@ -41,9 +41,8 @@ export const phq9: Scale = {
   ],
   // Conferido char-a-char contra PDF oficial phqscreeners "Portuguese for Brazil" (2026-06-11):
   // conteúdo bate (itens 1-7,9 e opções idênticos; item 8 corrigido — faltava "muito").
-  // Falta SÓ decisão cosmética antes do flip (com Patrick): notação de gênero /a vs (a),
-  // ortografia "freqüência"(trema) vs "frequência", pontuação do item 8. Não é mudança de conteúdo.
-  validated: false, // TODO(validar): decidir cosmética acima e então virar true
+  // Cosmética decidida (Rafael, 2026-06-11): notação (a)/(o) + ortografia moderna = house style.
+  validated: true,
   source: "PHQ-9 oficial PT-BR, autorrelato (tradução Pfizer/MapiTrust; back-translation Fraguas Jr. et al., J Affect Disord 2006; phqscreeners.com)",
 };
 

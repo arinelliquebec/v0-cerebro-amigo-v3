@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useId } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { Scale, ScaleResult } from "@/lib/scales/types";
 import { scorePhq9 } from "@/lib/scales/phq9";
@@ -27,9 +27,12 @@ interface Props {
 
 export function QuizFlow({ scale }: Props) {
   const router = useRouter();
-  const sessionId = useId().replace(/:/g, "").slice(0, 32).padEnd(32, "0");
-  // stable session per mount: generated once via useId
-  const [stableSessionId] = useState(() => crypto.randomUUID());
+  // Sessão efêmera anônima: UUID gerado client-side PÓS-montagem.
+  // NÃO gerar no render — crypto.randomUUID quebra o prerender PPR (sem Suspense acima).
+  const [sessionId, setSessionId] = useState("");
+  useEffect(() => {
+    setSessionId(crypto.randomUUID());
+  }, []);
 
   const [step, setStep] = useState(-1); // -1 = intro
   const [answers, setAnswers] = useState<number[]>(new Array(scale.items.length).fill(-1));
@@ -42,11 +45,11 @@ export function QuizFlow({ scale }: Props) {
   const progress = step < 0 ? 0 : Math.round(((step + 1) / totalItems) * 100);
 
   const handleStart = useCallback(() => {
-    fireEvent("test_started", stableSessionId, scale.id);
+    fireEvent("test_started", sessionId, scale.id);
     setStarted(true);
     setStep(0);
     setSelected(null);
-  }, [stableSessionId, scale.id]);
+  }, [sessionId, scale.id]);
 
   const handleNext = useCallback(() => {
     if (selected === null) return;
@@ -56,13 +59,13 @@ export function QuizFlow({ scale }: Props) {
 
     // Check crisis on item 9 (PHQ-9, index 8) — BEFORE anything else
     if (currentItem?.isCrisisItem && selected > 0) {
-      fireEvent("crisis_routed", stableSessionId, scale.id);
+      fireEvent("crisis_routed", sessionId, scale.id);
       // Store partial result in query for "Continuar" path
       const partialScore = newAnswers
         .slice(0, step)
         .reduce((sum, a) => sum + (a >= 0 ? a : 0), 0) + selected;
       router.push(
-        `/crise?sid=${stableSessionId}&scale=${scale.id}&score=${partialScore}&band=crisis`
+        `/crise?sid=${sessionId}&scale=${scale.id}&score=${partialScore}&band=crisis`
       );
       return;
     }
@@ -72,9 +75,9 @@ export function QuizFlow({ scale }: Props) {
     if (isLastStep) {
       const scoreFn = getScoreFn(scale.id);
       const result: ScaleResult = scoreFn(newAnswers);
-      fireEvent("test_completed", stableSessionId, scale.id);
+      fireEvent("test_completed", sessionId, scale.id);
       router.push(
-        `/resultado?sid=${stableSessionId}&scale=${scale.id}&score=${result.totalScore}&band=${result.band}&label=${encodeURIComponent(result.bandLabel)}`
+        `/resultado?sid=${sessionId}&scale=${scale.id}&score=${result.totalScore}&band=${result.band}&label=${encodeURIComponent(result.bandLabel)}`
       );
       return;
     }
@@ -82,7 +85,7 @@ export function QuizFlow({ scale }: Props) {
     setAnswers(newAnswers);
     setStep((s) => s + 1);
     setSelected(null);
-  }, [selected, answers, step, currentItem, isLastStep, stableSessionId, scale.id, router]);
+  }, [selected, answers, step, currentItem, isLastStep, sessionId, scale.id, router]);
 
   // Intro screen
   if (step < 0) {
