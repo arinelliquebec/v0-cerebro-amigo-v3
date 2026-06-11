@@ -1,21 +1,18 @@
-"use client";
-
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { ContinueButton } from "./ContinueButton";
 
-function CriseContent() {
-  const searchParams = useSearchParams();
-  const sid = searchParams.get("sid");
-  const scale = searchParams.get("scale");
-  const score = searchParams.get("score") ?? "0";
-  const band = searchParams.get("band") ?? "severe";
+// Server Component: os recursos de crise (CVV/SAMU/CAPS) renderizam ESTATICAMENTE
+// (SSR/prerender), aparecendo mesmo se o JS falhar ou demorar. É a página mais
+// crítica do produto — nunca pode depender de hidratação p/ mostrar os canais de ajuda.
+// Só o botão "continuar" (que lê searchParams) é dinâmico, isolado sob Suspense.
 
-  const continueHref =
-    sid && scale
-      ? `/resultado?sid=${sid}&scale=${scale}&score=${score}&band=${band}&label=${encodeURIComponent("sintomas graves")}&crisis=true`
-      : null;
+export const metadata = {
+  title: "Apoio agora — Check-up Mental",
+  robots: { index: false },
+};
 
+export default function CrisePage() {
   return (
     <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-[#F8FAFC]">
       <div className="max-w-md w-full">
@@ -81,19 +78,9 @@ function CriseContent() {
           Contar para alguém de confiança o que você está sentindo também pode ajudar.
         </p>
 
-        {continueHref && (
-          <div className="border-t border-[#E2E8F0] pt-6">
-            <p className="text-xs text-[#94A3B8] text-center mb-4">
-              Quando você quiser, pode ver o restante do seu resultado.
-            </p>
-            <Link
-              href={continueHref}
-              className="block text-center py-3 px-6 text-sm text-[#64748B] hover:text-[#1E293B] rounded-xl border border-[#E2E8F0] transition-colors"
-            >
-              Continuar quando você quiser
-            </Link>
-          </div>
-        )}
+        <Suspense fallback={null}>
+          <ContinueButton />
+        </Suspense>
 
         <div className="mt-8 text-center">
           <Link href="/" className="text-xs text-[#94A3B8] hover:text-[#64748B]">
@@ -102,17 +89,5 @@ function CriseContent() {
         </div>
       </div>
     </main>
-  );
-}
-
-export default function CrisePage() {
-  return (
-    <Suspense fallback={
-      <main className="min-h-screen flex items-center justify-center px-4 bg-[#F8FAFC]">
-        <p className="text-[#64748B]">Carregando...</p>
-      </main>
-    }>
-      <CriseContent />
-    </Suspense>
   );
 }
