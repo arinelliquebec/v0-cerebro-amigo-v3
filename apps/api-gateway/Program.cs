@@ -55,6 +55,10 @@ var postgresConn =
         "Connection string do Postgres não configurada. " +
         "Defina ConnectionStrings:Postgres, ConnectionStrings:Default ou POSTGRES_DSN.");
 
+// T1-4: hosts RDS sobem para SSL Mode=VerifyFull (valida CA regional + hostname).
+// Dev/CI (localhost, Testcontainers) passam intactos.
+postgresConn = RdsCa.UpgradeToVerifyFull(postgresConn);
+
 {
     var bootLogger = LoggerFactory.Create(b => b.AddConsole())
         .CreateLogger("Bootstrap");
