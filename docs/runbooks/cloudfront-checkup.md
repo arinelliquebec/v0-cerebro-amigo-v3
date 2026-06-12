@@ -2,6 +2,25 @@
 
 **ADR-047** · Reduz LCP de ~3 s → ~1 s com edge cache no PoP de São Paulo.
 
+> ⚠️ **PENDÊNCIA IAM (2026-06-12):** o passo "Invalidar cache CF" do
+> `deploy.yml` está falhando com `AccessDenied` — o user `cerebro-github-actions`
+> não tem `ssm:GetParameter` em `/cerebro-amigo/checkup/cf-distribution-id`
+> (tem `PutParameter` no image-tag, mas não `GetParameter` neste parâmetro).
+> **Efeito real: o CloudFront pode servir HTML/chunks de build anterior após
+> cada deploy do checkup.** Fix (Console IAM → user `cerebro-github-actions`):
+>
+> ```json
+> { "Effect": "Allow",
+>   "Action": ["ssm:GetParameter"],
+>   "Resource": "arn:aws:ssm:sa-east-1:004177894935:parameter/cerebro-amigo/checkup/cf-distribution-id" },
+> { "Effect": "Allow",
+>   "Action": ["cloudfront:CreateInvalidation"],
+>   "Resource": "*" }
+> ```
+>
+> (Conferir se `cloudfront:CreateInvalidation` já existe; o erro atual é no
+> GetParameter, que roda antes.) Remover este aviso quando o job ficar verde.
+
 ## Visão geral
 
 ```
