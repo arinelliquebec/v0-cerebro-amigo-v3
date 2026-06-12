@@ -25,6 +25,12 @@
     "clsx": "^2",
     "tailwind-merge": "^2"
   },
+  "browserslist": [
+    "chrome >= 100",
+    "edge >= 100",
+    "firefox >= 100",
+    "safari >= 15.4"
+  ],
   "devDependencies": {
     "typescript": "^5",
     "vitest": "^3",

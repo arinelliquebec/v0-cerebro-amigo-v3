@@ -1,7 +1,9 @@
 import { Inter, Playfair_Display } from "next/font/google";
 
+// pt-BR cabe inteiro em Latin-1 (á à â ã ç é ê í ó ô õ ú) — `latin` cobre tudo.
+// latin-ext (Centro/Leste europeu) só adicionava um woff2 extra ao pipe.
 export const inter = Inter({
-  subsets: ["latin", "latin-ext"],
+  subsets: ["latin"],
   variable: "--font-inter",
   display: "swap",
 });
