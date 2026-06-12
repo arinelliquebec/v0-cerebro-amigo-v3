@@ -9,6 +9,7 @@ import { FooterSection } from "@/components/landing/footer-section"
 import { Eyebrow } from "@/components/landing/eyebrow"
 import { Reveal } from "@/components/landing/reveal"
 import { Schema, softwareSchema, websiteSchema } from "@/components/seo/schema"
+import { CheckupQrBanner } from "@/components/landing/checkup-qr-banner"
 
 export const metadata = {
   title: "Para Psiquiatras",
@@ -21,7 +22,14 @@ export const metadata = {
   alternates: { canonical: "https://www.cerebroamigo.com.br/medico" },
 }
 
-export default function MedicoLandingPage() {
+export default async function MedicoLandingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ src?: string; rid?: string }>
+}) {
+  const sp = await searchParams
+  const fromCheckup = sp.src === "checkup" && typeof sp.rid === "string" && sp.rid.length > 0
+
   return (
     // `.theme-noir` escopa o tema dark espacial só à landing — dashboard e
     // portal têm seus próprios layouts e seguem o :root (light).
@@ -29,6 +37,7 @@ export default function MedicoLandingPage() {
       <Schema data={softwareSchema} />
       <Schema data={websiteSchema} />
       <NavHeader />
+      {fromCheckup && <CheckupQrBanner rid={sp.rid!} />}
       <HeroSection />
       <ProblemBar />
 

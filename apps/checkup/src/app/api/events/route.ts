@@ -12,11 +12,24 @@ const EVENT_TYPES = [
   "doctor_signup_started",
 ] as const;
 
-const BodySchema = z.object({
-  event: z.enum(EVENT_TYPES),
-  sessionId: z.string().uuid(),
-  scaleId: z.enum(["phq9", "gad7", "asrs18"]).optional(),
-});
+// Lado paciente manda sessionId (UUID); lado médico (qr_scanned/doctor_signup_started
+// no /medico) manda só o `rid` de 8 chars do QR. Pelo menos um é obrigatório (ADR-046).
+const BodySchema = z
+  .object({
+    event: z.enum(EVENT_TYPES),
+    sessionId: z.string().uuid().optional(),
+    rid: z
+      .string()
+      .trim()
+      .min(4)
+      .max(32)
+      .regex(/^[A-Za-z0-9-]+$/)
+      .optional(),
+    scaleId: z.enum(["phq9", "gad7", "asrs18"]).optional(),
+  })
+  .refine((d) => d.sessionId != null || d.rid != null, {
+    message: "sessionId ou rid obrigatório",
+  });
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -30,9 +43,10 @@ export async function POST(req: NextRequest) {
     await db
       .insert(funnelEvents)
       .values({
-        sessionId: parsed.data.sessionId,
+        sessionId: parsed.data.sessionId ?? null,
         eventType: parsed.data.event,
         scaleId: parsed.data.scaleId ?? null,
+        rid: parsed.data.rid ?? null,
       })
       .catch((err: unknown) => {
         // Analytics NÃO bloqueia o fluxo (retorna ok mesmo assim), mas o erro é
