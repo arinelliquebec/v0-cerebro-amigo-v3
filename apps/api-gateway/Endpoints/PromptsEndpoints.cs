@@ -107,8 +107,10 @@ public static class PromptsEndpoints
                 ?? throw new InvalidOperationException("claim 'sub' ausente");
 
             // Calcula próxima versão
+            // SqlQueryRaw<primitivo> materializado exige a coluna "Value"
+            // (ver Data/DbExtensions.cs) — sem o alias, 42703 em runtime.
             var ultimaVersao = await db.Database.SqlQueryRaw<int>(@"
-                SELECT COALESCE(MAX(versao), 0)
+                SELECT COALESCE(MAX(versao), 0) AS ""Value""
                 FROM prompts
                 WHERE agente = {0} AND nome = {1}", req.Agente, req.Nome).FirstOrDefaultAsync();
 
@@ -118,7 +120,7 @@ public static class PromptsEndpoints
                 INSERT INTO prompts
                     (agente, nome, versao, conteudo, metadata, criado_por)
                 VALUES ({0}, {1}, {2}, {3}, {4}::jsonb, {5}::uuid)
-                RETURNING id",
+                RETURNING id AS ""Value""",
                 req.Agente, req.Nome, novaVersao,
                 req.Conteudo,
                 string.IsNullOrEmpty(req.Metadata) ? "{}" : req.Metadata,
