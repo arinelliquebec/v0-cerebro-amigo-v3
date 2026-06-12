@@ -153,6 +153,7 @@ builder.Services.AddCors(options =>
 // -----------------------------------------------------------------------------
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<TokenService>();
+builder.Services.AddScoped<MedicoOnboardingService>();
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
 builder.Services.AddSingleton<LoginRateLimiter>();
 builder.Services.AddSingleton<CryptoService>();

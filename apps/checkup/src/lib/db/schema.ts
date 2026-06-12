@@ -4,9 +4,12 @@ export const checkupSchema = pgSchema("checkup");
 
 export const funnelEvents = checkupSchema.table("funnel_events", {
   id: bigserial("id", { mode: "number" }).primaryKey(),
-  sessionId: uuid("session_id").notNull(),
+  // nullable (migration 0042): eventos do lado MÉDICO (qr_scanned, doctor_signup_started)
+  // chegam do /medico só com o `rid` do QR, sem o session_id completo.
+  sessionId: uuid("session_id"),
   eventType: text("event_type").notNull(),
   scaleId: text("scale_id"),
+  rid: text("rid"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 

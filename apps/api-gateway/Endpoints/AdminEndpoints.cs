@@ -527,109 +527,26 @@ public static class AdminEndpoints
         // Cria usuario + medico + assinatura trial + token de convite + envia email.
         g.MapPost("/onboarding/medico", async (
             [FromBody] OnboardingMedicoRequest req,
-            AppDbContext db, IPasswordHasher hasher,
-            ResendClient resend, CfmClient cfm, IConfiguration cfg) =>
+            MedicoOnboardingService onboarding) =>
         {
-            var email = (req.Email ?? "").Trim().ToLowerInvariant();
-            var nome  = (req.Nome  ?? "").Trim();
-            var crm   = (req.Crm   ?? "").Trim();
-            if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(nome) || string.IsNullOrEmpty(crm))
-                return Results.BadRequest(new { error = "nome, email e CRM são obrigatórios" });
+            // Lógica extraída p/ MedicoOnboardingService (ADR-046), reusada pelo self-signup.
+            // Admin: tolera CFM indisponível (soft-fail → PendenteVerificacao). origem = 'admin'.
+            var r = await onboarding.OnboardAsync(new OnboardMedicoInput(
+                Nome: req.Nome, Email: req.Email, Crm: req.Crm, CrmUf: req.CrmUf, Cpf: req.Cpf,
+                Plano: req.Plano, ValorMensal: req.ValorMensal ?? 0m,
+                SignupSource: "admin", CheckupRid: null, AllowCrmSoftFail: true));
 
-            var plano = (req.Plano ?? "trial").ToLowerInvariant();
-            if (!new[] { "trial", "starter", "pro", "enterprise" }.Contains(plano))
-                return Results.BadRequest(new { error = "plano inválido" });
+            if (!r.Success)
+                return Results.Json(new { error = r.Error, situacao = r.Situacao }, statusCode: r.StatusCode);
 
-            // UF obrigatória p/ validar CRM.
-            var crmUf = (req.CrmUf ?? "").Trim().ToUpperInvariant();
-            if (string.IsNullOrEmpty(crmUf))
-                return Results.BadRequest(new { error = "crm_uf_obrigatorio" });
-
-            var existe = await db.Database.ExistsAsync(
-                "SELECT 1 FROM usuarios WHERE email = {0}", email);
-            if (existe) return Results.Conflict(new { error = "email_em_uso" });
-
-            // Valida CRM contra o CFM via Infosimples (hard gate) — ANTES de gravar
-            // qualquer coisa, senão um CFM fora do ar deixava o usuário órfão no banco.
-            var val = await cfm.ValidarAsync(crm, crmUf, nome);
-            if (val.Erro is not null)
+            return Results.Created($"/api/v1/admin/medicos/{r.MedicoId}", new
             {
-                if (val.Erro.StartsWith("INFOSIMPLES_TOKEN"))
-                    return Results.Json(new { error = "crm_validacao_nao_configurada" }, statusCode: 500);
-                // Soft-fail: CFM indisponível após 3 tentativas → cria conta pendente de
-                // verificação manual. Não bloqueia o admin — médico entra, CRM fica como
-                // PendenteVerificacao p/ revisão posterior.
-                val = new CrmValidationResult(true, "PendenteVerificacao", null, null, null);
-            }
-            // "NaoValidado" = bypass (CRM_VALIDATION_ENABLED=false). "PendenteVerificacao" = soft-fail.
-            if (!val.Encontrado ||
-                (!string.Equals(val.Situacao, "Regular", StringComparison.OrdinalIgnoreCase) &&
-                 !string.Equals(val.Situacao, "NaoValidado", StringComparison.OrdinalIgnoreCase) &&
-                 !string.Equals(val.Situacao, "PendenteVerificacao", StringComparison.OrdinalIgnoreCase)))
-                return Results.Json(new { error = "crm_invalido", situacao = val.Situacao }, statusCode: 422);
-
-            // Tudo validado → grava de forma ATÔMICA (usuario + medico + assinatura + token).
-            // Senha placeholder: não loga antes de ativar.
-            var usuarioId = Guid.NewGuid();
-            var medicoId  = Guid.NewGuid();
-            var placeholder = "!" + Convert.ToBase64String(
-                System.Security.Cryptography.RandomNumberGenerator.GetBytes(16));
-            var cpf = new string((req.Cpf ?? "").Where(char.IsDigit).ToArray());
-            var assinaturaId = Guid.NewGuid();
-            var tokenBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
-            var token = Convert.ToBase64String(tokenBytes)
-                .Replace("+", "-").Replace("/", "_").Replace("=", "");
-            var tokenHash = AdminSha256(token);
-
-            await using (var tx = await db.Database.BeginTransactionAsync())
-            {
-                await db.Database.ExecuteSqlRawAsync(
-                    "INSERT INTO usuarios (id, email, senha_hash, nome, role) VALUES ({0},{1},{2},{3},'medico')",
-                    usuarioId, email, placeholder, nome);
-
-                await db.Database.ExecuteSqlRawAsync(
-                    "INSERT INTO medicos (id, usuario_id, nome, crm, crm_uf, cpf, especialidade, crm_situacao, crm_validado_em, crm_fonte, crm_nome_cfm) " +
-                    "VALUES ({0},{1},{2},{3},NULLIF({4},''),NULLIF({5},''),'psiquiatria',{6},NOW(),'infosimples',NULLIF({7},''))",
-                    medicoId, usuarioId, nome, crm, crmUf, cpf,
-                    val.Situacao ?? "NaoValidado", val.Nome ?? "");
-
-                await db.Database.ExecuteSqlRawAsync(@"
-                    INSERT INTO assinaturas (id, medico_id, plano, valor_mensal, status, trial_ate)
-                    VALUES ({0},{1},{2},{3},'trial', NOW() + INTERVAL '30 days')",
-                    assinaturaId, medicoId, plano, req.ValorMensal ?? 0m);
-
-                await db.Database.ExecuteSqlRawAsync(
-                    "INSERT INTO medico_invite_tokens (usuario_id, token_hash, expira_em) VALUES ({0},{1}, NOW() + INTERVAL '24 hours')",
-                    usuarioId, tokenHash);
-
-                await tx.CommitAsync();
-            }
-
-            // Email com link de ativação (fora da transação — falha não desfaz a conta)
-            var baseUrl = cfg["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
-            var link = $"{baseUrl}/ativar-conta?token={token}";
-            var html = $"""
-                <p>Olá, {nome}!</p>
-                <p>Você foi convidado(a) para acessar o <strong>Cérebro Amigo</strong>.</p>
-                <p><a href="{link}">Clique aqui para criar sua senha</a></p>
-                <p>O link é válido por 24 horas.</p>
-                <p>Se você não esperava este convite, pode ignorar este e-mail.</p>
-                """;
-            var txt = $"Olá, {nome}!\n\nCrie sua senha de acesso ao Cérebro Amigo:\n{link}\n\nVálido por 24 horas.";
-
-            SendEmailResult emailResult;
-            try { emailResult = await resend.SendAsync(email, "Convite — Cérebro Amigo", html, txt); }
-            catch (Exception ex) { emailResult = new SendEmailResult(false, null, ex.Message); }
-
-            return Results.Created($"/api/v1/admin/medicos/{medicoId}", new
-            {
-                usuarioId,
-                medicoId,
-                emailEnviado = emailResult.Success,
-                emailErro = emailResult.Error,
-                ativarContaUrl = emailResult.Success ? null : link,
-                crmPendente = string.Equals(val.Situacao, "PendenteVerificacao",
-                    StringComparison.OrdinalIgnoreCase),
+                usuarioId = r.UsuarioId,
+                medicoId = r.MedicoId,
+                emailEnviado = r.EmailEnviado,
+                emailErro = r.EmailErro,
+                ativarContaUrl = r.AtivarContaUrl,
+                crmPendente = r.CrmPendente,
             });
         });
 
@@ -927,12 +844,6 @@ public static class AdminEndpoints
         return Dig(Soma(9)) == d[9] - '0' && Dig(Soma(10)) == d[10] - '0';
     }
 
-    private static string AdminSha256(string input)
-    {
-        var bytes = System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes(input));
-        return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
 }
 
 // ─── DTOs ──────────────────────────────────────────────────────────────────────
