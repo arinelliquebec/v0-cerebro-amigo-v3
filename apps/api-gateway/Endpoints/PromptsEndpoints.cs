@@ -1,4 +1,5 @@
 using ApiGateway.Data;
+using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -95,6 +96,13 @@ public static class PromptsEndpoints
             if (EhTravado(req.Agente, req.Nome))
                 return RespostaTravado();
 
+            // T4-2: placeholder errado/chave solta = KeyError em runtime no
+            // orchestrator → nó do grafo cai p/ todos os pacientes. Barra aqui.
+            var erros = PromptValidation.Validar(req.Agente, req.Nome, req.Conteudo);
+            if (erros.Count > 0)
+                return Results.Json(new { error = "prompt_invalido", erros },
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
+
             var criadoPor = user.FindFirst("sub")?.Value
                 ?? throw new InvalidOperationException("claim 'sub' ausente");
 
@@ -131,7 +139,7 @@ public static class PromptsEndpoints
                 return Results.Forbid();
 
             var row = await db.Database.SqlQueryRaw<PromptAtivarTarget>(@"
-                SELECT agente, nome FROM prompts WHERE id = {0}", id).FirstOrDefaultAsync();
+                SELECT agente, nome, conteudo FROM prompts WHERE id = {0}", id).FirstOrDefaultAsync();
 
             if (row is null) return Results.NotFound();
 
@@ -139,6 +147,13 @@ public static class PromptsEndpoints
             // (ex.: ativar uma versão antiga/maliciosa de crisis_detection).
             if (EhTravado(row.Agente, row.Nome))
                 return RespostaTravado();
+
+            // T4-2: revalida na ativação — pega versões antigas, criadas antes
+            // da validação existir (inclusive o caminho de rollback "Reverter").
+            var erros = PromptValidation.Validar(row.Agente, row.Nome, row.Conteudo);
+            if (erros.Count > 0)
+                return Results.Json(new { error = "prompt_invalido", erros },
+                    statusCode: StatusCodes.Status422UnprocessableEntity);
 
             await db.Database.ExecuteSqlRawAsync(@"
                 UPDATE prompts SET ativo = FALSE
@@ -179,4 +194,4 @@ public record CriarPromptRequest(
     string Conteudo,
     string? Metadata);
 
-public record PromptAtivarTarget(string Agente, string Nome);
+public record PromptAtivarTarget(string Agente, string Nome, string Conteudo);
