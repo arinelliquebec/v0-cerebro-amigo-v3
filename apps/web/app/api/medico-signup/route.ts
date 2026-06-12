@@ -1,0 +1,42 @@
+import { NextRequest, NextResponse } from "next/server"
+
+// BFF do auto-cadastro de médico externo (ADR-046). Repassa p/ o gateway
+// POST /api/v1/auth/medico/signup. Anônimo (sem cookie). Encaminha o IP real do
+// cliente (X-Forwarded-For) p/ o rate-limit por IP do gateway funcionar — senão o
+// gateway veria sempre o IP do servidor web.
+const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
+
+export async function POST(req: NextRequest) {
+  const body = await req.json().catch(() => null)
+  if (!body?.nome || !body?.email || !body?.crm || !body?.crmUf) {
+    return NextResponse.json({ error: "campos_obrigatorios" }, { status: 400 })
+  }
+
+  // IP real do cliente: o que o Caddy/Vercel colocou no XFF da requisição que chegou aqui.
+  const xff = req.headers.get("x-forwarded-for") ?? ""
+
+  try {
+    const r = await fetch(`${GATEWAY}/api/v1/auth/medico/signup`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(xff ? { "X-Forwarded-For": xff } : {}),
+      },
+      body: JSON.stringify({
+        nome: body.nome,
+        email: body.email,
+        crm: body.crm,
+        crmUf: body.crmUf,
+        src: body.src ?? null,
+        rid: body.rid ?? null,
+      }),
+      cache: "no-store",
+    })
+    return new NextResponse(await r.text(), {
+      status: r.status,
+      headers: { "content-type": "application/json" },
+    })
+  } catch {
+    return NextResponse.json({ error: "erro_interno" }, { status: 502 })
+  }
+}
