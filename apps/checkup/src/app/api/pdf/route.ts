@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { createElement } from "react";
-import { CheckupPDF } from "@/components/CheckupPDF";
+import QRCode from "qrcode";
+import { CheckupPDF, buildQrUrl } from "@/components/CheckupPDF";
 import { checkPdfLimit } from "@/lib/ratelimit";
 
 function getClientIP(req: NextRequest): string {
@@ -36,8 +37,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "missing_params" }, { status: 400 });
   }
 
+  // QR real (PNG data-URL) gerado server-side — react-pdf não roda <canvas>,
+  // então o componente recebe a imagem pronta. Omitido na versão crise.
+  let qrDataUrl = "";
+  if (!crisis && rid) {
+    try {
+      qrDataUrl = await QRCode.toDataURL(buildQrUrl(rid), {
+        width: 240,
+        margin: 1,
+        errorCorrectionLevel: "M",
+        color: { dark: "#0F2137", light: "#FFFFFF" },
+      });
+    } catch {
+      // sem QR o PDF ainda sai com o link em texto
+    }
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const buffer = await renderToBuffer(createElement(CheckupPDF, { scale, score, band, label, crisis, rid }) as any);
+  const buffer = await renderToBuffer(createElement(CheckupPDF, { scale, score, band, label, crisis, rid, qrDataUrl }) as any);
 
   return new NextResponse(buffer, {
     headers: {
