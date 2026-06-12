@@ -31,7 +31,6 @@ public sealed class RdsCaTests
         var csb = new NpgsqlConnectionStringBuilder(RdsCa.UpgradeToVerifyFull(conn));
 
         Assert.Equal(SslMode.VerifyFull, csb.SslMode);
-        Assert.False(csb.TrustServerCertificate);
         Assert.True(File.Exists(csb.RootCertificate));
         Assert.StartsWith(
             "-----BEGIN CERTIFICATE-----",

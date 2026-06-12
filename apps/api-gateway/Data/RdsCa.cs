@@ -32,9 +32,10 @@ public static class RdsCa
         if (!File.Exists(path) || File.ReadAllText(path) != SaEast1BundlePem)
             File.WriteAllText(path, SaEast1BundlePem);
 
+        // Npgsql 10: "Trust Server Certificate" é no-op (obsoleto); a validação
+        // é governada só pelo SslMode — VerifyFull = CA + hostname.
         csb.SslMode = SslMode.VerifyFull;
         csb.RootCertificate = path;
-        csb.TrustServerCertificate = false;
         return csb.ConnectionString;
     }
 
