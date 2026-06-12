@@ -1,6 +1,7 @@
 using ApiGateway.Auth;
 using ApiGateway.Data;
 using ApiGateway.Models;
+using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -126,6 +127,68 @@ public static class AuthEndpoints
         })
         .AllowAnonymous()
         .WithSummary("Ativa conta de médico convidado (define senha)");
+
+        // POST /api/v1/auth/medico/signup — auto-cadastro de médico EXTERNO (ADR-046).
+        // Superfície PÚBLICA ANÔNIMA no gateway clínico. clinical-safety: sem dado de
+        // paciente, sem LLM, médico nasce no próprio tenant (RLS) com zero pacientes.
+        // Validação determinística (CFM); rate-limit por IP (Infosimples é PAGO); CRM
+        // Regular hard gate + nome confere com CFM; e-mail-verify (ativa em /ativar-conta).
+        g.MapPost("/medico/signup", async (
+            [FromBody] MedicoSignupRequest req,
+            MedicoOnboardingService onboarding,
+            LoginRateLimiter rateLimiter,
+            HttpContext ctx) =>
+        {
+            var ip = ClientIp(ctx);
+            var rlKey = "signup:" + ip;
+            if (rateLimiter.IsBlocked(rlKey))
+                return Results.StatusCode(429);
+            rateLimiter.RecordFailure(rlKey); // cada tentativa consome (sucesso também) — protege a API paga
+
+            var src = (req.Src ?? "").Trim().ToLowerInvariant();
+            var fromCheckup = src == "checkup";
+            var rid = fromCheckup ? SanitizeRid(req.Rid) : null;
+
+            var r = await onboarding.OnboardAsync(new OnboardMedicoInput(
+                Nome: req.Nome, Email: req.Email, Crm: req.Crm, CrmUf: req.CrmUf, Cpf: null,
+                Plano: "trial", ValorMensal: 0m,
+                SignupSource: fromCheckup ? "checkup" : "self",
+                CheckupRid: rid,
+                AllowCrmSoftFail: false,
+                RequireNameMatch: true));
+
+            if (!r.Success)
+                return Results.Json(new { error = r.Error, mensagem = r.Mensagem, situacao = r.Situacao },
+                    statusCode: r.StatusCode);
+
+            // Não retorna ids/token ao público; o e-mail-verify (/ativar-conta) é a próxima etapa.
+            return Results.Json(new
+            {
+                mensagem = "Conta criada. Enviamos um e-mail para você definir a senha e ativar o acesso."
+            }, statusCode: 202);
+        })
+        .AllowAnonymous()
+        .WithSummary("Auto-cadastro de médico externo (valida CRM; ativa por e-mail)");
+    }
+
+    // IP do cliente atrás do Caddy: 1º IP do X-Forwarded-For; senão o socket.
+    private static string ClientIp(HttpContext ctx)
+    {
+        if (ctx.Request.Headers.TryGetValue("X-Forwarded-For", out var xff))
+        {
+            var first = xff.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim();
+            if (!string.IsNullOrEmpty(first)) return first;
+        }
+        return ctx.Connection.RemoteIpAddress?.ToString() ?? "0.0.0.0";
+    }
+
+    // rid do Check-up (8 chars do UUID). Sanitiza valor público antes de gravar.
+    private static string? SanitizeRid(string? rid)
+    {
+        if (string.IsNullOrWhiteSpace(rid)) return null;
+        rid = rid.Trim();
+        if (rid.Length is < 4 or > 32) return null;
+        return rid.All(c => char.IsLetterOrDigit(c) || c == '-') ? rid : null;
     }
 
     private static string AuthSha256(string input)
@@ -137,6 +200,8 @@ public static class AuthEndpoints
 }
 
 public record AtivarContaRequest(string Token, string Senha);
+public record MedicoSignupRequest(
+    string Nome, string Email, string Crm, string CrmUf, string? Src, string? Rid);
 internal record TokenRow(string UsuarioId, DateTime ExpiraEm, DateTime? UsadoEm);
 
 public record MedicoMeDto(

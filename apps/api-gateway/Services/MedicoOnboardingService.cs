@@ -75,6 +75,17 @@ public sealed class MedicoOnboardingService
         if (!aceita)
             return OnboardMedicoResult.Fail("crm_invalido", 422, situacao: situacao);
 
+        // Anti-fraude (self-signup): o nome informado precisa conferir com o nome que o
+        // CFM retornou (crm_nome_cfm). CRM não prova posse; o cross-check de nome + o
+        // e-mail-verify reduzem cadastro com CRM alheio. Só dá p/ checar quando o CFM
+        // devolveu um nome (Regular). NaoValidado (validação desligada) não tem nome -> pula.
+        if (input.RequireNameMatch && !string.IsNullOrWhiteSpace(val.Nome))
+        {
+            if (!NameMatches(nome, val.Nome!))
+                return OnboardMedicoResult.Fail("nome_divergente", 422,
+                    "O nome informado não confere com o cadastro do CRM no CFM.");
+        }
+
         // Tudo validado → grava ATÔMICO (usuario + medico + assinatura + token).
         // Senha placeholder: a conta só loga depois de ativar (define senha em /ativar-conta).
         var usuarioId = Guid.NewGuid();
@@ -146,11 +157,37 @@ public sealed class MedicoOnboardingService
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
+
+    // Normaliza nome p/ comparação: minúsculo, sem acento, só letras + espaço único.
+    private static string NormalizeName(string s)
+    {
+        var sb = new StringBuilder();
+        foreach (var ch in (s ?? "").Trim().ToLowerInvariant().Normalize(NormalizationForm.FormD))
+        {
+            var cat = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(ch);
+            if (cat == System.Globalization.UnicodeCategory.NonSpacingMark) continue; // dropa acento
+            if (char.IsLetter(ch)) sb.Append(ch);
+            else if (char.IsWhiteSpace(ch)) sb.Append(' ');
+        }
+        return string.Join(' ', sb.ToString().Split(' ', StringSplitOptions.RemoveEmptyEntries));
+    }
+
+    // Match conservador: primeiro E último nome do informado precisam aparecer no nome do CFM.
+    // Tolera nome do meio abreviado/omitido; bloqueia nome claramente diferente.
+    private static bool NameMatches(string provided, string cfm)
+    {
+        var p = NormalizeName(provided).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var c = NormalizeName(cfm).Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (p.Length == 0 || c.Length == 0) return false;
+        var cfmSet = new HashSet<string>(c);
+        return cfmSet.Contains(p[0]) && cfmSet.Contains(p[^1]);
+    }
 }
 
 /// <param name="SignupSource">'admin' | 'self' | 'checkup' — origem do cadastro (atribuição).</param>
 /// <param name="CheckupRid">rid de 8 chars do Check-up (quando veio do QR), senão null.</param>
 /// <param name="AllowCrmSoftFail">admin=true (tolera PendenteVerificacao); self=false (Regular obrigatório).</param>
+/// <param name="RequireNameMatch">self=true: nome informado precisa conferir com o nome do CFM (anti-fraude).</param>
 public sealed record OnboardMedicoInput(
     string? Nome,
     string? Email,
@@ -161,7 +198,8 @@ public sealed record OnboardMedicoInput(
     decimal ValorMensal,
     string SignupSource,
     string? CheckupRid,
-    bool AllowCrmSoftFail);
+    bool AllowCrmSoftFail,
+    bool RequireNameMatch = false);
 
 public sealed record OnboardMedicoResult(
     bool Success,
