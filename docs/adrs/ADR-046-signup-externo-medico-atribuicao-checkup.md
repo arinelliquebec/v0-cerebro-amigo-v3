@@ -96,6 +96,9 @@ Revisado com a skill antes da Fase 3 (1ª rota anônima de criação de conta no
 3. **Rota: `/medicos/cadastro`** (zona marketing; não acopla à rede social `/rede`).
 4. **Assinatura inicial: trial 30d** (igual ao onboarding admin).
 
-## Progresso
-- ✅ **Fase 1 (migrations):** `infra/migrations/0041_medicos_signup_attribution.sql` (medicos +signup_source,+checkup_rid) e `0042_checkup_funnel_events_rid.sql` (funnel_events session_id nullable +rid +CHECK +índice). Aditivas/idempotentes; aplicar via psql/SSM no deploy (ainda NÃO aplicadas em prod).
-- ⏳ Fases 2-5 pendentes.
+## Progresso (branch `feat/signup-externo-medico`)
+- ✅ **Fase 1 (migrations):** `0041` (medicos +signup_source,+checkup_rid) e `0042` (funnel_events session_id nullable +rid +CHECK +índice). Aditivas/idempotentes; **ainda NÃO aplicadas em prod**.
+- ✅ **Fase 2 (service):** `MedicoOnboardingService` extraído do AdminEndpoints; admin refatorado p/ usá-lo (comportamento idêntico). Build 0/0.
+- ✅ **Fase 3 (endpoint):** `POST /api/v1/auth/medico/signup` público — rate-limit por IP (XFF), CRM Regular hard gate (sem soft-fail), name-match vs CFM, atribuição src/rid, e-mail-verify. clinical-safety revisada. Build 0/0 + **44 testes Testcontainers verdes** (migrations validadas em PG real).
+- ✅ **Fase 4 (web+checkup):** events API aceita `rid`; BFF `/api/medico-signup` (repassa XFF) + `/api/checkup-event` (API pública checkup, isolamento); página `/medicos/cadastro`; `/medico` lê src/rid + banner (qr_scanned + CTA). Typecheck checkup+web 0 erros.
+- ⏳ **Fase 5 (deploy + smoke E2E):** aplicar 0041/0042 em prod (ANTES do gateway) → deploy gateway (deploy-clinical) + checkup (deploy-checkup) + web (Vercel) → smoke QR→/medico→/medicos/cadastro→CRM→e-mail→ativa→login + conferir `medicos.signup_source/checkup_rid` ⇄ `funnel_events.rid`.
