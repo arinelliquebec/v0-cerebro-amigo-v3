@@ -1,6 +1,9 @@
 # Postgres é externo (RDS sa-east-1) — não entra aqui.
 # Serviços Python autenticam na Bedrock via IAM role da EC2 (produção) ou AWS_PROFILE (dev).
 #
+# Só o stack clínico (5 serviços + coturn opcional). O Check-up Mental foi desacoplado
+# para infra própria (ALB + ASG, ADR-045) — deploy dele via `deploy-checkup` no CI.
+#
 # image: → ECR em produção (tag = IMAGE_TAG=$GITHUB_SHA, definido pelo CI).
 # build: → mantido para dev local; "docker compose up --build" constrói localmente.
 # IMAGE_TAG não setado em dev → usa tag "latest" (construa local antes: docker compose build).
