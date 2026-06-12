@@ -92,14 +92,18 @@ Função de negócio: é o motor de aquisição do lançamento do Cérebro Amigo
 
 ## Design
 
-- Base: tokens do Cérebro Amigo — roxo `#5E4B8B`, navy `#0F2137`, coral `#E57373`,
-  Playfair Display (display) + Inter (texto) — adaptados para um tom mais calmo e
-  acolhedor que o site clínico: fundos claros, mais respiro, coral reservado a
-  acentos pequenos (nunca em telas de crise; ali, paleta sóbria).
+- **Decisão do dono (2026-06-12): tema Neural Noir IDÊNTICO ao site principal**
+  (sobrepõe a direção "calma/clara" anterior). Bloco `.theme-noir` no `globals.css`
+  do app (tokens copiados do web), aplicado no `<body>`; `glass-noir` nos cards;
+  aurora **só CSS** (sem canvas/partículas — NeuralField fica fora). Header/footer
+  com logo do Cérebro Amigo + link para `www.cerebroamigo.com.br` + atribuição
+  "Cérebro Amigo by Arinelli · © 2026".
+- **Exceções deliberadas (clinical-safety, não regredir):** `/crise` e os callouts
+  de apoio/aviso (caixa âmbar das landings, canais de crise no resultado) permanecem
+  **ilhas CLARAS com texto escuro literal** — máxima legibilidade para quem está em
+  sofrimento; coral nunca em telas de crise. O PDF segue claro (impressão).
 - O elemento-assinatura é UM só: o **ritmo do teste** — uma pergunta por tela,
   transição suave, barra de progresso discreta, microcópia que acolhe sem infantilizar.
-  Todo o resto fica quieto e disciplinado. Nada de partículas/glassmorphism aqui:
-  o público pode estar em sofrimento.
 - Acessibilidade é requisito: WCAG AA, foco visível, navegação por teclado,
   `prefers-reduced-motion` respeitado, alvos de toque ≥ 44px (tráfego será móvel).
 - Copy: voz ativa, sentence case, específica. Botões dizem o que fazem

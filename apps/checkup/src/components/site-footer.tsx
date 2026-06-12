@@ -16,11 +16,25 @@ export function SiteFooter() {
         </p>
 
         <p className="text-xs text-[--muted-foreground]">
-          <span className="font-[--font-playfair] text-[--navy]">Cérebro Amigo</span>
+          <a
+            href="https://www.cerebroamigo.com.br"
+            className="font-[--font-playfair] text-[--foreground] underline-offset-4 hover:underline"
+          >
+            Cérebro Amigo
+          </a>
           <span className="mx-1.5 text-[--coral]">•</span>
           by Arinelli
           <span className="mx-1.5">·</span>
           © 2026
+        </p>
+
+        <p className="text-xs">
+          <a
+            href="https://www.cerebroamigo.com.br"
+            className="text-[--purple-light] underline-offset-4 hover:underline"
+          >
+            Conheça a plataforma Cérebro Amigo para psiquiatras e pacientes →
+          </a>
         </p>
       </div>
     </footer>

@@ -15,7 +15,6 @@ const TESTES = [
     instrumento: "PHQ-9",
     descricao: "Para quando você está se sentindo para baixo, sem energia ou sem prazer nas coisas.",
     duracao: "~3 min",
-    cor: "from-indigo-50 to-purple-50 border-purple-200",
     botao: "Fazer teste de depressão",
   },
   {
@@ -25,7 +24,6 @@ const TESTES = [
     instrumento: "GAD-7",
     descricao: "Para quando a preocupação está tomando conta, com tensão, dificuldade de relaxar ou até mesmo palpitações e tremores em situações cotidianas.",
     duracao: "~2 min",
-    cor: "from-teal-50 to-emerald-50 border-emerald-200",
     botao: "Fazer teste de ansiedade",
   },
   {
@@ -35,19 +33,19 @@ const TESTES = [
     instrumento: "ASRS-18",
     descricao: "Para quando foco e impulsividade são um desafio constante no dia a dia.",
     duracao: "~5 min",
-    cor: "from-amber-50 to-orange-50 border-orange-200",
     botao: "Ver mais sobre TDAH",
   },
 ];
 
 export default function HomePage() {
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-16 sm:py-20">
+    <main className="relative mx-auto w-full max-w-2xl px-4 py-16 sm:py-20">
+      <div className="aurora pointer-events-none absolute inset-0 -z-10" aria-hidden />
       <div className="mb-12 text-center">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[--coral]">
+        <p className="mb-3 font-mono text-xs font-medium uppercase tracking-[0.2em] text-[--coral]">
           Check-up Mental · gratuito e anônimo
         </p>
-        <h1 className="mb-4 font-[--font-playfair] text-4xl font-semibold leading-tight text-[--navy] sm:text-5xl">
+        <h1 className="mb-4 font-[--font-playfair] text-4xl font-semibold leading-tight text-[--foreground] sm:text-5xl">
           Como você está se sentindo?
         </h1>
         <p className="text-lg leading-relaxed text-[--muted-foreground]">
@@ -61,14 +59,14 @@ export default function HomePage() {
           <Link
             key={t.href}
             href={t.href}
-            className={`block rounded-2xl border bg-gradient-to-br ${t.cor} p-6 transition-transform hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-2 focus-visible:outline-[--purple]`}
+            className="glass-noir block rounded-2xl p-6 transition-all duration-300 hover:-translate-y-0.5 hover:[box-shadow:0_0_48px_-12px_var(--noir-glow-purple)] focus-visible:outline-2 focus-visible:outline-[--purple]"
           >
             <div className="flex items-start gap-4">
               <span className="text-3xl">{t.emoji}</span>
               <div className="flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <h2 className="font-semibold text-[--navy] text-lg">{t.titulo}</h2>
-                  <span className="text-xs bg-white/70 text-[--muted-foreground] px-2 py-0.5 rounded-full">
+                  <h2 className="font-semibold text-[--foreground] text-lg">{t.titulo}</h2>
+                  <span className="text-xs bg-[--secondary] text-[--secondary-foreground] px-2 py-0.5 rounded-full">
                     {t.instrumento}
                   </span>
                   <span className="text-xs text-[--muted-foreground]">{t.duracao}</span>

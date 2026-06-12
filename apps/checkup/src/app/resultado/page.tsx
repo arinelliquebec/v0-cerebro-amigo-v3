@@ -124,7 +124,7 @@ function ResultContent() {
           </span>
         ) : (
           <div className="flex items-center gap-3">
-            <span className="text-4xl font-bold text-[--navy]">{score}</span>
+            <span className="text-4xl font-bold text-[--foreground]">{score}</span>
             <span
               className={`text-sm px-3 py-1 rounded-full border font-medium ${BAND_COLORS[band] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}
             >
@@ -156,7 +156,7 @@ function ResultContent() {
           </div>
 
           <div>
-            <p className="font-medium text-[--navy] mb-3">Próximos passos</p>
+            <p className="font-medium text-[--foreground] mb-3">Próximos passos</p>
             <ul className="space-y-2">
               {devolutiva.proximos_passos.map((p, i) => (
                 <li key={i} className="flex gap-2 text-[--muted-foreground] text-sm leading-relaxed">
@@ -202,7 +202,7 @@ function ResultContent() {
                 body: JSON.stringify({ event: "report_generated", sessionId: sid, scaleId: scale }),
               }).catch(() => {})
             }
-            className="block w-full text-center py-4 bg-[--purple] text-white rounded-xl font-medium hover:bg-[--purple-dark] transition-colors min-h-[44px]"
+            className="block w-full text-center py-4 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium hover:bg-[--purple-dark] transition-colors min-h-[44px]"
           >
             Baixar relatório PDF
           </a>

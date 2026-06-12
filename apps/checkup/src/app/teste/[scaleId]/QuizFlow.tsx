@@ -97,7 +97,7 @@ export function QuizFlow({ scale }: Props) {
           <p className="text-sm font-medium text-[--purple] uppercase tracking-widest mb-3">
             {scale.name}
           </p>
-          <h1 className="font-[--font-playfair] text-3xl font-semibold text-[--navy] mb-4">
+          <h1 className="font-[--font-playfair] text-3xl font-semibold text-[--foreground] mb-4">
             {scale.name === "PHQ-9" ? "Como você tem se sentido?" : "Como você tem se sentido?"}
           </h1>
           <p className="text-[--muted-foreground] mb-2">{scale.instructions}</p>
@@ -113,7 +113,7 @@ export function QuizFlow({ scale }: Props) {
           </div>
           <button
             onClick={handleStart}
-            className="w-full py-4 bg-[--purple] text-white rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2 min-h-[44px]"
+            className="w-full py-4 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2 min-h-[44px]"
           >
             Começar triagem
           </button>
@@ -154,7 +154,7 @@ export function QuizFlow({ scale }: Props) {
         <p className="text-xs text-[--muted-foreground] uppercase tracking-widest mb-3">
           {scale.timeframe}
         </p>
-        <h2 className="text-xl font-semibold text-[--navy] leading-snug mb-8">
+        <h2 className="text-xl font-semibold text-[--foreground] leading-snug mb-8">
           {currentItem.text}
         </h2>
 
@@ -170,7 +170,7 @@ export function QuizFlow({ scale }: Props) {
                 "w-full text-left px-5 py-4 rounded-xl border-2 transition-all duration-150 min-h-[44px] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2",
                 selected === opt.value
                   ? "border-[--purple] bg-[--secondary] text-[--purple-dark] font-medium"
-                  : "border-[--border] bg-white text-[--foreground] hover:border-[--purple-light]"
+                  : "border-[--border] bg-[--card] text-[--foreground] hover:border-[--purple-light]"
               )}
             >
               {opt.label}
@@ -186,7 +186,7 @@ export function QuizFlow({ scale }: Props) {
             className={cn(
               "w-full py-4 rounded-xl font-medium text-lg transition-all min-h-[44px] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2",
               selected !== null
-                ? "bg-[--purple] text-white hover:bg-[--purple-dark]"
+                ? "bg-[--purple] text-[--primary-foreground] hover:bg-[--purple-dark]"
                 : "bg-[--muted] text-[--muted-foreground] cursor-not-allowed"
             )}
             aria-disabled={selected === null}

@@ -53,7 +53,7 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${inter.variable} ${playfair.variable}`}
     >
-      <body className={`${inter.className} bg-[--background] text-[--foreground] antialiased flex min-h-screen flex-col`}>
+      <body className={`${inter.className} theme-noir bg-[--background] text-[--foreground] antialiased flex min-h-screen flex-col`}>
         <SiteHeader />
         <div className="flex-1">{children}</div>
         <SiteFooter />

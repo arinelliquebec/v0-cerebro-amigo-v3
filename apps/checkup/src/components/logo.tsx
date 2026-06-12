@@ -28,11 +28,11 @@ export function Logo({
         width={px}
         height={px}
         priority
-        className="flex-shrink-0 object-contain"
+        className="flex-shrink-0 object-contain [filter:brightness(0)_invert(1)]"
       />
       {showText && (
         <span className={`font-[--font-playfair] tracking-tight ${text}`}>
-          <span className="text-[--navy] font-normal">Cérebro</span>{" "}
+          <span className="text-[--foreground] font-normal">Cérebro</span>{" "}
           <span className="text-[--purple] font-medium">Amigo</span>
         </span>
       )}

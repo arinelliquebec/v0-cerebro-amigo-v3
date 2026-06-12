@@ -4,12 +4,15 @@ import { Logo } from "./logo"
 // (clinical-safety: público pode estar em sofrimento). Sticky discreto.
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-[--border] bg-[--background]/85 backdrop-blur-sm">
+    <header className="sticky top-0 z-30 glass-noir border-b-0">
       <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
         <Logo size="md" />
-        <span className="hidden text-xs text-[--muted-foreground] sm:inline">
-          Triagem gratuita e anônima
-        </span>
+        <a
+          href="https://www.cerebroamigo.com.br"
+          className="text-xs text-[--muted-foreground] transition-colors hover:text-[--purple-light]"
+        >
+          Conheça o Cérebro Amigo →
+        </a>
       </div>
     </header>
   )

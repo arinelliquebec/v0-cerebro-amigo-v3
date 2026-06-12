@@ -41,6 +41,75 @@
   --font-playfair: 'Playfair Display', serif;
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+   Neural Noir — tema do Cérebro Amigo (idêntico ao site principal; decisão do
+   dono 2026-06-12, sobrepõe o "calmo claro" anterior). Aplicado no <body> via
+   `.theme-noir`. EXCEÇÕES deliberadas (clinical-safety): /crise e os callouts
+   de apoio/aviso permanecem ILHAS CLARAS com texto escuro literal (máxima
+   legibilidade p/ quem está em sofrimento). Sem partículas/canvas — só aurora CSS.
+   ────────────────────────────────────────────────────────────────────────── */
+.theme-noir {
+  --background: #07070D;          /* deep space */
+  --foreground: #ECEBF5;          /* ~14:1 */
+  --card: #0E0E18;
+  --card-foreground: #ECEBF5;
+  --popover: #12121F;
+  --popover-foreground: #ECEBF5;
+
+  --primary: #9486C9;             /* roxo claro — acento frio */
+  --primary-foreground: #07070D;
+  --secondary: #171426;
+  --secondary-foreground: #CFC6E6;
+
+  --muted: #14141F;
+  --muted-foreground: #9B96B5;    /* ~5.4:1 */
+
+  --accent: #E57373;              /* CORAL — único calor humano */
+  --accent-foreground: #07070D;
+
+  --destructive: #F26464;
+  --destructive-foreground: #07070D;
+
+  --border: #20202E;
+  --input: #20202E;
+  --ring: #9486C9;
+
+  /* marca sobre o noir */
+  --purple: #9486C9;
+  --purple-light: #B3A6DA;
+  --purple-dark: #CFC6E6;         /* em noir, "dark" vira o tom MAIS claro (hover/selected) */
+  --coral: #E57373;
+  --success: #34D399;
+
+  /* átomos do noir */
+  --noir-line: #2A2A3D;
+  --noir-glow-purple: rgba(148, 134, 201, 0.45);
+  --noir-aurora-1: rgba(110, 95, 176, 0.22);
+  --noir-aurora-2: rgba(229, 115, 115, 0.12);
+  --noir-glass-bg: rgba(18, 18, 30, 0.55);
+  --noir-glass-border: rgba(180, 166, 218, 0.14);
+}
+
+.theme-noir a:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.glass-noir {
+  background: var(--noir-glass-bg);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid var(--noir-glass-border);
+}
+
+.aurora {
+  background:
+    radial-gradient(60% 55% at 50% -8%, var(--noir-aurora-1), transparent 70%),
+    radial-gradient(45% 45% at 85% 22%, var(--noir-aurora-2), transparent 70%),
+    radial-gradient(40% 40% at 12% 70%, var(--noir-aurora-1), transparent 72%);
+}
+
 * {
   box-sizing: border-box;
 }

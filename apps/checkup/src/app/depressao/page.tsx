@@ -46,7 +46,7 @@ export default function DepressaoPage() {
           <p className="text-sm font-medium text-[--purple] uppercase tracking-widest mb-3">
             Triagem gratuita · PHQ-9
           </p>
-          <h1 className="font-[--font-playfair] text-4xl font-semibold text-[--navy] mb-4 leading-tight">
+          <h1 className="font-[--font-playfair] text-4xl font-semibold text-[--foreground] mb-4 leading-tight">
             Teste de depressão online
           </h1>
           <p className="text-[--muted-foreground] text-lg leading-relaxed mb-8">
@@ -55,7 +55,7 @@ export default function DepressaoPage() {
           </p>
           <Link
             href="/teste/phq9"
-            className="inline-block py-4 px-10 bg-[--purple] text-white rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2"
+            className="inline-block py-4 px-10 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2"
           >
             Fazer teste agora — é gratuito
           </Link>
@@ -64,7 +64,7 @@ export default function DepressaoPage() {
 
         {/* O que é */}
         <section className="mb-10">
-          <h2 className="text-xl font-semibold text-[--navy] mb-3">O que é o PHQ-9?</h2>
+          <h2 className="text-xl font-semibold text-[--foreground] mb-3">O que é o PHQ-9?</h2>
           <p className="text-[--muted-foreground] leading-relaxed mb-3">
             O PHQ-9 (Patient Health Questionnaire-9) é um instrumento de triagem para depressão
             desenvolvido e validado cientificamente, amplamente usado em consultórios e hospitais
@@ -90,7 +90,7 @@ export default function DepressaoPage() {
 
         {/* Sintomas comuns */}
         <section className="mb-12">
-          <h2 className="text-xl font-semibold text-[--navy] mb-4">Sintomas que o PHQ-9 avalia</h2>
+          <h2 className="text-xl font-semibold text-[--foreground] mb-4">Sintomas que o PHQ-9 avalia</h2>
           <ul className="space-y-2">
             {[
               "Pouco interesse ou prazer em fazer as coisas",
@@ -113,12 +113,12 @@ export default function DepressaoPage() {
 
         {/* CTA final */}
         <div className="text-center bg-[--secondary] rounded-2xl p-8">
-          <p className="text-[--navy] font-medium text-lg mb-4">
+          <p className="text-[--foreground] font-medium text-lg mb-4">
             Pronto para verificar como você está?
           </p>
           <Link
             href="/teste/phq9"
-            className="inline-block py-4 px-10 bg-[--purple] text-white rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px]"
+            className="inline-block py-4 px-10 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px]"
           >
             Começar o PHQ-9 agora
           </Link>

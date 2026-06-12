@@ -46,7 +46,7 @@ export default async function TestePage({ params }: Props) {
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="max-w-sm text-center">
           <p className="text-4xl mb-4">🔬</p>
-          <h1 className="text-xl font-semibold text-[--navy] mb-2">Em breve</h1>
+          <h1 className="text-xl font-semibold text-[--foreground] mb-2">Em breve</h1>
           <p className="text-[--muted-foreground] text-sm">
             A triagem de {scale.name} está em fase de validação e será disponibilizada em breve.
           </p>

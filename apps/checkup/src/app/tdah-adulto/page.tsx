@@ -46,7 +46,7 @@ export default function TDAHAdultoPage() {
           <p className="text-sm font-medium text-[--purple] uppercase tracking-widest mb-3">
             ASRS-18 · OMS
           </p>
-          <h1 className="font-[--font-playfair] text-4xl font-semibold text-[--navy] mb-4 leading-tight">
+          <h1 className="font-[--font-playfair] text-4xl font-semibold text-[--foreground] mb-4 leading-tight">
             Teste de TDAH para adultos
           </h1>
           <p className="text-[--muted-foreground] text-lg leading-relaxed mb-8">
@@ -56,7 +56,7 @@ export default function TDAHAdultoPage() {
           </p>
           <Link
             href="/teste/asrs18"
-            className="inline-block py-4 px-10 bg-[--purple] text-white rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px]"
+            className="inline-block py-4 px-10 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px]"
           >
             Começar triagem
           </Link>
@@ -65,7 +65,7 @@ export default function TDAHAdultoPage() {
 
         {/* O que é */}
         <section className="mb-10">
-          <h2 className="text-xl font-semibold text-[--navy] mb-3">O que é o ASRS-18?</h2>
+          <h2 className="text-xl font-semibold text-[--foreground] mb-3">O que é o ASRS-18?</h2>
           <p className="text-[--muted-foreground] leading-relaxed mb-3">
             O ASRS-18 (Adult ADHD Self-Report Scale) é um instrumento desenvolvido pela
             Organização Mundial da Saúde (OMS) para triagem de TDAH em adultos. A versão
@@ -92,7 +92,7 @@ export default function TDAHAdultoPage() {
 
         {/* Sintomas comuns */}
         <section className="mb-12">
-          <h2 className="text-xl font-semibold text-[--navy] mb-4">Sintomas que o ASRS-18 avalia</h2>
+          <h2 className="text-xl font-semibold text-[--foreground] mb-4">Sintomas que o ASRS-18 avalia</h2>
           <ul className="space-y-2">
             {[
               "Dificuldade de manter atenção em tarefas longas",
@@ -116,19 +116,19 @@ export default function TDAHAdultoPage() {
 
         {/* Links para outros testes */}
         <div className="bg-[--secondary] rounded-2xl p-6 text-center">
-          <p className="text-[--navy] font-medium mb-4">
+          <p className="text-[--foreground] font-medium mb-4">
             Veja também as outras triagens:
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Link
               href="/depressao"
-              className="py-3 px-6 bg-[--purple] text-white rounded-xl font-medium hover:bg-[--purple-dark] transition-colors min-h-[44px] flex items-center justify-center"
+              className="py-3 px-6 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium hover:bg-[--purple-dark] transition-colors min-h-[44px] flex items-center justify-center"
             >
               Triagem de depressão
             </Link>
             <Link
               href="/ansiedade"
-              className="py-3 px-6 bg-white text-[--purple] border border-[--purple] rounded-xl font-medium hover:bg-[--secondary] transition-colors min-h-[44px] flex items-center justify-center"
+              className="py-3 px-6 bg-transparent text-[--purple] border border-[--purple] rounded-xl font-medium hover:bg-[--secondary] transition-colors min-h-[44px] flex items-center justify-center"
             >
               Triagem de ansiedade
             </Link>
