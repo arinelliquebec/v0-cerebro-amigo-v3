@@ -14,10 +14,10 @@ export const metadata = {
 
 export default function CrisePage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12 bg-[#F8FAFC]">
+    <main className="min-h-screen flex flex-col items-center justify-center px-4 py-16 bg-[#F8FAFC]">
       <div className="max-w-md w-full">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-semibold text-[#1E293B] mb-3 leading-snug">
+        <div className="text-center mb-9">
+          <h1 className="text-2xl sm:text-[1.75rem] font-semibold text-[#1E293B] mb-3 leading-snug">
             Você não precisa passar por isso sozinho
           </h1>
           <p className="text-[#475569] leading-relaxed">
@@ -29,7 +29,7 @@ export default function CrisePage() {
         <div className="space-y-3 mb-8">
           <a
             href="tel:188"
-            className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-[#E2E8F0] hover:border-[#94A3B8] transition-colors min-h-[44px]"
+            className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm hover:border-[#94A3B8] hover:shadow transition-all min-h-[44px]"
           >
             <span className="text-2xl">📞</span>
             <div>
@@ -42,7 +42,7 @@ export default function CrisePage() {
             href="https://cvv.org.br"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-[#E2E8F0] hover:border-[#94A3B8] transition-colors min-h-[44px]"
+            className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm hover:border-[#94A3B8] hover:shadow transition-all min-h-[44px]"
           >
             <span className="text-2xl">💬</span>
             <div>
@@ -53,7 +53,7 @@ export default function CrisePage() {
 
           <a
             href="tel:192"
-            className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-[#E2E8F0] hover:border-[#94A3B8] transition-colors min-h-[44px]"
+            className="flex items-center gap-4 p-5 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm hover:border-[#94A3B8] hover:shadow transition-all min-h-[44px]"
           >
             <span className="text-2xl">🚑</span>
             <div>
@@ -62,7 +62,7 @@ export default function CrisePage() {
             </div>
           </a>
 
-          <div className="flex items-start gap-4 p-5 bg-white rounded-2xl border border-[#E2E8F0]">
+          <div className="flex items-start gap-4 p-5 bg-white rounded-2xl border border-[#E2E8F0] shadow-sm">
             <span className="text-2xl">🏥</span>
             <div>
               <p className="font-semibold text-[#1E293B]">CAPS ou pronto-socorro</p>

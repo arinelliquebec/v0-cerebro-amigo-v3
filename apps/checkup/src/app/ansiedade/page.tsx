@@ -1,6 +1,12 @@
-import Link from "next/link";
 import type { Metadata } from "next";
-import { LandingHero, ComoFunciona, SymptomGrid, LandingCta } from "@/components/landing-blocks";
+import { Wind } from "lucide-react";
+import {
+  LandingHero,
+  ComoFunciona,
+  SymptomGrid,
+  LandingCta,
+  OutrasTriagens,
+} from "@/components/landing-blocks";
 
 export const metadata: Metadata = {
   title: "Teste de Ansiedade Online Gratuito — GAD-7 em Português",
@@ -40,9 +46,9 @@ export default function AnsiedadePage() {
         }}
       />
 
-      <main className="mx-auto max-w-2xl px-4 py-16">
+      <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
         <LandingHero
-          emoji="🌀"
+          icon={<Wind className="h-9 w-9" aria-hidden />}
           eyebrow="Triagem gratuita · GAD-7"
           title="Teste de ansiedade online"
           lead="7 perguntas baseadas no GAD-7, instrumento validado para triagem de ansiedade generalizada. Resultado em cerca de 2 minutos."
@@ -54,21 +60,23 @@ export default function AnsiedadePage() {
         <ComoFunciona />
 
         {/* O que é */}
-        <section className="mb-10">
-          <h2 className="text-xl font-semibold text-[--foreground] mb-3">O que é o GAD-7?</h2>
-          <p className="text-[--muted-foreground] leading-relaxed mb-3">
+        <section className="mb-12">
+          <h2 className="mb-3 font-display text-2xl font-semibold text-foreground">
+            O que é o GAD-7?
+          </h2>
+          <p className="mb-3 leading-relaxed text-muted-foreground">
             O GAD-7 (Generalized Anxiety Disorder-7) é um instrumento de triagem para ansiedade
             generalizada, desenvolvido e validado em estudos internacionais e disponível em
             português brasileiro (Moreno et al.).
           </p>
-          <p className="text-[--muted-foreground] leading-relaxed">
+          <p className="leading-relaxed text-muted-foreground">
             Avalia a frequência de 7 sintomas nas últimas 2 semanas, com escore de 0 a 21,
             classificado em faixas: mínimo, leve, moderado e grave.
           </p>
         </section>
 
         {/* Aviso — ilha clara deliberada (clinical-safety) */}
-        <section className="mb-10 bg-amber-50 border border-amber-200 rounded-xl p-5">
+        <section className="mb-12 bg-amber-50 border border-amber-200 rounded-xl p-5">
           <h2 className="font-semibold text-amber-900 mb-2">Importante saber</h2>
           <p className="text-amber-800 text-sm leading-relaxed">
             O GAD-7 é um instrumento de <strong>triagem</strong>, não de diagnóstico. Ansiedade
@@ -96,18 +104,12 @@ export default function AnsiedadePage() {
           ctaLabel="Começar o GAD-7 agora"
         />
 
-        <footer className="mt-10 text-center">
-          <p className="text-xs text-[--muted-foreground]">
+        <OutrasTriagens current="/ansiedade" />
+
+        <footer className="mt-12 text-center">
+          <p className="text-xs text-muted-foreground">
             Fonte: Moreno AL et al. · Uso livre (mesma família do PHQ)
           </p>
-          <div className="mt-3 space-x-4 text-xs">
-            <Link href="/depressao" className="text-[--muted-foreground] hover:text-[--foreground]">
-              Teste de depressão →
-            </Link>
-            <Link href="/tdah-adulto" className="text-[--muted-foreground] hover:text-[--foreground]">
-              Teste de TDAH →
-            </Link>
-          </div>
         </footer>
       </main>
     </>

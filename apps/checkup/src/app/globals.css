@@ -86,15 +86,94 @@
   --noir-glow-purple: rgba(148, 134, 201, 0.45);
   --noir-aurora-1: rgba(110, 95, 176, 0.22);
   --noir-aurora-2: rgba(229, 115, 115, 0.12);
+  --noir-aurora-3: rgba(148, 134, 201, 0.10);
   --noir-glass-bg: rgba(18, 18, 30, 0.55);
+  --noir-glass-bg-deep: rgba(20, 20, 33, 0.78);
   --noir-glass-border: rgba(180, 166, 218, 0.14);
 }
 
-.theme-noir a:focus-visible {
-  outline: 2px solid var(--ring);
-  outline-offset: 3px;
-  border-radius: 4px;
+/* Tokens → utilities (Tailwind 4). IMPORTANTE: a sintaxe `text-[--var]` do
+   Tailwind 3 compila CSS INVÁLIDO no 4 (`color: --var`) — todo uso de cor de
+   marca passa por este mapa (`text-coral`, `bg-purple`, `border-border`…). */
+@theme inline {
+  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-playfair), Georgia, 'Times New Roman', serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-purple: var(--purple);
+  --color-purple-light: var(--purple-light);
+  --color-purple-dark: var(--purple-dark);
+  --color-navy: var(--navy);
+  --color-coral: var(--coral);
+  --color-success: var(--success);
+  --color-noir-line: var(--noir-line);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
 }
+
+/* ── Atmosfera (camadas fixas, só CSS — sem canvas/partículas) ────────────
+   Tudo em @layer components: utilities do Tailwind precisam poder sobrescrever
+   (ex.: hover:border-purple/40 num .glass-noir). */
+@layer components {
+
+/* Aurora de página: fica num div fixo no layout, atrás de tudo. */
+.noir-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  background:
+    radial-gradient(58% 48% at 50% -10%, var(--noir-aurora-1), transparent 70%),
+    radial-gradient(42% 38% at 88% 16%, var(--noir-aurora-2), transparent 70%),
+    radial-gradient(40% 42% at 8% 62%, var(--noir-aurora-3), transparent 72%),
+    radial-gradient(50% 40% at 70% 96%, var(--noir-aurora-1), transparent 75%);
+}
+
+/* Malha neural sutil — linhas finas com fade radial (lembra o site principal). */
+.noir-grid {
+  position: fixed;
+  inset: 0;
+  z-index: -10;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(148, 134, 201, 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(148, 134, 201, 0.05) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(72% 56% at 50% 12%, black 30%, transparent 100%);
+  mask-image: radial-gradient(72% 56% at 50% 12%, black 30%, transparent 100%);
+}
+
+/* Aurora local (dentro de cards/CTAs com overflow-hidden). */
+.aurora {
+  background:
+    radial-gradient(60% 55% at 50% -8%, var(--noir-aurora-1), transparent 70%),
+    radial-gradient(45% 45% at 85% 22%, var(--noir-aurora-2), transparent 70%),
+    radial-gradient(40% 40% at 12% 70%, var(--noir-aurora-1), transparent 72%);
+}
+
+/* ── Vidro ──────────────────────────────────────────────────────────────── */
 
 .glass-noir {
   background: var(--noir-glass-bg);
@@ -103,21 +182,147 @@
   border: 1px solid var(--noir-glass-border);
 }
 
-.aurora {
-  background:
-    radial-gradient(60% 55% at 50% -8%, var(--noir-aurora-1), transparent 70%),
-    radial-gradient(45% 45% at 85% 22%, var(--noir-aurora-2), transparent 70%),
-    radial-gradient(40% 40% at 12% 70%, var(--noir-aurora-1), transparent 72%);
+/* Vidro mais denso p/ blocos de conteúdo que precisam de presença. */
+.glass-noir-deep {
+  background: var(--noir-glass-bg-deep);
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid var(--noir-glass-border);
+  box-shadow:
+    inset 0 1px 0 rgba(236, 235, 245, 0.05),
+    0 24px 64px -32px rgba(0, 0, 0, 0.85);
 }
 
-/* Transição suave entre perguntas do quiz ("ritmo do teste").
-   prefers-reduced-motion zera via a media query global abaixo. */
+/* Hairline divisória com fade nas pontas. */
+.hairline {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--noir-line) 18%, var(--noir-line) 82%, transparent);
+}
+
+/* ── Tipografia de marca ────────────────────────────────────────────────── */
+
+.eyebrow {
+  font-family: var(--font-mono, ui-monospace), ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--coral);
+}
+
+/* Gradiente de destaque em trechos de headline (Playfair). */
+.text-aurora {
+  background: linear-gradient(115deg, var(--purple-dark) 0%, var(--purple) 55%, var(--purple-light) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ── Botões ─────────────────────────────────────────────────────────────── */
+
+.btn-noir {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 52px;
+  padding: 0.9rem 2rem;
+  border-radius: 14px;
+  font-weight: 600;
+  font-size: 1.0625rem;
+  line-height: 1.2;
+  color: var(--primary-foreground);
+  background: linear-gradient(160deg, var(--purple-light), var(--purple) 60%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 0 0 1px rgba(148, 134, 201, 0.35),
+    0 12px 40px -14px var(--noir-glow-purple);
+  transition: transform 0.18s ease, box-shadow 0.25s ease, filter 0.18s ease;
+}
+.btn-noir:hover {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 0 0 1px rgba(148, 134, 201, 0.45),
+    0 0 56px -10px var(--noir-glow-purple);
+}
+.btn-noir:active {
+  transform: translateY(0) scale(0.99);
+  filter: brightness(0.98);
+}
+
+.btn-ghost-noir {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.8rem 1.5rem;
+  border-radius: 14px;
+  font-weight: 500;
+  color: var(--secondary-foreground);
+  border: 1px solid var(--noir-glass-border);
+  background: rgba(23, 20, 38, 0.4);
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.btn-ghost-noir:hover {
+  border-color: var(--purple);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+/* ── Movimento (page-load reveal escalonado; reduced-motion zera tudo) ──── */
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reveal { animation: rise-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.reveal-1 { animation-delay: 0.07s; }
+.reveal-2 { animation-delay: 0.14s; }
+.reveal-3 { animation-delay: 0.21s; }
+.reveal-4 { animation-delay: 0.3s; }
+.reveal-5 { animation-delay: 0.4s; }
+
+/* Transição suave entre perguntas do quiz ("ritmo do teste"). */
 @keyframes quiz-step-in {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 .quiz-step-in {
-  animation: quiz-step-in 0.28s ease-out both;
+  animation: quiz-step-in 0.32s ease-out both;
+}
+
+/* Opções da pergunta entram em cascata (delay inline por índice). */
+@keyframes quiz-opt-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.quiz-opt-in {
+  animation: quiz-opt-in 0.3s ease-out both;
+}
+
+/* Arco do medidor de escore no resultado (de vazio até o valor inline). */
+@keyframes gauge-in {
+  from { stroke-dashoffset: 326.7; }
+}
+.gauge-arc {
+  animation: gauge-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+} /* fim @layer components */
+
+/* ── A11y / base ────────────────────────────────────────────────────────── */
+
+.theme-noir :is(a, button, input, [role='radio']):focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+
+.theme-noir ::selection {
+  background: rgba(148, 134, 201, 0.35);
+  color: var(--foreground);
 }
 
 * {
