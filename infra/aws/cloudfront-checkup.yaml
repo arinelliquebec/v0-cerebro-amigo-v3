@@ -25,6 +25,13 @@ Parameters:
       http-only: CF -> ALB:80. ALB listener rule (priority 1) faz forward quando
       X-CF-Origin-Secret presente; sem header = redirect 301 para HTTPS (protege origin).
 
+  OriginSecret:
+    Type: String
+    NoEcho: true
+    Description: >
+      Valor de X-CF-Origin-Secret. Buscar de sa-east-1 SSM antes do deploy:
+      aws ssm get-parameter --region sa-east-1 --name /cerebro-amigo/checkup/cf-origin-secret --with-decryption --query Parameter.Value --output text
+
   PriceClass:
     Type: String
     Default: PriceClass_100
@@ -76,25 +83,6 @@ Resources:
           QueryStringsConfig:
             QueryStringBehavior: none
 
-  DynamicCachePolicy:
-    Type: AWS::CloudFront::CachePolicy
-    Properties:
-      CachePolicyConfig:
-        Name: !Sub "${AWS::StackName}-dynamic"
-        Comment: "Rotas dinamicas (/resultado, /teste) — inclui query strings no cache key"
-        DefaultTTL: 0
-        MaxTTL: 0
-        MinTTL: 0
-        ParametersInCacheKeyAndForwardedToOrigin:
-          EnableAcceptEncodingGzip: true
-          EnableAcceptEncodingBrotli: true
-          CookiesConfig:
-            CookieBehavior: all
-          HeadersConfig:
-            HeaderBehavior: none
-          QueryStringsConfig:
-            QueryStringBehavior: all
-
   # ── Origin Request Policy ────────────────────────────────────────────────────
 
   ApiOriginRequestPolicy:
@@ -102,7 +90,7 @@ Resources:
     Properties:
       OriginRequestPolicyConfig:
         Name: !Sub "${AWS::StackName}-api-origin"
-        Comment: "Encaminha tudo para /api/* (rate limit, sessao)"
+        Comment: "Encaminha tudo para /api/* e rotas dinamicas (rate limit, sessao, query strings)"
         CookiesConfig:
           CookieBehavior: all
         HeadersConfig:
@@ -138,9 +126,9 @@ Resources:
               OriginReadTimeout: 30
               OriginKeepaliveTimeout: 5
             OriginCustomHeaders:
-              # Impede acesso direto ao EC2 bypassando CF (validar no Caddy)
+              # Impede acesso direto ao ALB bypassando CF (ALB listener rule valida)
               - HeaderName: X-CF-Origin-Secret
-                HeaderValue: "{{resolve:ssm:/cerebro-amigo/checkup/cf-origin-secret}}"
+                HeaderValue: !Ref OriginSecret
 
         # ── Cache behaviors (ordem: mais especifico primeiro) ──────────────
 
@@ -180,18 +168,20 @@ Resources:
             OriginRequestPolicyId: !GetAtt ApiOriginRequestPolicy.Id
             Compress: false
 
-          # 4. Fluxo do teste — dinamico, inclui query strings
+          # 4. Fluxo do teste — dinamico, sem cache, encaminha cookies+query strings
           - PathPattern: "/teste/*"
             TargetOriginId: CheckupEC2
             ViewerProtocolPolicy: redirect-to-https
-            CachePolicyId: !GetAtt DynamicCachePolicy.Id
+            CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+            OriginRequestPolicyId: !GetAtt ApiOriginRequestPolicy.Id
             Compress: true
 
-          # 5. Resultado — dinamico (query param rid)
+          # 5. Resultado — dinamico (query param rid), sem cache
           - PathPattern: "/resultado*"
             TargetOriginId: CheckupEC2
             ViewerProtocolPolicy: redirect-to-https
-            CachePolicyId: !GetAtt DynamicCachePolicy.Id
+            CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+            OriginRequestPolicyId: !GetAtt ApiOriginRequestPolicy.Id
             Compress: true
 
           # 6. Crise — no-cache (conteudo sensivel)

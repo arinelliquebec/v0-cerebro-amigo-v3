@@ -275,8 +275,8 @@
 /* ── Movimento (page-load reveal escalonado; reduced-motion zera tudo) ──── */
 
 @keyframes rise-in {
-  from { opacity: 0; transform: translateY(16px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { transform: translateY(18px); }
+  to   { transform: translateY(0); }
 }
 .reveal { animation: rise-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .reveal-1 { animation-delay: 0.07s; }
