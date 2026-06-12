@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import type { Scale, ScaleResult } from "@/lib/scales/types";
 import { scorePhq9 } from "@/lib/scales/phq9";
@@ -39,7 +39,7 @@ export function QuizFlow({ scale }: Props) {
   const [step, setStep] = useState(-1); // -1 = intro
   const [answers, setAnswers] = useState<number[]>(new Array(scale.items.length).fill(-1));
   const [selected, setSelected] = useState<number | null>(null);
-  const [started, setStarted] = useState(false);
+  const optionRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const totalItems = scale.items.length;
   const currentItem = scale.items[step];
@@ -48,7 +48,6 @@ export function QuizFlow({ scale }: Props) {
 
   const handleStart = useCallback(() => {
     fireEvent("test_started", sessionId, scale.id);
-    setStarted(true);
     setStep(0);
     setSelected(null);
   }, [sessionId, scale.id]);
@@ -84,40 +83,79 @@ export function QuizFlow({ scale }: Props) {
       return;
     }
 
-    setAnswers(newAnswers);
     setStep((s) => s + 1);
-    setSelected(null);
+    setSelected(newAnswers[step + 1] >= 0 ? newAnswers[step + 1] : null);
   }, [selected, answers, step, currentItem, isLastStep, sessionId, scale.id, router]);
+
+  // Voltar: revisita a pergunta anterior com a resposta dada (pode corrigir).
+  // Não interfere no gate de crise — ele só dispara no "Próxima" do item de crise.
+  const handleBack = useCallback(() => {
+    if (step <= 0) return;
+    const newAnswers = [...answers];
+    if (selected !== null) newAnswers[step] = selected; // preserva a escolha atual
+    setAnswers(newAnswers);
+    setStep((s) => s - 1);
+    setSelected(newAnswers[step - 1] >= 0 ? newAnswers[step - 1] : null);
+  }, [step, answers, selected]);
+
+  // Navegação por teclado no radiogroup (padrão WAI-ARIA): setas movem foco E seleção.
+  const handleOptionKeyDown = useCallback(
+    (e: React.KeyboardEvent, idx: number) => {
+      const n = scale.options.length;
+      let target = -1;
+      if (e.key === "ArrowDown" || e.key === "ArrowRight") target = (idx + 1) % n;
+      else if (e.key === "ArrowUp" || e.key === "ArrowLeft") target = (idx - 1 + n) % n;
+      if (target < 0) return;
+      e.preventDefault();
+      setSelected(scale.options[target].value);
+      optionRefs.current[target]?.focus();
+    },
+    [scale.options]
+  );
 
   // Intro screen
   if (step < 0) {
     return (
-      <main className="min-h-screen flex flex-col items-center justify-center px-4 py-12">
-        <div className="max-w-md w-full">
-          <p className="text-sm font-medium text-[--purple] uppercase tracking-widest mb-3">
+      <main className="flex min-h-[70vh] flex-col items-center justify-center px-4 py-12">
+        <div className="w-full max-w-md">
+          <p className="mb-3 font-mono text-xs font-medium uppercase tracking-[0.2em] text-[--coral]">
             {scale.name}
           </p>
-          <h1 className="font-[--font-playfair] text-3xl font-semibold text-[--foreground] mb-4">
-            {scale.name === "PHQ-9" ? "Como você tem se sentido?" : "Como você tem se sentido?"}
+          <h1 className="mb-4 font-[--font-playfair] text-3xl font-semibold text-[--foreground]">
+            Como você tem se sentido?
           </h1>
-          <p className="text-[--muted-foreground] mb-2">{scale.instructions}</p>
-          <p className="text-sm text-[--muted-foreground] mb-8">
-            {totalItems} {totalItems === 1 ? "pergunta" : "perguntas"} · {scale.timeframe}
-          </p>
-          <div className="bg-[--muted] rounded-xl p-4 mb-8 text-sm text-[--muted-foreground]">
-            <p className="font-medium text-[--foreground] mb-1">Antes de começar</p>
+          <p className="mb-6 text-[--muted-foreground]">{scale.instructions}</p>
+
+          <ul className="mb-6 space-y-2 text-sm text-[--muted-foreground]">
+            <li className="flex items-center gap-2.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[--purple]" aria-hidden />
+              {totalItems} {totalItems === 1 ? "pergunta" : "perguntas"} · {scale.timeframe}
+            </li>
+            <li className="flex items-center gap-2.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[--purple]" aria-hidden />
+              Uma pergunta por tela — você pode voltar e revisar
+            </li>
+            <li className="flex items-center gap-2.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-[--purple]" aria-hidden />
+              Anônimo: nada é gravado sem o seu consentimento
+            </li>
+          </ul>
+
+          <div className="glass-noir mb-8 rounded-xl p-4 text-sm text-[--muted-foreground]">
+            <p className="mb-1 font-medium text-[--foreground]">Antes de começar</p>
             <p>
               Responda com sinceridade sobre como você tem se sentido. Não há respostas certas ou
               erradas — o que importa é o que você realmente está experienciando.
             </p>
           </div>
+
           <button
             onClick={handleStart}
-            className="w-full py-4 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2 min-h-[44px]"
+            className="min-h-[44px] w-full rounded-xl bg-[--purple] py-4 text-lg font-medium text-[--primary-foreground] transition-all hover:bg-[--purple-dark] hover:[box-shadow:0_0_48px_-10px_var(--noir-glow-purple)] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2"
           >
             Começar triagem
           </button>
-          <p className="text-center text-xs text-[--muted-foreground] mt-4">
+          <p className="mt-4 text-center text-xs text-[--muted-foreground]">
             Gratuito · Anônimo · Sem cadastro
           </p>
         </div>
@@ -126,68 +164,92 @@ export function QuizFlow({ scale }: Props) {
   }
 
   return (
-    <main className="min-h-screen flex flex-col px-4 py-8 max-w-md mx-auto">
+    <main className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col px-4 py-8">
       {/* Progress bar */}
       <div className="mb-8">
-        <div className="flex justify-between text-xs text-[--muted-foreground] mb-2">
+        <div className="mb-2 flex justify-between text-xs text-[--muted-foreground]">
           <span>
             {step + 1} de {totalItems}
           </span>
           <span>{progress}%</span>
         </div>
         <div
-          className="w-full h-1.5 bg-[--muted] rounded-full overflow-hidden"
+          className="h-1.5 w-full overflow-hidden rounded-full bg-[--muted]"
           role="progressbar"
           aria-valuenow={progress}
           aria-valuemin={0}
           aria-valuemax={100}
         >
           <div
-            className="h-full bg-[--purple] rounded-full transition-all duration-300"
+            className="h-full rounded-full bg-[--purple] transition-all duration-300"
             style={{ width: `${progress}%` }}
           />
         </div>
       </div>
 
-      {/* Question */}
-      <div className="flex-1 flex flex-col">
-        <p className="text-xs text-[--muted-foreground] uppercase tracking-widest mb-3">
+      {/* Question — key={step} remonta com animação suave (reduced-motion zera via global) */}
+      <div key={step} className="quiz-step-in flex flex-1 flex-col">
+        <p className="mb-3 text-xs uppercase tracking-widest text-[--muted-foreground]">
           {scale.timeframe}
         </p>
-        <h2 className="text-xl font-semibold text-[--foreground] leading-snug mb-8">
+        <h2 className="mb-8 text-xl font-semibold leading-snug text-[--foreground]">
           {currentItem.text}
         </h2>
 
         {/* Options */}
         <div className="space-y-3" role="radiogroup" aria-label="Selecione uma opção">
-          {scale.options.map((opt) => (
-            <button
-              key={opt.value}
-              role="radio"
-              aria-checked={selected === opt.value}
-              onClick={() => setSelected(opt.value)}
-              className={cn(
-                "w-full text-left px-5 py-4 rounded-xl border-2 transition-all duration-150 min-h-[44px] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2",
-                selected === opt.value
-                  ? "border-[--purple] bg-[--secondary] text-[--purple-dark] font-medium"
-                  : "border-[--border] bg-[--card] text-[--foreground] hover:border-[--purple-light]"
-              )}
-            >
-              {opt.label}
-            </button>
-          ))}
+          {scale.options.map((opt, idx) => {
+            const isSelected = selected === opt.value;
+            return (
+              <button
+                key={opt.value}
+                ref={(el) => {
+                  optionRefs.current[idx] = el;
+                }}
+                role="radio"
+                aria-checked={isSelected}
+                onClick={() => setSelected(opt.value)}
+                onKeyDown={(e) => handleOptionKeyDown(e, idx)}
+                className={cn(
+                  "flex min-h-[44px] w-full items-center gap-3 rounded-xl border-2 px-5 py-4 text-left transition-all duration-150 focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2",
+                  isSelected
+                    ? "border-[--purple] bg-[--secondary] font-medium text-[--purple-dark] [box-shadow:0_0_24px_-8px_var(--noir-glow-purple)]"
+                    : "border-[--border] bg-[--card] text-[--foreground] hover:border-[--purple-light]"
+                )}
+              >
+                <span
+                  className={cn(
+                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                    isSelected ? "border-[--purple]" : "border-[--border]"
+                  )}
+                  aria-hidden
+                >
+                  {isSelected && <span className="h-2 w-2 rounded-full bg-[--purple]" />}
+                </span>
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
 
-        {/* Next button */}
-        <div className="mt-auto pt-8">
+        {/* Voltar / Próxima */}
+        <div className="mt-auto flex gap-3 pt-8">
+          {step > 0 && (
+            <button
+              onClick={handleBack}
+              className="min-h-[44px] rounded-xl border border-[--border] px-5 py-4 font-medium text-[--muted-foreground] transition-colors hover:border-[--purple-light] hover:text-[--foreground] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2"
+            >
+              ← Voltar
+            </button>
+          )}
           <button
             onClick={handleNext}
             disabled={selected === null}
             className={cn(
-              "w-full py-4 rounded-xl font-medium text-lg transition-all min-h-[44px] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2",
+              "min-h-[44px] flex-1 rounded-xl py-4 text-lg font-medium transition-all focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2",
               selected !== null
                 ? "bg-[--purple] text-[--primary-foreground] hover:bg-[--purple-dark]"
-                : "bg-[--muted] text-[--muted-foreground] cursor-not-allowed"
+                : "cursor-not-allowed bg-[--muted] text-[--muted-foreground]"
             )}
             aria-disabled={selected === null}
           >

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { LandingHero, ComoFunciona, SymptomGrid, LandingCta } from "@/components/landing-blocks";
 
 export const metadata: Metadata = {
   title: "Teste de Ansiedade Online Gratuito — GAD-7 em Português",
@@ -39,28 +40,18 @@ export default function AnsiedadePage() {
         }}
       />
 
-      <main className="min-h-screen max-w-2xl mx-auto px-4 py-16">
-        {/* Hero */}
-        <div className="text-center mb-12">
-          <span className="text-5xl mb-4 block">🌀</span>
-          <p className="text-sm font-medium text-[--purple] uppercase tracking-widest mb-3">
-            Triagem gratuita · GAD-7
-          </p>
-          <h1 className="font-[--font-playfair] text-4xl font-semibold text-[--foreground] mb-4 leading-tight">
-            Teste de ansiedade online
-          </h1>
-          <p className="text-[--muted-foreground] text-lg leading-relaxed mb-8">
-            7 perguntas baseadas no GAD-7, instrumento validado para triagem de ansiedade
-            generalizada. Resultado em cerca de 2 minutos.
-          </p>
-          <Link
-            href="/teste/gad7"
-            className="inline-block py-4 px-10 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2"
-          >
-            Fazer teste agora — é gratuito
-          </Link>
-          <p className="text-xs text-[--muted-foreground] mt-3">Anônimo · Sem cadastro · ~2 min</p>
-        </div>
+      <main className="mx-auto max-w-2xl px-4 py-16">
+        <LandingHero
+          emoji="🌀"
+          eyebrow="Triagem gratuita · GAD-7"
+          title="Teste de ansiedade online"
+          lead="7 perguntas baseadas no GAD-7, instrumento validado para triagem de ansiedade generalizada. Resultado em cerca de 2 minutos."
+          ctaHref="/teste/gad7"
+          ctaLabel="Fazer teste agora — é gratuito"
+          badges={["Anônimo", "Sem cadastro", "~2 min", "Instrumento validado"]}
+        />
+
+        <ComoFunciona />
 
         {/* O que é */}
         <section className="mb-10">
@@ -76,7 +67,7 @@ export default function AnsiedadePage() {
           </p>
         </section>
 
-        {/* Aviso */}
+        {/* Aviso — ilha clara deliberada (clinical-safety) */}
         <section className="mb-10 bg-amber-50 border border-amber-200 rounded-xl p-5">
           <h2 className="font-semibold text-amber-900 mb-2">Importante saber</h2>
           <p className="text-amber-800 text-sm leading-relaxed">
@@ -86,39 +77,24 @@ export default function AnsiedadePage() {
           </p>
         </section>
 
-        {/* Sintomas */}
-        <section className="mb-12">
-          <h2 className="text-xl font-semibold text-[--foreground] mb-4">Sintomas que o GAD-7 avalia</h2>
-          <ul className="space-y-2">
-            {[
-              "Sentir-se nervoso, ansioso ou muito tenso",
-              "Dificuldade de parar ou controlar as preocupações",
-              "Preocupação excessiva com diversas coisas",
-              "Dificuldade para relaxar",
-              "Agitação que dificulta permanecer sentado",
-              "Irritabilidade ou aborrecimento fácil",
-              "Sensação de que algo horrível vai acontecer",
-            ].map((s) => (
-              <li key={s} className="flex gap-2 text-[--muted-foreground] text-sm leading-relaxed">
-                <span className="text-[--purple] mt-0.5">•</span>
-                <span>{s}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <SymptomGrid
+          title="Sintomas que o GAD-7 avalia"
+          items={[
+            "Sentir-se nervoso, ansioso ou muito tenso",
+            "Dificuldade de parar ou controlar as preocupações",
+            "Preocupação excessiva com diversas coisas",
+            "Dificuldade para relaxar",
+            "Agitação que dificulta permanecer sentado",
+            "Irritabilidade ou aborrecimento fácil",
+            "Sensação de que algo horrível vai acontecer",
+          ]}
+        />
 
-        {/* CTA final */}
-        <div className="text-center bg-[--secondary] rounded-2xl p-8">
-          <p className="text-[--foreground] font-medium text-lg mb-4">
-            Veja como você está com a ansiedade agora
-          </p>
-          <Link
-            href="/teste/gad7"
-            className="inline-block py-4 px-10 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px]"
-          >
-            Começar o GAD-7 agora
-          </Link>
-        </div>
+        <LandingCta
+          title="Veja como você está com a ansiedade agora"
+          ctaHref="/teste/gad7"
+          ctaLabel="Começar o GAD-7 agora"
+        />
 
         <footer className="mt-10 text-center">
           <p className="text-xs text-[--muted-foreground]">

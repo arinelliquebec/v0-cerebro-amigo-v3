@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { LandingHero, ComoFunciona, SymptomGrid } from "@/components/landing-blocks";
 
 export const metadata: Metadata = {
   title: "Teste de TDAH Adulto Online — ASRS-18 em Português",
@@ -39,29 +40,18 @@ export default function TDAHAdultoPage() {
         }}
       />
 
-      <main className="min-h-screen max-w-2xl mx-auto px-4 py-16">
-        {/* Hero */}
-        <div className="text-center mb-12">
-          <span className="text-5xl mb-4 block">⚡</span>
-          <p className="text-sm font-medium text-[--purple] uppercase tracking-widest mb-3">
-            ASRS-18 · OMS
-          </p>
-          <h1 className="font-[--font-playfair] text-4xl font-semibold text-[--foreground] mb-4 leading-tight">
-            Teste de TDAH para adultos
-          </h1>
-          <p className="text-[--muted-foreground] text-lg leading-relaxed mb-8">
-            Triagem com o ASRS-18, instrumento da OMS na versão brasileira validada (Mattos et al.,
-            2006). 18 perguntas sobre os últimos 6 meses — um ponto de partida para conversar com
-            um profissional, não um diagnóstico.
-          </p>
-          <Link
-            href="/teste/asrs18"
-            className="inline-block py-4 px-10 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px]"
-          >
-            Começar triagem
-          </Link>
-          <p className="text-xs text-[--muted-foreground] mt-3">Gratuito · Anônimo · Sem cadastro</p>
-        </div>
+      <main className="mx-auto max-w-2xl px-4 py-16">
+        <LandingHero
+          emoji="⚡"
+          eyebrow="ASRS-18 · OMS"
+          title="Teste de TDAH para adultos"
+          lead="Triagem com o ASRS-18, instrumento da OMS na versão brasileira validada (Mattos et al., 2006). 18 perguntas sobre os últimos 6 meses — um ponto de partida para conversar com um profissional, não um diagnóstico."
+          ctaHref="/teste/asrs18"
+          ctaLabel="Começar triagem"
+          badges={["Anônimo", "Sem cadastro", "~5 min", "Instrumento da OMS"]}
+        />
+
+        <ComoFunciona />
 
         {/* O que é */}
         <section className="mb-10">
@@ -79,7 +69,7 @@ export default function TDAHAdultoPage() {
           </p>
         </section>
 
-        {/* Aviso */}
+        {/* Aviso — ilha clara deliberada (clinical-safety) */}
         <section className="mb-10 bg-amber-50 border border-amber-200 rounded-xl p-5">
           <h2 className="font-semibold text-amber-900 mb-2">TDAH em adultos é mais comum do que se pensa</h2>
           <p className="text-amber-800 text-sm leading-relaxed">
@@ -90,32 +80,24 @@ export default function TDAHAdultoPage() {
           </p>
         </section>
 
-        {/* Sintomas comuns */}
-        <section className="mb-12">
-          <h2 className="text-xl font-semibold text-[--foreground] mb-4">Sintomas que o ASRS-18 avalia</h2>
-          <ul className="space-y-2">
-            {[
-              "Dificuldade de manter atenção em tarefas longas",
-              "Cometer erros por descuido",
-              "Dificuldade de seguir instruções até o fim",
-              "Dificuldade de se organizar",
-              "Evitar tarefas que exigem esforço mental sustentado",
-              "Perder objetos necessários com frequência",
-              "Distrair-se facilmente com estímulos externos",
-              "Esquecer compromissos do dia a dia",
-              "Mexer as mãos ou os pés quando está sentado",
-              "Impulsividade nas decisões ou nas falas",
-            ].map((s) => (
-              <li key={s} className="flex gap-2 text-[--muted-foreground] text-sm leading-relaxed">
-                <span className="text-[--purple] mt-0.5">•</span>
-                <span>{s}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <SymptomGrid
+          title="Sintomas que o ASRS-18 avalia"
+          items={[
+            "Dificuldade de manter atenção em tarefas longas",
+            "Cometer erros por descuido",
+            "Dificuldade de seguir instruções até o fim",
+            "Dificuldade de se organizar",
+            "Evitar tarefas que exigem esforço mental sustentado",
+            "Perder objetos necessários com frequência",
+            "Distrair-se facilmente com estímulos externos",
+            "Esquecer compromissos do dia a dia",
+            "Mexer as mãos ou os pés quando está sentado",
+            "Impulsividade nas decisões ou nas falas",
+          ]}
+        />
 
         {/* Links para outros testes */}
-        <div className="bg-[--secondary] rounded-2xl p-6 text-center">
+        <div className="glass-noir rounded-2xl p-6 text-center">
           <p className="text-[--foreground] font-medium mb-4">
             Veja também as outras triagens:
           </p>

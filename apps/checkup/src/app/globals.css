@@ -110,6 +110,16 @@
     radial-gradient(40% 40% at 12% 70%, var(--noir-aurora-1), transparent 72%);
 }
 
+/* Transição suave entre perguntas do quiz ("ritmo do teste").
+   prefers-reduced-motion zera via a media query global abaixo. */
+@keyframes quiz-step-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.quiz-step-in {
+  animation: quiz-step-in 0.28s ease-out both;
+}
+
 * {
   box-sizing: border-box;
 }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { LandingHero, ComoFunciona, SymptomGrid, LandingCta } from "@/components/landing-blocks";
 
 export const metadata: Metadata = {
   title: "Teste de Depressão Online Gratuito — PHQ-9 em Português",
@@ -39,28 +40,18 @@ export default function DepressaoPage() {
         }}
       />
 
-      <main className="min-h-screen max-w-2xl mx-auto px-4 py-16">
-        {/* Hero */}
-        <div className="text-center mb-12">
-          <span className="text-5xl mb-4 block">🌧️</span>
-          <p className="text-sm font-medium text-[--purple] uppercase tracking-widest mb-3">
-            Triagem gratuita · PHQ-9
-          </p>
-          <h1 className="font-[--font-playfair] text-4xl font-semibold text-[--foreground] mb-4 leading-tight">
-            Teste de depressão online
-          </h1>
-          <p className="text-[--muted-foreground] text-lg leading-relaxed mb-8">
-            9 perguntas baseadas no PHQ-9, instrumento clínico validado amplamente usado
-            por psiquiatras e clínicos gerais. Resultado em cerca de 3 minutos.
-          </p>
-          <Link
-            href="/teste/phq9"
-            className="inline-block py-4 px-10 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2"
-          >
-            Fazer teste agora — é gratuito
-          </Link>
-          <p className="text-xs text-[--muted-foreground] mt-3">Anônimo · Sem cadastro · ~3 min</p>
-        </div>
+      <main className="mx-auto max-w-2xl px-4 py-16">
+        <LandingHero
+          emoji="🌧️"
+          eyebrow="Triagem gratuita · PHQ-9"
+          title="Teste de depressão online"
+          lead="9 perguntas baseadas no PHQ-9, instrumento clínico validado amplamente usado por psiquiatras e clínicos gerais. Resultado em cerca de 3 minutos."
+          ctaHref="/teste/phq9"
+          ctaLabel="Fazer teste agora — é gratuito"
+          badges={["Anônimo", "Sem cadastro", "~3 min", "Instrumento validado"]}
+        />
+
+        <ComoFunciona />
 
         {/* O que é */}
         <section className="mb-10">
@@ -77,7 +68,7 @@ export default function DepressaoPage() {
           </p>
         </section>
 
-        {/* O que ele NÃO é */}
+        {/* O que ele NÃO é — ilha clara deliberada (clinical-safety) */}
         <section className="mb-10 bg-amber-50 border border-amber-200 rounded-xl p-5">
           <h2 className="font-semibold text-amber-900 mb-2">Importante saber</h2>
           <p className="text-amber-800 text-sm leading-relaxed">
@@ -88,41 +79,26 @@ export default function DepressaoPage() {
           </p>
         </section>
 
-        {/* Sintomas comuns */}
-        <section className="mb-12">
-          <h2 className="text-xl font-semibold text-[--foreground] mb-4">Sintomas que o PHQ-9 avalia</h2>
-          <ul className="space-y-2">
-            {[
-              "Pouco interesse ou prazer em fazer as coisas",
-              "Sentir-se para baixo, deprimido ou sem perspectiva",
-              "Dificuldades com sono — insônia ou dormir demais",
-              "Cansaço ou pouca energia",
-              "Falta de apetite ou comer demais",
-              "Dificuldade de concentração",
-              "Sentir-se mal consigo mesmo",
-              "Agitação ou lentidão incomuns",
-              "Pensamentos de se machucar",
-            ].map((s) => (
-              <li key={s} className="flex gap-2 text-[--muted-foreground] text-sm leading-relaxed">
-                <span className="text-[--purple] mt-0.5">•</span>
-                <span>{s}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        <SymptomGrid
+          title="Sintomas que o PHQ-9 avalia"
+          items={[
+            "Pouco interesse ou prazer em fazer as coisas",
+            "Sentir-se para baixo, deprimido ou sem perspectiva",
+            "Dificuldades com sono — insônia ou dormir demais",
+            "Cansaço ou pouca energia",
+            "Falta de apetite ou comer demais",
+            "Dificuldade de concentração",
+            "Sentir-se mal consigo mesmo",
+            "Agitação ou lentidão incomuns",
+            "Pensamentos de se machucar",
+          ]}
+        />
 
-        {/* CTA final */}
-        <div className="text-center bg-[--secondary] rounded-2xl p-8">
-          <p className="text-[--foreground] font-medium text-lg mb-4">
-            Pronto para verificar como você está?
-          </p>
-          <Link
-            href="/teste/phq9"
-            className="inline-block py-4 px-10 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium text-lg hover:bg-[--purple-dark] transition-colors min-h-[44px]"
-          >
-            Começar o PHQ-9 agora
-          </Link>
-        </div>
+        <LandingCta
+          title="Pronto para verificar como você está?"
+          ctaHref="/teste/phq9"
+          ctaLabel="Começar o PHQ-9 agora"
+        />
 
         <footer className="mt-10 text-center">
           <p className="text-xs text-[--muted-foreground]">
