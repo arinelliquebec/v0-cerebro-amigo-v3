@@ -3,6 +3,27 @@
 Objetivo: provar que o backup do RDS presta (restore não testado = backup que
 pode não existir). Restaura o PITR num instance temporário, valida, **derruba**.
 
+## ⚙️ Automatizado (T1-5) — caminho padrão
+
+O drill roda **mensalmente** (dia 3, 07:00 UTC) pelo workflow
+`.github/workflows/restore-drill.yml` (também dispara manual via
+*workflow_dispatch* na aba Actions). Ele executa exatamente os passos 1–4
+abaixo: PITR → `cerebro-postgres-restore-drill` (db.t4g.micro, privada, mesma
+VPC/SG da origem) → validação via SSM no box
+(`infra/aws/rds-restore-drill-validate.sh`: conexão pela DSN dos workers com o
+host trocado, counts de `pacientes`/`prescricoes`/`mensagens` + último
+`protocolos_crise_acionados`) → **delete sempre** (`if: always()`).
+
+Pré-requisito (uma vez): anexar `infra/aws/iam-policy-rds-restore-drill.json`
+ao IAM user do CI (o mesmo do deploy). `rds:DeleteDBInstance` é restrito por
+ARN à instância `*-restore-drill` — o workflow não consegue deletar a de prod.
+
+Falha do workflow agendado = e-mail do GitHub. Workflow verde = data do último
+drill bem-sucedido (não precisa registrar à mão).
+
+Os passos manuais abaixo ficam como **fallback** (ex.: drill fora de cadência
+após mudança grande de schema).
+
 RDS: `cerebro-postgres` (db.t4g.medium, single-AZ, sa-east-1). Custo do drill:
 ~centavos (instance de minutos) + ~15-20min. Faça fora de pico.
 

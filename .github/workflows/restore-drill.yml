@@ -1,0 +1,193 @@
+name: RDS Restore Drill
+
+# T1-5 — prova mensal de que o backup do RDS presta (runbook
+# docs/runbooks/rds-restore-drill.md, automatizado):
+#   1. PITR do cerebro-postgres → instância efêmera (db.t4g.micro, privada,
+#      mesma VPC/SG da origem para o box alcançar);
+#   2. validação via SSM no box (infra/aws/rds-restore-drill-validate.sh:
+#      conexão + counts das tabelas clínicas + dado recente);
+#   3. DELETE da instância do drill SEMPRE (if: always()) — sem órfã paga.
+#
+# IAM: o user do CI precisa da policy infra/aws/iam-policy-rds-restore-drill.json
+# (delete restrito à instância *-restore-drill — nunca à de prod).
+# Falha do workflow agendado notifica por e-mail (GitHub default).
+
+on:
+  schedule:
+    - cron: "0 7 3 * *" # dia 3 de cada mês, 07:00 UTC (~04:00 BRT, fora de pico)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rds-restore-drill
+  cancel-in-progress: false
+
+env:
+  REGION: sa-east-1
+  SOURCE_ID: cerebro-postgres
+  DRILL_ID: cerebro-postgres-restore-drill
+  BOX_ID: i-057860cd97edafefb
+
+jobs:
+  drill:
+    name: Restore + valida + derruba
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: sa-east-1
+
+      - name: PITR recente disponível?
+        run: |
+          set -euo pipefail
+          INFO=$(aws rds describe-db-instances --region "$REGION" --no-cli-pager \
+            --db-instance-identifier "$SOURCE_ID" \
+            --query 'DBInstances[0].{Retention:BackupRetentionPeriod,Latest:LatestRestorableTime}' \
+            --output json)
+          echo "$INFO"
+          RETENTION=$(echo "$INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin)["Retention"])')
+          LATEST=$(echo "$INFO" | python3 -c 'import json,sys; print(json.load(sys.stdin)["Latest"])')
+          [ "$RETENTION" -gt 0 ] || { echo "BackupRetentionPeriod=0 — sem PITR!"; exit 1; }
+          python3 - "$LATEST" <<'PY'
+          import sys
+          from datetime import datetime, timezone
+          latest = datetime.fromisoformat(sys.argv[1].replace("Z", "+00:00"))
+          age_min = (datetime.now(timezone.utc) - latest).total_seconds() / 60
+          print(f"LatestRestorableTime há {age_min:.0f} min")
+          assert age_min <= 60, "PITR atrasado (>60min) — investigar backups"
+          PY
+
+      - name: Limpa sobra de drill anterior (se houver)
+        run: |
+          set -euo pipefail
+          if aws rds describe-db-instances --region "$REGION" --no-cli-pager \
+               --db-instance-identifier "$DRILL_ID" >/dev/null 2>&1; then
+            echo "Instância $DRILL_ID já existe (sobra de drill anterior) — deletando antes."
+            aws rds delete-db-instance --region "$REGION" --no-cli-pager \
+              --db-instance-identifier "$DRILL_ID" \
+              --skip-final-snapshot --delete-automated-backups || true
+            aws rds wait db-instance-deleted --region "$REGION" \
+              --db-instance-identifier "$DRILL_ID"
+          fi
+
+      - name: Restore PITR → instância efêmera
+        run: |
+          set -euo pipefail
+          # Mesma VPC/SG/subnet-group da origem: o box precisa alcançar o drill.
+          SG=$(aws rds describe-db-instances --region "$REGION" --no-cli-pager \
+            --db-instance-identifier "$SOURCE_ID" \
+            --query 'DBInstances[0].VpcSecurityGroups[*].VpcSecurityGroupId' --output text | tr '\t' ' ')
+          SUBNET=$(aws rds describe-db-instances --region "$REGION" --no-cli-pager \
+            --db-instance-identifier "$SOURCE_ID" \
+            --query 'DBInstances[0].DBSubnetGroup.DBSubnetGroupName' --output text)
+          aws rds restore-db-instance-to-point-in-time --region "$REGION" --no-cli-pager \
+            --source-db-instance-identifier "$SOURCE_ID" \
+            --target-db-instance-identifier "$DRILL_ID" \
+            --use-latest-restorable-time \
+            --db-instance-class db.t4g.micro \
+            --no-multi-az --no-publicly-accessible \
+            --vpc-security-group-ids $SG \
+            --db-subnet-group-name "$SUBNET" \
+            --tags Key=purpose,Value=restore-drill \
+            --query 'DBInstance.DBInstanceStatus' --output text
+
+      - name: Espera instância disponível (até ~60 min)
+        run: |
+          set -euo pipefail
+          # `aws rds wait` desiste em 30 min; PITR pode levar mais — tenta 2x.
+          for i in 1 2; do
+            if aws rds wait db-instance-available --region "$REGION" \
+                 --db-instance-identifier "$DRILL_ID"; then
+              echo "disponível"; exit 0
+            fi
+            echo "[tentativa $i] ainda restaurando…"
+          done
+          echo "timeout esperando restore"; exit 1
+
+      - name: Endpoint do drill
+        id: endpoint
+        run: |
+          EP=$(aws rds describe-db-instances --region "$REGION" --no-cli-pager \
+            --db-instance-identifier "$DRILL_ID" \
+            --query 'DBInstances[0].Endpoint.Address' --output text)
+          echo "endpoint=$EP" >> "$GITHUB_OUTPUT"
+          echo "endpoint: $EP"
+
+      - name: Valida pelo box (SSM)
+        id: ssm
+        run: |
+          set -euo pipefail
+          ENDPOINT="${{ steps.endpoint.outputs.endpoint }}"
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$BOX_ID" \
+            --document-name "AWS-RunShellScript" \
+            --parameters "commands=[
+              \"set -euo pipefail\",
+              \"export HOME=/root\",
+              \"cd /opt/cerebro-amigo-v3\",
+              \"git config --global --add safe.directory /opt/cerebro-amigo-v3\",
+              \"git fetch origin main --quiet\",
+              \"git show origin/main:infra/aws/rds-restore-drill-validate.sh > /tmp/rds-restore-drill-validate.sh\",
+              \"bash /tmp/rds-restore-drill-validate.sh $ENDPOINT\"
+            ]" \
+            --timeout-seconds 600 \
+            --region "$REGION" \
+            --query 'Command.CommandId' --output text)
+          echo "command_id=$COMMAND_ID" >> "$GITHUB_OUTPUT"
+          echo "SSM command: $COMMAND_ID"
+
+      - name: Espera validação terminar
+        run: |
+          set -euo pipefail
+          COMMAND_ID="${{ steps.ssm.outputs.command_id }}"
+          for i in $(seq 1 40); do
+            STATUS=$(aws ssm get-command-invocation \
+              --command-id "$COMMAND_ID" --instance-id "$BOX_ID" \
+              --region "$REGION" --query 'Status' --output text 2>/dev/null || echo "Pending")
+            echo "[$i/40] Status: $STATUS"
+            if [ "$STATUS" = "Success" ]; then
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" --instance-id "$BOX_ID" \
+                --region "$REGION" --query 'StandardOutputContent' --output text
+              exit 0
+            elif [ "$STATUS" = "Failed" ] || [ "$STATUS" = "TimedOut" ] || [ "$STATUS" = "Cancelled" ]; then
+              echo "Validação falhou ($STATUS):"
+              aws ssm get-command-invocation \
+                --command-id "$COMMAND_ID" --instance-id "$BOX_ID" \
+                --region "$REGION" --query 'StandardErrorContent' --output text
+              exit 1
+            fi
+            sleep 15
+          done
+          echo "timeout esperando a validação"; exit 1
+
+      # ⚠️ SEMPRE roda — instância órfã = custo recorrente silencioso.
+      # IAM só permite delete em *-restore-drill (nunca no cerebro-postgres).
+      - name: Derruba a instância do drill
+        if: always()
+        run: |
+          set -euo pipefail
+          if ! aws rds describe-db-instances --region "$REGION" --no-cli-pager \
+               --db-instance-identifier "$DRILL_ID" >/dev/null 2>&1; then
+            echo "Nada a deletar (restore não chegou a criar a instância)."
+            exit 0
+          fi
+          aws rds delete-db-instance --region "$REGION" --no-cli-pager \
+            --db-instance-identifier "$DRILL_ID" \
+            --skip-final-snapshot --delete-automated-backups \
+            --query 'DBInstance.DBInstanceStatus' --output text
+          for i in 1 2; do
+            if aws rds wait db-instance-deleted --region "$REGION" \
+                 --db-instance-identifier "$DRILL_ID"; then
+              echo "drill deletado — sem órfã."; exit 0
+            fi
+            echo "[tentativa $i] ainda deletando…"
+          done
+          echo "ATENÇÃO: delete não confirmou — verificar manualmente $DRILL_ID!"
+          exit 1

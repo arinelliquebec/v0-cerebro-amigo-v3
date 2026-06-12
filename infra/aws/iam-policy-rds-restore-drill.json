@@ -1,0 +1,29 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DescribeReadOnly",
+      "Effect": "Allow",
+      "Action": ["rds:DescribeDBInstances"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "RestoreDrill",
+      "Effect": "Allow",
+      "Action": ["rds:RestoreDBInstanceToPointInTime", "rds:AddTagsToResource"],
+      "Resource": [
+        "arn:aws:rds:sa-east-1:004177894935:db:cerebro-postgres",
+        "arn:aws:rds:sa-east-1:004177894935:db:cerebro-postgres-restore-drill",
+        "arn:aws:rds:sa-east-1:004177894935:subgrp:*",
+        "arn:aws:rds:sa-east-1:004177894935:og:*",
+        "arn:aws:rds:sa-east-1:004177894935:pg:*"
+      ]
+    },
+    {
+      "Sid": "DeleteDrillOnly",
+      "Effect": "Allow",
+      "Action": ["rds:DeleteDBInstance"],
+      "Resource": "arn:aws:rds:sa-east-1:004177894935:db:cerebro-postgres-restore-drill"
+    }
+  ]
+}
