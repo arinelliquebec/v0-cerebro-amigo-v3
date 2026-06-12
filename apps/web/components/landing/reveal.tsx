@@ -33,8 +33,8 @@ export function Reveal({
   return (
     <MotionTag
       className={className}
-      initial={{ opacity: 0, y }}
-      whileInView={{ opacity: 1, y: 0 }}
+      initial={{ y }}
+      whileInView={{ y: 0 }}
       viewport={{ once: true, margin: "-12% 0px" }}
       transition={{ ...spring, delay }}
     >
@@ -48,8 +48,8 @@ const groupVariants: Variants = {
   show: { transition: { staggerChildren: 0.08, delayChildren: 0.04 } },
 }
 const itemVariants: Variants = {
-  hidden: { opacity: 0, y: 24 },
-  show: { opacity: 1, y: 0, transition: spring },
+  hidden: { y: 24 },
+  show: { y: 0, transition: spring },
 }
 
 /**

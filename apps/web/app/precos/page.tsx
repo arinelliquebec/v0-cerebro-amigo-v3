@@ -138,7 +138,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 
 export default function PrecosPage() {
   return (
-    <div className="theme-noir min-h-screen bg-background text-foreground antialiased">
+    <main className="theme-noir min-h-screen bg-background text-foreground antialiased">
       <Schema data={faqSchema} />
 
       {/* Nav */}
@@ -312,6 +312,6 @@ export default function PrecosPage() {
       </section>
 
       <FooterSection />
-    </div>
+    </main>
   )
 }

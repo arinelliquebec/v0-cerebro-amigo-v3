@@ -80,7 +80,7 @@ const depoimentos = [
 
 export default function SobrePage() {
   return (
-    <div className="theme-noir min-h-screen bg-background text-foreground antialiased">
+    <main className="theme-noir min-h-screen bg-background text-foreground antialiased">
       <Schema data={orgSchema} />
       <Schema data={founderSchema} />
 
@@ -240,6 +240,6 @@ export default function SobrePage() {
       </section>
 
       <FooterSection />
-    </div>
+    </main>
   )
 }

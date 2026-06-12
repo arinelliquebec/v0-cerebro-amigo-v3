@@ -36,7 +36,7 @@ const opcoes = [
 
 export default function ChooserPage() {
   return (
-    <div className="theme-noir relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-5 py-14 text-foreground antialiased">
+    <main className="theme-noir relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-5 py-14 text-foreground antialiased">
       <AuroraBackdrop grid />
       <div className="pointer-events-none absolute inset-0 opacity-50">
         <NeuralField />
@@ -84,6 +84,6 @@ export default function ChooserPage() {
           </div>
         </Reveal>
       </div>
-    </div>
+    </main>
   )
 }
