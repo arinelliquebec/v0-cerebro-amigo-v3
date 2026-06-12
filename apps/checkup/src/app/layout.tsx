@@ -53,9 +53,13 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${inter.variable} ${playfair.variable}`}
     >
-      <body className={`${inter.className} theme-noir bg-[--background] text-[--foreground] antialiased flex min-h-screen flex-col`}>
+      <body className={`${inter.className} theme-noir antialiased flex min-h-screen flex-col`}>
+        {/* Atmosfera global (só CSS): aurora + malha neural, atrás de tudo.
+            /crise pinta a própria ilha clara por cima — não é afetada. */}
+        <div className="noir-backdrop" aria-hidden />
+        <div className="noir-grid" aria-hidden />
         <SiteHeader />
-        <div className="flex-1">{children}</div>
+        <div className="relative flex-1">{children}</div>
         <SiteFooter />
       </body>
     </html>

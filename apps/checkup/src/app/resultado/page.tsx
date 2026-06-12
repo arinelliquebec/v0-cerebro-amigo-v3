@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
+import { FileDown, Info } from "lucide-react";
 import type { Devolutiva } from "@/lib/ai/types";
 import { getFallback } from "@/lib/ai/fallbacks";
 
@@ -12,16 +13,66 @@ const SCALE_NAMES: Record<string, string> = {
   asrs18: "ASRS-18 — TDAH",
 };
 
-const BAND_COLORS: Record<string, string> = {
-  minimal: "bg-emerald-50 text-emerald-800 border-emerald-200",
-  mild: "bg-amber-50 text-amber-800 border-amber-200",
-  moderate: "bg-orange-50 text-orange-800 border-orange-200",
-  moderately_severe: "bg-red-50 text-red-800 border-red-200",
-  severe: "bg-red-100 text-red-900 border-red-300",
-  crisis: "bg-slate-100 text-slate-700 border-slate-300",
-  informative: "bg-slate-100 text-slate-700 border-slate-300",
+// Escore máximo por escala (p/ o medidor). ASRS-18 é qualitativo (sem gauge).
+const SCALE_MAX: Record<string, number> = {
+  phq9: 27,
+  gad7: 21,
 };
 
+// Chips de faixa sobre o noir: tinta translúcida + texto claro (AA no fundo escuro).
+const BAND_CHIP: Record<string, string> = {
+  minimal: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
+  mild: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  moderate: "border-orange-400/30 bg-orange-400/10 text-orange-300",
+  moderately_severe: "border-red-400/30 bg-red-400/10 text-red-300",
+  severe: "border-red-400/40 bg-red-400/15 text-red-200",
+  crisis: "border-slate-400/30 bg-slate-400/10 text-slate-300",
+  informative: "border-slate-400/30 bg-slate-400/10 text-slate-300",
+};
+
+const BAND_RING: Record<string, string> = {
+  minimal: "#34D399",
+  mild: "#FBBF24",
+  moderate: "#FB923C",
+  moderately_severe: "#F87171",
+  severe: "#F87171",
+};
+
+// Medidor circular do escore (SVG puro, determinístico — a IA nunca calcula escore).
+// Circunferência r=52 ≈ 326.7 — casa com o keyframe gauge-in do globals.css.
+function ScoreGauge({ score, max, band }: { score: number; max: number; band: string }) {
+  const C = 2 * Math.PI * 52;
+  const frac = max > 0 ? Math.min(Math.max(score / max, 0), 1) : 0;
+  const color = BAND_RING[band] ?? "#9486C9";
+  return (
+    <div className="relative h-[124px] w-[124px] shrink-0" aria-hidden>
+      <svg viewBox="0 0 120 120" className="h-full w-full">
+        <circle cx="60" cy="60" r="52" fill="none" stroke="var(--noir-line)" strokeWidth="7" />
+        <circle
+          cx="60"
+          cy="60"
+          r="52"
+          fill="none"
+          stroke={color}
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={C}
+          strokeDashoffset={C * (1 - frac)}
+          transform="rotate(-90 60 60)"
+          className="gauge-arc"
+          style={{ filter: `drop-shadow(0 0 8px ${color}55)` }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-3xl font-bold leading-none text-foreground">{score}</span>
+        <span className="mt-1 text-[0.68rem] text-muted-foreground">de {max}</span>
+      </div>
+    </div>
+  );
+}
+
+// Ilha CLARA deliberada (clinical-safety): canais de crise sempre em fundo claro
+// com texto escuro literal — máxima legibilidade p/ quem está em sofrimento.
 function CrisisResources() {
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 mb-6">
@@ -106,61 +157,76 @@ function ResultContent() {
   }, [scale, band, score, label]);
 
   const pdfHref = `/api/pdf?scale=${scale}&score=${score}&band=${band}&label=${encodeURIComponent(label)}&crisis=${isCrisis}&rid=${sid.slice(0, 8)}`;
+  const max = SCALE_MAX[scale];
 
   return (
-    <main className="min-h-screen px-4 py-10 max-w-lg mx-auto">
+    <main className="mx-auto min-h-screen w-full max-w-lg px-4 py-12 sm:px-6">
       {/* Crisis resources — top, always visible when crisis */}
       {isCrisis && <CrisisResources />}
 
-      {/* Score chip — escala com verdict (PHQ-9/GAD-7) mostra número + faixa.
+      {/* Cartão do escore — escala com verdict (PHQ-9/GAD-7) mostra medidor + faixa.
           Band "informative" (ASRS-18) é qualitativa: sem número, só rótulo neutro. */}
-      <div className="mb-6">
-        <p className="text-sm text-[--muted-foreground] mb-1">{SCALE_NAMES[scale] ?? scale}</p>
-        {band === "informative" ? (
+      <section className="glass-noir-deep reveal mb-8 rounded-3xl p-6 sm:p-7">
+        <p className="eyebrow mb-4">Seu resultado · {SCALE_NAMES[scale] ?? scale}</p>
+        {band === "informative" || max === undefined ? (
           <span
-            className={`inline-block text-sm px-3 py-1 rounded-full border font-medium ${BAND_COLORS[band]}`}
+            className={`inline-block rounded-full border px-3.5 py-1.5 text-sm font-medium ${BAND_CHIP[band] ?? "border-slate-400/30 bg-slate-400/10 text-slate-300"}`}
           >
             {label}
           </span>
         ) : (
-          <div className="flex items-center gap-3">
-            <span className="text-4xl font-bold text-[--foreground]">{score}</span>
-            <span
-              className={`text-sm px-3 py-1 rounded-full border font-medium ${BAND_COLORS[band] ?? "bg-gray-100 text-gray-700 border-gray-200"}`}
-            >
-              {label}
-            </span>
+          <div className="flex items-center gap-6">
+            <ScoreGauge score={score} max={max} band={band} />
+            <div className="space-y-2">
+              <span
+                className={`inline-block rounded-full border px-3.5 py-1.5 text-sm font-medium ${BAND_CHIP[band] ?? "border-slate-400/30 bg-slate-400/10 text-slate-300"}`}
+              >
+                {label}
+              </span>
+              <p className="text-xs leading-relaxed text-muted-foreground">
+                Faixa do seu escore neste instrumento de triagem.
+              </p>
+            </div>
           </div>
         )}
-      </div>
+      </section>
 
       {/* Devolutiva */}
       {loading ? (
-        <div className="space-y-3 animate-pulse">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-4 bg-[--muted] rounded w-full" />
-          ))}
+        <div className="animate-pulse space-y-3" aria-label="Preparando sua devolutiva">
+          <div className="h-5 w-3/4 rounded-lg bg-muted" />
+          <div className="h-4 w-full rounded-lg bg-muted" />
+          <div className="h-4 w-full rounded-lg bg-muted" />
+          <div className="h-4 w-2/3 rounded-lg bg-muted" />
         </div>
       ) : devolutiva ? (
-        <div className="space-y-6">
-          <p className="text-[--foreground] text-lg leading-relaxed">{devolutiva.acolhimento}</p>
+        <div className="reveal reveal-1 space-y-7">
+          <p className="text-lg leading-relaxed text-foreground">{devolutiva.acolhimento}</p>
 
-          <div className="space-y-2">
+          <div className="space-y-3">
             {devolutiva.leitura.map((l, i) => (
-              <p key={i} className="text-[--muted-foreground] leading-relaxed">{l}</p>
+              <p key={i} className="leading-relaxed text-muted-foreground">{l}</p>
             ))}
           </div>
 
-          <div className="bg-[--muted] rounded-xl p-4">
-            <p className="text-sm text-[--muted-foreground]">{devolutiva.limites}</p>
+          <div className="glass-noir flex gap-3 rounded-2xl p-4">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-purple-light" aria-hidden />
+            <p className="text-sm leading-relaxed text-muted-foreground">{devolutiva.limites}</p>
           </div>
 
           <div>
-            <p className="font-medium text-[--foreground] mb-3">Próximos passos</p>
-            <ul className="space-y-2">
+            <p className="mb-3 font-display text-xl font-semibold text-foreground">
+              Próximos passos
+            </p>
+            <ul className="space-y-3">
               {devolutiva.proximos_passos.map((p, i) => (
-                <li key={i} className="flex gap-2 text-[--muted-foreground] text-sm leading-relaxed">
-                  <span className="text-[--purple] mt-0.5">•</span>
+                <li key={i} className="flex gap-3 text-sm leading-relaxed text-muted-foreground">
+                  <span
+                    className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-purple/15 font-mono text-[0.65rem] font-semibold text-purple-light"
+                    aria-hidden
+                  >
+                    {i + 1}
+                  </span>
                   <span>{p}</span>
                 </li>
               ))}
@@ -169,58 +235,79 @@ function ResultContent() {
         </div>
       ) : null}
 
+      {/* PDF download — omitido em modo crise. Marca em evidência: o relatório
+          é o vetor de aquisição de médicos (QR do Cérebro Amigo no PDF). */}
+      {!isCrisis && (
+        <section className="glass-noir-deep relative mt-10 overflow-hidden rounded-3xl p-6 sm:p-7">
+          <div className="aurora pointer-events-none absolute inset-0" aria-hidden />
+          <div className="relative">
+            <div className="mb-4 flex items-start gap-4">
+              <span
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-purple/25 bg-purple/10 text-purple-light"
+                aria-hidden
+              >
+                <FileDown className="h-5 w-5" />
+              </span>
+              <div>
+                <p className="font-display text-xl font-semibold leading-snug text-foreground">
+                  Leve este resultado ao seu médico
+                </p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  Relatório em PDF com seu escore e a faixa, gerado pelo{" "}
+                  <strong className="text-foreground">Cérebro Amigo</strong>.
+                </p>
+              </div>
+            </div>
+            <a
+              href={pdfHref}
+              onClick={() =>
+                fetch("/api/events", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ event: "report_generated", sessionId: sid, scaleId: scale }),
+                }).catch(() => {})
+              }
+              className="btn-noir w-full"
+            >
+              Baixar relatório PDF
+            </a>
+            <p className="mt-2.5 text-center text-xs text-muted-foreground">
+              Para levar ao seu médico ou psicólogo.
+            </p>
+          </div>
+        </section>
+      )}
+
       {/* Consentimento (LGPD) — default desmarcado; só grava se marcar */}
       {scale && band && (
-        <div className="mt-8 pt-6 border-t border-[--border]">
-          <label className="flex items-start gap-3 cursor-pointer">
+        <div className="mt-8">
+          <label className="glass-noir flex cursor-pointer items-start gap-3 rounded-2xl p-4">
             <input
               type="checkbox"
               checked={consented}
               onChange={(e) => handleConsent(e.target.checked)}
-              className="mt-1 h-4 w-4 accent-[--purple] min-h-[16px]"
+              className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-(--purple)"
             />
-            <span className="text-sm text-[--muted-foreground]">
+            <span className="text-sm leading-relaxed text-muted-foreground">
               Guardar meu resultado de forma anônima para ajudar a melhorar o Check-up.
               Nada que te identifique é salvo — só a escala, o escore e a faixa.
             </span>
           </label>
           {consentSaved && (
-            <p className="text-xs text-[--purple] mt-2">✓ Resultado guardado anonimamente. Obrigado.</p>
+            <p className="mt-2 text-xs text-purple-light">✓ Resultado guardado anonimamente. Obrigado.</p>
           )}
-        </div>
-      )}
-
-      {/* PDF download — omitido em modo crise */}
-      {!isCrisis && (
-        <div className="mt-8 pt-6 border-t border-[--border]">
-          <a
-            href={pdfHref}
-            onClick={() =>
-              fetch("/api/events", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ event: "report_generated", sessionId: sid, scaleId: scale }),
-              }).catch(() => {})
-            }
-            className="block w-full text-center py-4 bg-[--purple] text-[--primary-foreground] rounded-xl font-medium hover:bg-[--purple-dark] transition-colors min-h-[44px]"
-          >
-            Baixar relatório PDF
-          </a>
-          <p className="text-xs text-[--muted-foreground] text-center mt-2">
-            Para levar ao seu médico ou psicólogo.
-          </p>
         </div>
       )}
 
       {/* Crisis resources at bottom (crisis mode: already at top; non-crisis: subtle) */}
       {!isCrisis && (
-        <p className="text-xs text-[--muted-foreground] text-center mt-6">
-          Se precisar de apoio: <a href="tel:188" className="underline">CVV 188</a> · 24h
+        <p className="mt-7 text-center text-xs text-muted-foreground">
+          Se precisar de apoio: <a href="tel:188" className="underline underline-offset-2">CVV 188</a> · 24h
         </p>
       )}
 
       <div className="mt-8 text-center">
-        <Link href="/" className="text-sm text-[--muted-foreground] hover:text-[--foreground]">
+        <Link href="/" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
           ← Fazer outro teste
         </Link>
       </div>
@@ -230,7 +317,7 @@ function ResultContent() {
 
 export default function ResultadoPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><p className="text-[--muted-foreground]">Carregando resultado...</p></div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><p className="text-muted-foreground">Carregando resultado...</p></div>}>
       <ResultContent />
     </Suspense>
   );

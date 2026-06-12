@@ -1,19 +1,43 @@
+import Link from "next/link"
 import { Logo } from "./logo"
 
 // Header calmo do checkup — logo do Cérebro Amigo em destaque. Sem drama
-// (clinical-safety: público pode estar em sofrimento). Sticky discreto.
+// (clinical-safety: público pode estar em sofrimento). Sticky discreto,
+// vidro noir, hairline embaixo. Nav direto p/ as triagens (conversão).
+const NAV = [
+  { href: "/depressao", label: "Depressão" },
+  { href: "/ansiedade", label: "Ansiedade" },
+  { href: "/tdah-adulto", label: "TDAH adulto" },
+] as const
+
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 glass-noir border-b-0">
-      <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+    <header className="sticky top-0 z-40 glass-noir">
+      <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
         <Logo size="md" />
+
+        <nav aria-label="Triagens" className="hidden items-center gap-6 md:flex">
+          {NAV.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
         <a
           href="https://www.cerebroamigo.com.br"
-          className="text-xs text-[--muted-foreground] transition-colors hover:text-[--purple-light]"
+          className="inline-flex min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-(--noir-glass-border) bg-secondary/50 px-3.5 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:border-purple hover:text-foreground sm:px-4"
         >
-          Conheça o Cérebro Amigo →
+          <span className="hidden sm:inline">Conheça o Cérebro Amigo</span>
+          <span className="sm:hidden">Site oficial</span>
+          <span aria-hidden>→</span>
         </a>
       </div>
+      <div className="hairline" aria-hidden />
     </header>
   )
 }

@@ -43,11 +43,11 @@ export default async function TestePage({ params }: Props) {
 
   if (!isScaleAvailable(scale)) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4">
-        <div className="max-w-sm text-center">
-          <p className="text-4xl mb-4">🔬</p>
-          <h1 className="text-xl font-semibold text-[--foreground] mb-2">Em breve</h1>
-          <p className="text-[--muted-foreground] text-sm">
+      <main className="flex min-h-[72vh] items-center justify-center px-4">
+        <div className="glass-noir max-w-sm rounded-3xl p-8 text-center">
+          <p className="mb-4 text-4xl">🔬</p>
+          <h1 className="mb-2 font-display text-2xl font-semibold text-foreground">Em breve</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
             A triagem de {scale.name} está em fase de validação e será disponibilizada em breve.
           </p>
         </div>

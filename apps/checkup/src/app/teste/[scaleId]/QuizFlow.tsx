@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight, ListChecks, LockKeyhole, Undo2 } from "lucide-react";
 import type { Scale, ScaleResult } from "@/lib/scales/types";
 import { scorePhq9 } from "@/lib/scales/phq9";
 import { scoreGad7 } from "@/lib/scales/gad7";
@@ -116,72 +117,87 @@ export function QuizFlow({ scale }: Props) {
   // Intro screen
   if (step < 0) {
     return (
-      <main className="flex min-h-[70vh] flex-col items-center justify-center px-4 py-12">
+      <main className="flex min-h-[72vh] flex-col items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
-          <p className="mb-3 font-mono text-xs font-medium uppercase tracking-[0.2em] text-[--coral]">
-            {scale.name}
-          </p>
-          <h1 className="mb-4 font-[--font-playfair] text-3xl font-semibold text-[--foreground]">
+          <p className="eyebrow reveal mb-4">{scale.name}</p>
+          <h1 className="reveal reveal-1 mb-4 font-display text-3xl font-semibold leading-tight text-foreground sm:text-4xl">
             Como você tem se sentido?
           </h1>
-          <p className="mb-6 text-[--muted-foreground]">{scale.instructions}</p>
+          <p className="reveal reveal-2 mb-7 leading-relaxed text-muted-foreground">
+            {scale.instructions}
+          </p>
 
-          <ul className="mb-6 space-y-2 text-sm text-[--muted-foreground]">
-            <li className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[--purple]" aria-hidden />
+          <ul className="reveal reveal-2 mb-7 space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-center gap-3">
+              <span
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-purple/25 bg-purple/10 text-purple-light"
+                aria-hidden
+              >
+                <ListChecks className="h-4 w-4" />
+              </span>
               {totalItems} {totalItems === 1 ? "pergunta" : "perguntas"} · {scale.timeframe}
             </li>
-            <li className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[--purple]" aria-hidden />
+            <li className="flex items-center gap-3">
+              <span
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-purple/25 bg-purple/10 text-purple-light"
+                aria-hidden
+              >
+                <Undo2 className="h-4 w-4" />
+              </span>
               Uma pergunta por tela — você pode voltar e revisar
             </li>
-            <li className="flex items-center gap-2.5">
-              <span className="h-1.5 w-1.5 rounded-full bg-[--purple]" aria-hidden />
+            <li className="flex items-center gap-3">
+              <span
+                className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-purple/25 bg-purple/10 text-purple-light"
+                aria-hidden
+              >
+                <LockKeyhole className="h-4 w-4" />
+              </span>
               Anônimo: nada é gravado sem o seu consentimento
             </li>
           </ul>
 
-          <div className="glass-noir mb-8 rounded-xl p-4 text-sm text-[--muted-foreground]">
-            <p className="mb-1 font-medium text-[--foreground]">Antes de começar</p>
+          <div className="glass-noir reveal reveal-3 mb-8 rounded-2xl p-5 text-sm text-muted-foreground">
+            <p className="mb-1 font-medium text-foreground">Antes de começar</p>
             <p>
               Responda com sinceridade sobre como você tem se sentido. Não há respostas certas ou
               erradas — o que importa é o que você realmente está experienciando.
             </p>
           </div>
 
-          <button
-            onClick={handleStart}
-            className="min-h-[44px] w-full rounded-xl bg-[--purple] py-4 text-lg font-medium text-[--primary-foreground] transition-all hover:bg-[--purple-dark] hover:[box-shadow:0_0_48px_-10px_var(--noir-glow-purple)] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2"
-          >
-            Começar triagem
-          </button>
-          <p className="mt-4 text-center text-xs text-[--muted-foreground]">
-            Gratuito · Anônimo · Sem cadastro
-          </p>
+          <div className="reveal reveal-4">
+            <button onClick={handleStart} className="btn-noir w-full text-lg">
+              Começar triagem
+              <ArrowRight className="h-5 w-5" aria-hidden />
+            </button>
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              Gratuito · Anônimo · Sem cadastro
+            </p>
+          </div>
         </div>
       </main>
     );
   }
 
   return (
-    <main className="mx-auto flex min-h-[70vh] w-full max-w-md flex-col px-4 py-8">
+    <main className="mx-auto flex min-h-[72vh] w-full max-w-md flex-col px-4 py-8">
       {/* Progress bar */}
       <div className="mb-8">
-        <div className="mb-2 flex justify-between text-xs text-[--muted-foreground]">
+        <div className="mb-2 flex items-baseline justify-between text-xs text-muted-foreground">
           <span>
-            {step + 1} de {totalItems}
+            Pergunta <span className="font-semibold text-foreground">{step + 1}</span> de {totalItems}
           </span>
-          <span>{progress}%</span>
+          <span className="font-mono">{progress}%</span>
         </div>
         <div
-          className="h-1.5 w-full overflow-hidden rounded-full bg-[--muted]"
+          className="h-1.5 w-full overflow-hidden rounded-full bg-muted"
           role="progressbar"
           aria-valuenow={progress}
           aria-valuemin={0}
           aria-valuemax={100}
         >
           <div
-            className="h-full rounded-full bg-[--purple] transition-all duration-300"
+            className="h-full rounded-full bg-gradient-to-r from-purple to-purple-light transition-all duration-500 [box-shadow:0_0_12px_var(--noir-glow-purple)]"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -189,10 +205,10 @@ export function QuizFlow({ scale }: Props) {
 
       {/* Question — key={step} remonta com animação suave (reduced-motion zera via global) */}
       <div key={step} className="quiz-step-in flex flex-1 flex-col">
-        <p className="mb-3 text-xs uppercase tracking-widest text-[--muted-foreground]">
+        <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">
           {scale.timeframe}
         </p>
-        <h2 className="mb-8 text-xl font-semibold leading-snug text-[--foreground]">
+        <h2 className="mb-8 text-[1.35rem] font-semibold leading-snug text-foreground sm:text-2xl">
           {currentItem.text}
         </h2>
 
@@ -210,21 +226,22 @@ export function QuizFlow({ scale }: Props) {
                 aria-checked={isSelected}
                 onClick={() => setSelected(opt.value)}
                 onKeyDown={(e) => handleOptionKeyDown(e, idx)}
+                style={{ animationDelay: `${idx * 45}ms` }}
                 className={cn(
-                  "flex min-h-[44px] w-full items-center gap-3 rounded-xl border-2 px-5 py-4 text-left transition-all duration-150 focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2",
+                  "quiz-opt-in flex min-h-[44px] w-full items-center gap-3.5 rounded-2xl border-2 px-5 py-4 text-left transition-all duration-150",
                   isSelected
-                    ? "border-[--purple] bg-[--secondary] font-medium text-[--purple-dark] [box-shadow:0_0_24px_-8px_var(--noir-glow-purple)]"
-                    : "border-[--border] bg-[--card] text-[--foreground] hover:border-[--purple-light]"
+                    ? "border-purple bg-secondary font-medium text-purple-dark [box-shadow:0_0_28px_-8px_var(--noir-glow-purple)]"
+                    : "border-border bg-card/70 text-foreground hover:border-purple-light/60 hover:bg-secondary/40"
                 )}
               >
                 <span
                   className={cn(
-                    "flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                    isSelected ? "border-[--purple]" : "border-[--border]"
+                    "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 transition-colors",
+                    isSelected ? "border-purple" : "border-(--noir-line)"
                   )}
                   aria-hidden
                 >
-                  {isSelected && <span className="h-2 w-2 rounded-full bg-[--purple]" />}
+                  {isSelected && <span className="h-2 w-2 rounded-full bg-purple" />}
                 </span>
                 {opt.label}
               </button>
@@ -235,25 +252,24 @@ export function QuizFlow({ scale }: Props) {
         {/* Voltar / Próxima */}
         <div className="mt-auto flex gap-3 pt-8">
           {step > 0 && (
-            <button
-              onClick={handleBack}
-              className="min-h-[44px] rounded-xl border border-[--border] px-5 py-4 font-medium text-[--muted-foreground] transition-colors hover:border-[--purple-light] hover:text-[--foreground] focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2"
-            >
-              ← Voltar
+            <button onClick={handleBack} className="btn-ghost-noir min-h-[52px]">
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Voltar
             </button>
           )}
           <button
             onClick={handleNext}
             disabled={selected === null}
             className={cn(
-              "min-h-[44px] flex-1 rounded-xl py-4 text-lg font-medium transition-all focus-visible:outline-2 focus-visible:outline-[--purple] focus-visible:outline-offset-2",
+              "flex-1 text-lg",
               selected !== null
-                ? "bg-[--purple] text-[--primary-foreground] hover:bg-[--purple-dark]"
-                : "cursor-not-allowed bg-[--muted] text-[--muted-foreground]"
+                ? "btn-noir"
+                : "min-h-[52px] cursor-not-allowed rounded-[14px] bg-muted py-3.5 font-medium text-muted-foreground"
             )}
             aria-disabled={selected === null}
           >
             {isLastStep ? "Ver resultado" : "Próxima"}
+            {selected !== null && <ArrowRight className="h-5 w-5" aria-hidden />}
           </button>
         </div>
       </div>
