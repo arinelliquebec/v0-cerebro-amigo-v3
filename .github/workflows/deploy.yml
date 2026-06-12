@@ -324,3 +324,14 @@ jobs:
             sleep 20
           done
           echo "timeout aguardando instance refresh"; exit 1
+
+      - name: Invalidar cache CF (novo build Next.js)
+        run: |
+          CF_ID=$(aws ssm get-parameter --region sa-east-1 \
+            --name /cerebro-amigo/checkup/cf-distribution-id \
+            --query Parameter.Value --output text)
+          # Invalida tudo: HTML das páginas pode referenciar chunks de build anterior
+          aws cloudfront create-invalidation \
+            --distribution-id "$CF_ID" \
+            --paths "/*" \
+            --query 'Invalidation.{Id:Id,Status:Status}' --output table
