@@ -38,6 +38,29 @@ _PHONE_RE = re.compile(
 # Datas de nascimento: dd/mm/aaaa
 _DATE_RE = re.compile(r"\b\d{2}/\d{2}/\d{4}\b")
 
+# ─── T0-3: heurísticas p/ campos livres (nome/endereço) — sem NER ──────────
+# Sem modelo NER (spaCy pt ≈ +500 MB de imagem e RAM no t3.small). Heurísticas
+# pt-BR conservadoras (preferimos falso positivo a vazar PII); defesa em
+# profundidade junto do hide_inputs/outputs do LangSmith (T0-4).
+_NOME = r"[A-ZÀ-Ý][a-zà-ÿ]+"
+_CEP_RE = re.compile(r"\b\d{5}-\d{3}\b")
+_ADDRESS_RE = re.compile(
+    rf"\b(?:Rua|Avenida|Av\.|Travessa|Tv\.|Alameda|Al\.|Rodovia|Rod\.|Estrada|Estr\.|Praça|Largo)"
+    rf"\s+(?:d[aeo]s?\s+)?{_NOME}(?:\s+(?:d[aeo]s?\s+)?{_NOME}){{0,5}}"
+    rf"(?:,?\s*(?:nº|n[o.]?|número)\s*\d+|,\s*\d+)?"
+)
+_HONORIFIC_RE = re.compile(
+    rf"\b(?:[Dd]r|[Dd]ra|[Ss]r|[Ss]ra|[Ss]rta|[Dd]ona|[Pp]rof|[Pp]rofa)\.?"
+    rf"\s+{_NOME}(?:\s+(?:d[aeo]s?\s+|e\s+)?{_NOME}){{0,4}}"
+)
+_SELF_INTRO_RE = re.compile(
+    rf"(\b(?:[Mm]e chamo|[Mm]eu nome é|[Ss]ou [oa])\s+)"
+    rf"{_NOME}(?:\s+(?:d[aeo]s?\s+|e\s+)?{_NOME}){{0,4}}"
+)
+# Nome completo: 3+ palavras capitalizadas seguidas (2 deixaria "Cérebro Amigo",
+# títulos etc. — o ganho de recall não compensaria o ruído no log).
+_FULLNAME_RE = re.compile(rf"\b{_NOME}(?:\s+(?:d[aeo]s?\s+)?{_NOME}){{2,}}")
+
 
 def redact_pii(text: str) -> str:
     """Substitui PII brasileiras por placeholders.
@@ -52,6 +75,12 @@ def redact_pii(text: str) -> str:
     text = _EMAIL_RE.sub("[EMAIL_REDACTED]", text)
     text = _PHONE_RE.sub("[PHONE_REDACTED]", text)
     text = _DATE_RE.sub("[DATE_REDACTED]", text)
+    # T0-3: nome/endereço em campo livre (heurístico — ver nota acima)
+    text = _ADDRESS_RE.sub("[ADDRESS_REDACTED]", text)
+    text = _CEP_RE.sub("[CEP_REDACTED]", text)
+    text = _HONORIFIC_RE.sub("[NAME_REDACTED]", text)
+    text = _SELF_INTRO_RE.sub(r"\1[NAME_REDACTED]", text)
+    text = _FULLNAME_RE.sub("[NAME_REDACTED]", text)
     return text
 
 
