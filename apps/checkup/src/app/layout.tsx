@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { inter, playfair } from "@/lib/fonts";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { JsonLd } from "@/components/seo-blocks";
+import { orgJsonLd, webSiteJsonLd } from "@/lib/seo/jsonld";
 import "./globals.css";
 
 const SITE_URL = "https://checkup.cerebroamigo.com.br";
@@ -54,6 +56,8 @@ export default function RootLayout({
       className={`${inter.variable} ${playfair.variable}`}
     >
       <body className={`${inter.className} theme-noir antialiased flex min-h-screen flex-col`}>
+        <JsonLd data={orgJsonLd()} />
+        <JsonLd data={webSiteJsonLd()} />
         {/* Atmosfera global (só CSS): aurora + malha neural, atrás de tudo.
             /crise pinta a própria ilha clara por cima — não é afetada. */}
         <div className="noir-backdrop" aria-hidden />

@@ -7,6 +7,24 @@ import {
   LandingCta,
   OutrasTriagens,
 } from "@/components/landing-blocks";
+import {
+  JsonLd,
+  InterpretationSection,
+  QuandoProcurarAjuda,
+  FaqSection,
+  CitationsBlock,
+  ReviewerBlock,
+} from "@/components/seo-blocks";
+import {
+  SITE_URL,
+  medicalWebPageJsonLd,
+  faqJsonLd,
+  breadcrumbJsonLd,
+  type FaqItem,
+} from "@/lib/seo/jsonld";
+import { asrs18 } from "@/lib/scales";
+
+const PAGE_URL = `${SITE_URL}/tdah-adulto`;
 
 export const metadata: Metadata = {
   title: "Teste de TDAH Adulto Online — ASRS-18 em Português",
@@ -20,30 +38,66 @@ export const metadata: Metadata = {
     "déficit de atenção adulto",
     "hiperatividade adulto",
   ],
-  alternates: { canonical: "https://checkup.cerebroamigo.com.br/tdah-adulto" },
+  alternates: { canonical: PAGE_URL },
   openGraph: {
     title: "Teste de TDAH Adulto — ASRS-18",
     description: "Triagem da OMS para TDAH em adultos, versão brasileira validada. Gratuito e anônimo.",
-    url: "https://checkup.cerebroamigo.com.br/tdah-adulto",
+    url: PAGE_URL,
   },
 };
+
+const CITATIONS = [
+  "Kessler RC et al. The World Health Organization Adult ADHD Self-Report Scale (ASRS). Psychol Med, 2005.",
+  "Mattos P et al., Rev Psiq Clín, 2006 — adaptação transcultural brasileira do ASRS-18.",
+  "Instrumento desenvolvido pela Organização Mundial da Saúde (OMS) — uso livre.",
+];
+
+const FAQS: FaqItem[] = [
+  {
+    q: "O ASRS-18 dá diagnóstico de TDAH?",
+    a: "Não. O ASRS-18 é um instrumento de triagem, e o diagnóstico de TDAH em adultos exige avaliação clínica completa, feita por psiquiatra ou outro profissional habilitado — incluindo histórico desde a infância e impacto em diferentes áreas da vida.",
+  },
+  {
+    q: "Por que o resultado não diz se eu tenho TDAH?",
+    a: "Porque a versão brasileira do ASRS-18 (Mattos et al., 2006) não tem pontos de corte validados para a população do Brasil. Por isso esta triagem não classifica o resultado como positivo ou negativo: ela organiza suas respostas num registro estruturado para você levar a um profissional.",
+  },
+  {
+    q: "O teste é gratuito e anônimo mesmo?",
+    a: "Sim. Não pedimos cadastro, e-mail nem cartão. Nada é gravado sem o seu consentimento explícito — e, mesmo com consentimento, só a escala, o escore e a faixa são salvos, de forma anônima.",
+  },
+  {
+    q: "Quanto tempo demora e como o teste é dividido?",
+    a: "Cerca de 5 minutos. São 18 perguntas sobre os últimos 6 meses: a Parte A (9 itens) cobre desatenção e a Parte B (9 itens) cobre hiperatividade e impulsividade.",
+  },
+  {
+    q: "A versão em português é validada?",
+    a: "Sim. O ASRS-18 foi desenvolvido pela OMS e a versão brasileira foi publicada por Mattos et al. na Revista de Psiquiatria Clínica em 2006. Os itens usados aqui são transcritos dessa versão, sem paráfrase.",
+  },
+  {
+    q: "TDAH em adultos existe mesmo?",
+    a: "Sim. Estimativas apontam que cerca de 2,5% dos adultos vivem com TDAH, muitos sem diagnóstico. Sintomas como dificuldade de foco, impulsividade e desorganização persistentes podem afetar trabalho, estudos e relações.",
+  },
+];
 
 export default function TDAHAdultoPage() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "MedicalWebPage",
-            name: "Triagem de TDAH Adulto — ASRS-18",
-            url: "https://checkup.cerebroamigo.com.br/tdah-adulto",
-            description:
-              "Instrumento de triagem ASRS-18 da OMS para TDAH em adultos.",
-            medicalAudience: { "@type": "Patient" },
-          }),
-        }}
+      <JsonLd
+        data={medicalWebPageJsonLd({
+          name: "Triagem de TDAH Adulto — ASRS-18",
+          url: PAGE_URL,
+          description:
+            "Instrumento de triagem ASRS-18 da OMS para TDAH em adultos.",
+          conditionName: "Transtorno de déficit de atenção e hiperatividade (TDAH) em adultos",
+          citations: CITATIONS,
+        })}
+      />
+      <JsonLd data={faqJsonLd(FAQS)} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Check-up Mental", url: SITE_URL },
+          { name: "Teste de TDAH adulto (ASRS-18)", url: PAGE_URL },
+        ])}
       />
 
       <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
@@ -104,6 +158,16 @@ export default function TDAHAdultoPage() {
           ]}
         />
 
+        <InterpretationSection scale={asrs18} />
+
+        <QuandoProcurarAjuda />
+
+        <FaqSection items={FAQS} />
+
+        <CitationsBlock citations={CITATIONS} />
+
+        <ReviewerBlock />
+
         <LandingCta
           title="Organize o que você sente para levar a um profissional"
           ctaHref="/teste/asrs18"
@@ -111,12 +175,6 @@ export default function TDAHAdultoPage() {
         />
 
         <OutrasTriagens current="/tdah-adulto" />
-
-        <footer className="mt-12 text-center">
-          <p className="text-xs text-muted-foreground">
-            Fonte: Mattos P et al., Rev Psiq Clín, 2006 · OMS, uso livre
-          </p>
-        </footer>
       </main>
     </>
   );

@@ -7,6 +7,24 @@ import {
   LandingCta,
   OutrasTriagens,
 } from "@/components/landing-blocks";
+import {
+  JsonLd,
+  InterpretationSection,
+  QuandoProcurarAjuda,
+  FaqSection,
+  CitationsBlock,
+  ReviewerBlock,
+} from "@/components/seo-blocks";
+import {
+  SITE_URL,
+  medicalWebPageJsonLd,
+  faqJsonLd,
+  breadcrumbJsonLd,
+  type FaqItem,
+} from "@/lib/seo/jsonld";
+import { phq9 } from "@/lib/scales";
+
+const PAGE_URL = `${SITE_URL}/depressao`;
 
 export const metadata: Metadata = {
   title: "Teste de Depressão Online Gratuito — PHQ-9 em Português",
@@ -20,30 +38,66 @@ export const metadata: Metadata = {
     "questionário depressão gratuito",
     "check-up depressão",
   ],
-  alternates: { canonical: "https://checkup.cerebroamigo.com.br/depressao" },
+  alternates: { canonical: PAGE_URL },
   openGraph: {
     title: "Teste de Depressão Online Gratuito — PHQ-9",
     description: "Triagem validada, anônima, resultado em 3 minutos.",
-    url: "https://checkup.cerebroamigo.com.br/depressao",
+    url: PAGE_URL,
   },
 };
+
+const CITATIONS = [
+  "Kroenke K, Spitzer RL, Williams JBW. The PHQ-9: validity of a brief depression severity measure. J Gen Intern Med, 2001.",
+  "Santos IS et al., Cad. Saúde Pública, 2013 — validação brasileira do PHQ-9.",
+  "Versão oficial em português brasileiro (autorrelato): Pfizer / phqscreeners.com — instrumento de uso livre.",
+];
+
+const FAQS: FaqItem[] = [
+  {
+    q: "O teste PHQ-9 dá diagnóstico de depressão?",
+    a: "Não. O PHQ-9 é um instrumento de triagem: ele indica se os seus sintomas merecem atenção profissional, mas só um psiquiatra, psicólogo ou médico pode diagnosticar depressão. Use o resultado como ponto de partida para essa conversa.",
+  },
+  {
+    q: "O teste é gratuito e anônimo mesmo?",
+    a: "Sim. Não pedimos cadastro, e-mail nem cartão. Nada é gravado sem o seu consentimento explícito — e, mesmo com consentimento, só a escala, o escore e a faixa são salvos, de forma anônima.",
+  },
+  {
+    q: "Quanto tempo demora?",
+    a: "Cerca de 3 minutos. São 9 perguntas sobre as últimas 2 semanas, uma por tela, e você pode voltar para revisar qualquer resposta.",
+  },
+  {
+    q: "Como funciona o escore do PHQ-9?",
+    a: "Cada uma das 9 perguntas vale de 0 a 3 pontos conforme a frequência do sintoma nas últimas 2 semanas. O total vai de 0 a 27 e é classificado nas faixas definidas pelo instrumento: mínimo, leve, moderado, moderadamente grave e grave.",
+  },
+  {
+    q: "A versão em português é validada?",
+    a: "Sim. O teste usa a versão oficial de autorrelato em português brasileiro (distribuída pela Pfizer em phqscreeners.com), e o PHQ-9 tem validação publicada para a população brasileira (Santos et al., 2013).",
+  },
+  {
+    q: "O que eu faço com o resultado?",
+    a: "Você pode baixar um relatório em PDF com o seu escore e a faixa, pensado para levar ao seu médico ou psicólogo na próxima consulta.",
+  },
+];
 
 export default function DepressaoPage() {
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
-            "@context": "https://schema.org",
-            "@type": "MedicalWebPage",
-            name: "Triagem de Depressão — PHQ-9",
-            url: "https://checkup.cerebroamigo.com.br/depressao",
-            description:
-              "Instrumento de triagem PHQ-9 para avaliação de sintomas depressivos.",
-            medicalAudience: { "@type": "Patient" },
-          }),
-        }}
+      <JsonLd
+        data={medicalWebPageJsonLd({
+          name: "Triagem de Depressão — PHQ-9",
+          url: PAGE_URL,
+          description:
+            "Instrumento de triagem PHQ-9 para avaliação de sintomas depressivos.",
+          conditionName: "Depressão",
+          citations: CITATIONS,
+        })}
+      />
+      <JsonLd data={faqJsonLd(FAQS)} />
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Check-up Mental", url: SITE_URL },
+          { name: "Teste de depressão (PHQ-9)", url: PAGE_URL },
+        ])}
       />
 
       <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
@@ -102,6 +156,16 @@ export default function DepressaoPage() {
           ]}
         />
 
+        <InterpretationSection scale={phq9} />
+
+        <QuandoProcurarAjuda />
+
+        <FaqSection items={FAQS} />
+
+        <CitationsBlock citations={CITATIONS} />
+
+        <ReviewerBlock />
+
         <LandingCta
           title="Pronto para verificar como você está?"
           ctaHref="/teste/phq9"
@@ -109,12 +173,6 @@ export default function DepressaoPage() {
         />
 
         <OutrasTriagens current="/depressao" />
-
-        <footer className="mt-12 text-center">
-          <p className="text-xs text-muted-foreground">
-            Fonte: Santos IS et al., Cad. Saúde Pública, 2013 · Pfizer, uso livre
-          </p>
-        </footer>
       </main>
     </>
   );
