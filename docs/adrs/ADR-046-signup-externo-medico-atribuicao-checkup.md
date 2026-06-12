@@ -79,6 +79,9 @@ no endpoint público + CRM **Regular** como hard gate (sem o soft-fail "Pendente
 - **RLS:** médico novo isolado desde o 1º request (começa sem pacientes). Não tocar políticas RLS.
 - **LGPD:** consentimento explícito no form; e-mail/CRM com base legal (cadastro profissional).
 
+## Consulta clinical-safety (2026-06-12)
+Revisado com a skill antes da Fase 3 (1ª rota anônima de criação de conta no gateway clínico). Veredito: **sem bloqueio** — o endpoint não pratica medicina (sem LLM, validação determinística CFM), não toca dado de paciente/conteúdo clínico/crise/auditoria, e o médico criado nasce **isolado no próprio tenant** (RLS, ADR-042) com **zero pacientes** (regra multi-tenant respeitada: nenhuma query cruza tenant). Constraints aplicadas: (regra 4 LGPD) **não logar PII crua** — só metadado (situação CRM, src); (custo/abuso) Infosimples é **PAGO** → **rate-limit por IP obrigatório** + cache 30d do CfmClient; (anti-fraude) e-mail-verify + cross-check de nome vs `crm_nome_cfm` + CRM Regular hard gate. Sem texto de crise, sem auditoria, sem SHADOW_MODE envolvidos.
+
 ## Fases (sugeridas)
 1. Migrations (medicos + checkup funnel_events) — reversíveis, testáveis isoladas.
 2. `MedicoOnboardingService` extraído + testes (xUnit) — sem mudar comportamento do admin.
