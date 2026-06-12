@@ -36,10 +36,11 @@
   --navy: #0F2137;
   --coral: #E57373;
   --success: #10B981;
-
-  --font-inter: 'Inter', sans-serif;
-  --font-playfair: 'Playfair Display', serif;
 }
+/* NÃO redefinir --font-inter / --font-playfair aqui: o next/font as injeta na
+   classe do <html> (fonte self-hosted + fallback metric-adjusted). Um literal
+   em :root tem a MESMA especificidade e poderia vencer na cascata, sombreando
+   a fonte baixada → FOIT/serif do SO. Fonte = só next/font. */
 
 /* ──────────────────────────────────────────────────────────────────────────
    Neural Noir — tema do Cérebro Amigo (idêntico ao site principal; decisão do
@@ -96,8 +97,8 @@
    Tailwind 3 compila CSS INVÁLIDO no 4 (`color: --var`) — todo uso de cor de
    marca passa por este mapa (`text-coral`, `bg-purple`, `border-border`…). */
 @theme inline {
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-display: var(--font-playfair), Georgia, 'Times New Roman', serif;
+  --font-sans: var(--font-inter, system-ui), system-ui, sans-serif;
+  --font-display: var(--font-playfair, Georgia), Georgia, 'Times New Roman', serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

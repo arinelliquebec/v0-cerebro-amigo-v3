@@ -6,10 +6,13 @@ export const inter = Inter({
   display: "swap",
 });
 
+// LCP: o <h1> da home (Playfair 600) é o maior elemento. Declarar só os pesos
+// realmente usados (500 = font-medium 1x, 600 = font-semibold 15x) e só latin
+// (pt-BR cabe em Latin-1; não usa italic) reduz 8 arquivos → 2. Menos arquivos
+// no preload = o peso 600 chega antes → swap perto do FCP → LCP cai ~2s.
 export const playfair = Playfair_Display({
-  subsets: ["latin", "latin-ext"],
+  subsets: ["latin"],
   variable: "--font-playfair",
   display: "swap",
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
+  weight: ["500", "600"],
 });
