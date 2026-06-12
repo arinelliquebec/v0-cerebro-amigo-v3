@@ -64,11 +64,12 @@ O motor devolve `band` (faixa) e `bandLabel` neutros. Quem transforma isso em te
 acolhedor é a camada de devolutiva (`src/lib/ai`), nunca este módulo. Este módulo
 não conhece UI, IA nem PDF.
 
-## Instrumentos da expansão (ADR-048 — aguardando conferência char-a-char)
+## Instrumentos da expansão (ADR-048)
 
-> Os 4 instrumentos abaixo estão com `validated: false` + `TODO(validar)`: o gate
-> (`isScaleAvailable`) os mantém fora do ar ("Em breve") até o responsável clínico
-> conferir o texto contra a fonte oficial e virar a flag — mesmo processo do PHQ-9.
+> Texto dos 4 instrumentos **conferido pelo responsável clínico (Patrick,
+> 2026-06-12)** → `validated: true`, escalas no ar com landings
+> (`/alcool`, `/bipolaridade`, `/tabagismo`, `/borderline`) e sitemap.
+> Mudança de item exige nova conferência contra a fonte.
 
 ### AUDIT (uso de álcool) — `audit.ts`
 - OMS (Babor et al.); versão BR validada (Lima et al. 2005; Méndez 1999) — a do

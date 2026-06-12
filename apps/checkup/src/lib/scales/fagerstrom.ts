@@ -3,11 +3,9 @@
 // Versão brasileira validada por Carmo & Pueschel, 2002 — a mesma adotada nos
 // materiais de tratamento do tabagismo do INCA/Ministério da Saúde.
 //
-// TODO(validar): conferir caractere a caractere contra o instrumento publicado
-// nos materiais oficiais do INCA/MS (protocolo de tratamento do tabagismo)
-// antes de marcar `validated: true`. O sandbox de desenvolvimento não alcançou
-// a fonte (403); transcrição abaixo aguarda conferência do responsável clínico.
-// Enquanto validated=false, o gate mantém a escala fora do ar ("Em breve").
+// VALIDADO: texto conferido pelo responsável clínico (Patrick, 2026-06-12).
+// Fonte para re-conferência: materiais oficiais do INCA/MS (protocolo de
+// tratamento do tabagismo).
 //
 // Estrutura: 6 itens com pesos próprios (escore 0–10). Graus de dependência:
 // 0–2 muito baixo · 3–4 baixo · 5 médio · 6–7 elevado · 8–10 muito elevado.
@@ -75,8 +73,9 @@ export const fagerstrom: Scale = {
     { min: 6, max: 7, band: "high", bandLabel: "dependência elevada" },
     { min: 8, max: 10, band: "very_high", bandLabel: "dependência muito elevada" },
   ],
-  // TODO(validar): vide cabeçalho — FTND-BR (Carmo & Pueschel 2002 / INCA-MS).
-  validated: false,
+  // VALIDADO: texto conferido pelo responsável clínico (Patrick, 2026-06-12)
+  // contra a fonte indicada em `source`. Mudança de item exige nova conferência.
+  validated: true,
   source:
     "Teste de Fagerström (FTND, Heatherton et al., 1991) — versão brasileira validada (Carmo & Pueschel, 2002; materiais INCA/MS)",
 };

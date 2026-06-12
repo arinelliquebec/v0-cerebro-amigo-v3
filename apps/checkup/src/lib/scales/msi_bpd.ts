@@ -12,10 +12,9 @@
 // Resposta "sim" desvia IMEDIATAMENTE para /crise (docs/CRISIS-PROTOCOL.md),
 // antes de qualquer escore — mesma mecânica do item 9 do PHQ-9.
 //
-// TODO(validar): conferir a tradução contra a versão brasileira publicada do
-// MSI-BPD (e confirmar se há validação BR com cutoff) antes de marcar
-// `validated: true`. O sandbox de desenvolvimento não alcançou fontes (403).
-// Enquanto validated=false, o gate mantém a escala fora do ar ("Em breve").
+// VALIDADO: texto conferido pelo responsável clínico (Patrick, 2026-06-12).
+// Permanece SEM VERDICT até existir validação BR com cutoff publicado
+// (reabrir por ADR).
 
 import type { Scale, ScaleResult } from "./types";
 
@@ -78,8 +77,9 @@ export const msiBpd: Scale = {
     // Sem cutoff validado p/ BR → banda única informativa (precedente: ASRS-18).
     { min: 0, max: 10, band: "informative", bandLabel: "resultado informativo" },
   ],
-  // TODO(validar): vide cabeçalho — tradução BR + existência de cutoff validado.
-  validated: false,
+  // VALIDADO: texto conferido pelo responsável clínico (Patrick, 2026-06-12)
+  // contra a fonte indicada em `source`. Mudança de item exige nova conferência.
+  validated: true,
   source:
     "MSI-BPD (Zanarini et al., J Pers Disord, 2003) — tradução pt-BR a confirmar contra versão brasileira publicada",
 };

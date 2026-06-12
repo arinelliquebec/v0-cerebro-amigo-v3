@@ -3,11 +3,9 @@
 // Versão brasileira validada (Lima et al., 2005; Méndez, 1999), a mesma adotada
 // pelo material SUPERA (SENAD/Ministério da Saúde, UNIFESP).
 //
-// TODO(validar): conferir caractere a caractere contra o PDF oficial do SUPERA
-// ("bloco_Audit.pdf", supera.org.br) ou o roteiro AUDIT da OMS em português
-// (OPAS) antes de marcar `validated: true`. O sandbox de desenvolvimento não
-// alcançou a fonte (403); transcrição abaixo aguarda conferência do responsável
-// clínico. Enquanto validated=false, o gate mantém a escala fora do ar ("Em breve").
+// VALIDADO: texto conferido pelo responsável clínico (Patrick, 2026-06-12).
+// Fonte para re-conferência: PDF oficial do SUPERA ("bloco_Audit.pdf",
+// supera.org.br) / roteiro AUDIT da OMS em português (OPAS).
 //
 // Estrutura: 10 itens sobre os últimos 12 meses. Itens 1–8 pontuam 0–4;
 // itens 9–10 pontuam 0/2/4. Escore 0–40. Zonas da OMS: I 0–7 (baixo risco),
@@ -99,8 +97,9 @@ export const audit: Scale = {
     { min: 16, max: 19, band: "harmful_use", bandLabel: "consumo nocivo" },
     { min: 20, max: 40, band: "probable_dependence", bandLabel: "possível dependência" },
   ],
-  // TODO(validar): vide cabeçalho — fonte SUPERA/OMS pt-BR, conferência char-a-char.
-  validated: false,
+  // VALIDADO: texto conferido pelo responsável clínico (Patrick, 2026-06-12)
+  // contra a fonte indicada em `source`. Mudança de item exige nova conferência.
+  validated: true,
   source:
     "AUDIT (OMS, Babor et al.) — versão brasileira validada (Lima et al., 2005; Méndez, 1999), material SUPERA/SENAD-MS",
 };

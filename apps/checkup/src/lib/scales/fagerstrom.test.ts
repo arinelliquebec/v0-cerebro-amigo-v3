@@ -62,8 +62,8 @@ describe("scoreFagerstrom", () => {
       expect(fagerstrom.items[3].options?.map((o) => o.value)).toEqual([0, 1, 2, 3]);
     });
 
-    it("não entra em produção sem conferência da fonte (validated=false)", () => {
-      expect(fagerstrom.validated).toBe(false);
+    it("liberado para produção após conferência do responsável (validated=true)", () => {
+      expect(fagerstrom.validated).toBe(true);
     });
   });
 });

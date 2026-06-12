@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, CloudRain, Lock, ShieldCheck, Timer, Wind, Zap } from "lucide-react";
+import { Activity, ArrowRight, Cigarette, CloudRain, Heart, Lock, ShieldCheck, Timer, Wind, Wine, Zap } from "lucide-react";
 import { ComoFunciona } from "@/components/landing-blocks";
 import { Logo } from "@/components/logo";
 
@@ -40,6 +40,46 @@ const TESTES = [
       "Para quando foco e impulsividade são um desafio constante no dia a dia.",
     duracao: "~5 min",
     acao: "Ver mais sobre TDAH",
+  },
+  {
+    href: "/bipolaridade",
+    icon: Activity,
+    titulo: "Bipolaridade",
+    instrumento: "MDQ",
+    descricao:
+      "Para quando períodos de energia e ânimo muito acima do habitual chamam atenção — sua ou de quem convive com você.",
+    duracao: "~3 min",
+    acao: "Fazer teste de bipolaridade",
+  },
+  {
+    href: "/borderline",
+    icon: Heart,
+    titulo: "Traços borderline",
+    instrumento: "MSI-BPD",
+    descricao:
+      "Para quando emoções intensas, relações instáveis e medo de abandono pesam no dia a dia.",
+    duracao: "~2 min",
+    acao: "Fazer teste de traços borderline",
+  },
+  {
+    href: "/alcool",
+    icon: Wine,
+    titulo: "Uso de álcool",
+    instrumento: "AUDIT (OMS)",
+    descricao:
+      "Para entender em que zona de risco está o seu padrão de consumo — antes que ele decida por você.",
+    duracao: "~3 min",
+    acao: "Fazer teste de uso de álcool",
+  },
+  {
+    href: "/tabagismo",
+    icon: Cigarette,
+    titulo: "Tabagismo",
+    instrumento: "Fagerström",
+    descricao:
+      "Para medir o grau de dependência de nicotina — o primeiro passo de quem pensa em parar.",
+    duracao: "~1 min",
+    acao: "Fazer teste de tabagismo",
   },
 ] as const;
 
