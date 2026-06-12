@@ -159,7 +159,15 @@ Resources:
             CachePolicyId: !GetAtt StaticAssetsCachePolicy.Id
             Compress: true
 
-          # 3. API routes — sem cache, encaminha tudo
+          # 3. Next.js image optimizer — precisa dos query strings (url, w, q); sem cache
+          - PathPattern: "/_next/image*"
+            TargetOriginId: CheckupEC2
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+            OriginRequestPolicyId: !GetAtt ApiOriginRequestPolicy.Id
+            Compress: true
+
+          # 5. API routes — sem cache, encaminha tudo
           - PathPattern: "/api/*"
             TargetOriginId: CheckupEC2
             ViewerProtocolPolicy: redirect-to-https
@@ -168,7 +176,7 @@ Resources:
             OriginRequestPolicyId: !GetAtt ApiOriginRequestPolicy.Id
             Compress: false
 
-          # 4. Fluxo do teste — dinamico, sem cache, encaminha cookies+query strings
+          # 6. Fluxo do teste — dinamico, sem cache, encaminha cookies+query strings
           - PathPattern: "/teste/*"
             TargetOriginId: CheckupEC2
             ViewerProtocolPolicy: redirect-to-https
@@ -176,7 +184,7 @@ Resources:
             OriginRequestPolicyId: !GetAtt ApiOriginRequestPolicy.Id
             Compress: true
 
-          # 5. Resultado — dinamico (query param rid), sem cache
+          # 7. Resultado — dinamico (query param rid), sem cache
           - PathPattern: "/resultado*"
             TargetOriginId: CheckupEC2
             ViewerProtocolPolicy: redirect-to-https
@@ -184,14 +192,14 @@ Resources:
             OriginRequestPolicyId: !GetAtt ApiOriginRequestPolicy.Id
             Compress: true
 
-          # 6. Crise — no-cache (conteudo sensivel)
+          # 8. Crise — no-cache (conteudo sensivel)
           - PathPattern: "/crise*"
             TargetOriginId: CheckupEC2
             ViewerProtocolPolicy: redirect-to-https
             CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
             Compress: true
 
-        # 7. Default: paginas SSG (landings, home)
+        # 9. Default: paginas SSG (landings, home)
         DefaultCacheBehavior:
           TargetOriginId: CheckupEC2
           ViewerProtocolPolicy: redirect-to-https
