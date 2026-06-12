@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { inter, playfair } from "@/lib/fonts";
+import { SiteHeader } from "@/components/site-header";
+import { SiteFooter } from "@/components/site-footer";
 import "./globals.css";
 
 const SITE_URL = "https://checkup.cerebroamigo.com.br";
@@ -51,8 +53,10 @@ export default function RootLayout({
       lang="pt-BR"
       className={`${inter.variable} ${playfair.variable}`}
     >
-      <body className={`${inter.className} bg-[--background] text-[--foreground] antialiased`}>
-        {children}
+      <body className={`${inter.className} bg-[--background] text-[--foreground] antialiased flex min-h-screen flex-col`}>
+        <SiteHeader />
+        <div className="flex-1">{children}</div>
+        <SiteFooter />
       </body>
     </html>
   );

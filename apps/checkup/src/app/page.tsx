@@ -23,7 +23,7 @@ const TESTES = [
     emoji: "🌀",
     titulo: "Ansiedade",
     instrumento: "GAD-7",
-    descricao: "Para quando a preocupação está tomando conta, com tensão ou dificuldade de relaxar.",
+    descricao: "Para quando a preocupação está tomando conta, com tensão, dificuldade de relaxar ou até mesmo palpitações e tremores em situações cotidianas.",
     duracao: "~2 min",
     cor: "from-teal-50 to-emerald-50 border-emerald-200",
     botao: "Fazer teste de ansiedade",
@@ -42,17 +42,17 @@ const TESTES = [
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen px-4 py-16 max-w-2xl mx-auto">
-      <div className="text-center mb-12">
-        <p className="text-sm font-medium text-[--purple] uppercase tracking-widest mb-3">
-          Cérebro Amigo
+    <main className="mx-auto w-full max-w-2xl px-4 py-16 sm:py-20">
+      <div className="mb-12 text-center">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-[0.2em] text-[--coral]">
+          Check-up Mental · gratuito e anônimo
         </p>
-        <h1 className="font-[--font-playfair] text-4xl font-semibold text-[--navy] mb-4">
+        <h1 className="mb-4 font-[--font-playfair] text-4xl font-semibold leading-tight text-[--navy] sm:text-5xl">
           Como você está se sentindo?
         </h1>
-        <p className="text-[--muted-foreground] text-lg leading-relaxed">
-          Escolha o teste de triagem que mais se aplica ao que você está sentindo.
-          Gratuito, anônimo, baseado em instrumentos clínicos validados.
+        <p className="text-lg leading-relaxed text-[--muted-foreground]">
+          Escolha a triagem que mais combina com o que você está sentindo.
+          Baseada em instrumentos clínicos validados — resultado na hora.
         </p>
       </div>
 
@@ -80,10 +80,8 @@ export default function HomePage() {
         ))}
       </div>
 
-      <p className="text-center text-xs text-[--muted-foreground] mt-10 leading-relaxed">
-        Esta triagem <strong>não é diagnóstico</strong> e não substitui avaliação por profissional de saúde.
-        <br />
-        Seus dados são anônimos por padrão. Nenhum cadastro necessário.
+      <p className="mt-10 text-center text-xs text-[--muted-foreground]">
+        Anônimo por padrão · nenhum cadastro necessário
       </p>
     </main>
   );

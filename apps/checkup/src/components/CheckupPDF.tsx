@@ -135,7 +135,7 @@ export function CheckupPDF({ scale, score, band, label, crisis, rid }: CheckupPD
 
         {/* Footer */}
         <View style={styles.footer} fixed>
-          <Text>Este documento foi gerado automaticamente pelo Check-up Mental (checkup.cerebroamigo.com.br). Uso pessoal e confidencial.</Text>
+          <Text>Cérebro Amigo by Arinelli · © 2026 — Check-up Mental (checkup.cerebroamigo.com.br). Documento gerado automaticamente. Uso pessoal e confidencial.</Text>
         </View>
       </Page>
     </Document>
