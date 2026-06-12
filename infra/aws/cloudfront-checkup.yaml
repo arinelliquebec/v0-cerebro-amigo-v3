@@ -1,0 +1,253 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >
+  CloudFront distribution para checkup.cerebroamigo.com.br.
+  Reduz LCP de ~3 s para ~1 s (edge PoPs Brasil).
+  Origin: EC2 clinico (Caddy HTTPS) ou ALB quando ADR-045 for provisionado.
+  ACM cert DEVE estar em us-east-1 e validado ANTES do deploy.
+  Ver docs/runbooks/cloudfront-checkup.md e ADR-047.
+
+Parameters:
+  AcmCertificateArn:
+    Type: String
+    Description: >
+      ARN do cert ACM de checkup.cerebroamigo.com.br em us-east-1.
+      Crie manualmente no console ACM (us-east-1) e valide via DNS antes de rodar este stack.
+    # Exemplo: arn:aws:acm:us-east-1:123456789012:certificate/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+  OriginDomain:
+    Type: String
+    Default: "18.229.175.231"
+    Description: >
+      Dominio ou IP do origin. Hoje = IP do EC2 clinico.
+      Quando ADR-045 (ALB+ASG) for provisionado, substituir pelo DNS do ALB
+      (ex: checkup-alb-xxx.sa-east-1.elb.amazonaws.com).
+
+  OriginProtocol:
+    Type: String
+    Default: "https-only"
+    AllowedValues: ["https-only", "http-only", "match-viewer"]
+    Description: Caddy ja tem TLS no EC2 — usar https-only. Mudar para http-only so se usar ALB sem TLS.
+
+  PriceClass:
+    Type: String
+    Default: PriceClass_100
+    AllowedValues:
+      - PriceClass_100   # USA + Europa + Asia. Inclui PoPs SA (Sao Paulo).
+      - PriceClass_200   # + South America, Middle East, Africa
+      - PriceClass_All
+    Description: PriceClass_100 ja inclui o PoP de Sao Paulo (mais proximo dos usuarios BR).
+
+Resources:
+
+  # ── Cache Policies ──────────────────────────────────────────────────────────
+
+  StaticAssetsCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-static-assets"
+        Comment: "Next.js /_next/static/* — imutavel, 1 ano"
+        DefaultTTL: 31536000
+        MaxTTL: 31536000
+        MinTTL: 31536000
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  PagesCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-pages"
+        Comment: "Paginas SSG — respeita Cache-Control da origin (Next.js envia s-maxage=31536000)"
+        DefaultTTL: 86400      # 1 dia fallback
+        MaxTTL: 31536000
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig:
+            CookieBehavior: none
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: none
+
+  DynamicCachePolicy:
+    Type: AWS::CloudFront::CachePolicy
+    Properties:
+      CachePolicyConfig:
+        Name: !Sub "${AWS::StackName}-dynamic"
+        Comment: "Rotas dinamicas (/resultado, /teste) — inclui query strings no cache key"
+        DefaultTTL: 0
+        MaxTTL: 0
+        MinTTL: 0
+        ParametersInCacheKeyAndForwardedToOrigin:
+          EnableAcceptEncodingGzip: true
+          EnableAcceptEncodingBrotli: true
+          CookiesConfig:
+            CookieBehavior: all
+          HeadersConfig:
+            HeaderBehavior: none
+          QueryStringsConfig:
+            QueryStringBehavior: all
+
+  # ── Origin Request Policy ────────────────────────────────────────────────────
+
+  ApiOriginRequestPolicy:
+    Type: AWS::CloudFront::OriginRequestPolicy
+    Properties:
+      OriginRequestPolicyConfig:
+        Name: !Sub "${AWS::StackName}-api-origin"
+        Comment: "Encaminha tudo para /api/* (rate limit, sessao)"
+        CookiesConfig:
+          CookieBehavior: all
+        HeadersConfig:
+          HeaderBehavior: allViewer
+        QueryStringsConfig:
+          QueryStringBehavior: all
+
+  # ── Distribution ─────────────────────────────────────────────────────────────
+
+  CheckupDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        Comment: "checkup.cerebroamigo.com.br CDN (ADR-047)"
+        Aliases:
+          - checkup.cerebroamigo.com.br
+        ViewerCertificate:
+          AcmCertificateArn: !Ref AcmCertificateArn
+          SslSupportMethod: sni-only
+          MinimumProtocolVersion: TLSv1.2_2021
+        HttpVersion: http2and3
+        PriceClass: !Ref PriceClass
+        IPV6Enabled: true
+
+        Origins:
+          - Id: CheckupEC2
+            DomainName: !Ref OriginDomain
+            CustomOriginConfig:
+              HTTPSPort: 443
+              HTTPPort: 80
+              OriginProtocolPolicy: !Ref OriginProtocol
+              OriginSSLProtocols:
+                - TLSv1.2
+              OriginReadTimeout: 30
+              OriginKeepaliveTimeout: 5
+            OriginCustomHeaders:
+              # Impede acesso direto ao EC2 bypassando CF (validar no Caddy)
+              - HeaderName: X-CF-Origin-Secret
+                HeaderValue: "{{resolve:ssm:/cerebro-amigo/checkup/cf-origin-secret}}"
+
+        # ── Cache behaviors (ordem: mais especifico primeiro) ──────────────
+
+        CacheBehaviors:
+          # 1. Assets estaticos imutaveis do Next.js
+          - PathPattern: "/_next/static/*"
+            TargetOriginId: CheckupEC2
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: !GetAtt StaticAssetsCachePolicy.Id
+            Compress: true
+
+          # 2. Imagens e favicons
+          - PathPattern: "/images/*"
+            TargetOriginId: CheckupEC2
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: !GetAtt StaticAssetsCachePolicy.Id
+            Compress: true
+
+          - PathPattern: "/*.ico"
+            TargetOriginId: CheckupEC2
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: !GetAtt StaticAssetsCachePolicy.Id
+            Compress: true
+
+          - PathPattern: "/*.png"
+            TargetOriginId: CheckupEC2
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: !GetAtt StaticAssetsCachePolicy.Id
+            Compress: true
+
+          # 3. API routes — sem cache, encaminha tudo
+          - PathPattern: "/api/*"
+            TargetOriginId: CheckupEC2
+            ViewerProtocolPolicy: redirect-to-https
+            # CachingDisabled managed policy
+            CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+            OriginRequestPolicyId: !GetAtt ApiOriginRequestPolicy.Id
+            Compress: false
+
+          # 4. Fluxo do teste — dinamico, inclui query strings
+          - PathPattern: "/teste/*"
+            TargetOriginId: CheckupEC2
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: !GetAtt DynamicCachePolicy.Id
+            Compress: true
+
+          # 5. Resultado — dinamico (query param rid)
+          - PathPattern: "/resultado*"
+            TargetOriginId: CheckupEC2
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: !GetAtt DynamicCachePolicy.Id
+            Compress: true
+
+          # 6. Crise — no-cache (conteudo sensivel)
+          - PathPattern: "/crise*"
+            TargetOriginId: CheckupEC2
+            ViewerProtocolPolicy: redirect-to-https
+            CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
+            Compress: true
+
+        # 7. Default: paginas SSG (landings, home)
+        DefaultCacheBehavior:
+          TargetOriginId: CheckupEC2
+          ViewerProtocolPolicy: redirect-to-https
+          CachePolicyId: !GetAtt PagesCachePolicy.Id
+          Compress: true
+          AllowedMethods:
+            - GET
+            - HEAD
+            - OPTIONS
+
+        CustomErrorResponses:
+          - ErrorCode: 404
+            ResponseCode: 404
+            ResponsePagePath: /404
+            ErrorCachingMinTTL: 10
+          - ErrorCode: 500
+            ResponseCode: 500
+            ResponsePagePath: /500
+            ErrorCachingMinTTL: 0
+          - ErrorCode: 503
+            ResponseCode: 503
+            ResponsePagePath: /500
+            ErrorCachingMinTTL: 0
+
+      Tags:
+        - Key: Project
+          Value: cerebro-amigo
+        - Key: App
+          Value: checkup
+        - Key: ADR
+          Value: ADR-047
+
+Outputs:
+  DistributionId:
+    Description: CloudFront Distribution ID (usar para invalidacoes)
+    Value: !Ref CheckupDistribution
+    Export:
+      Name: !Sub "${AWS::StackName}-distribution-id"
+
+  DistributionDomain:
+    Description: Dominio CloudFront — apontar CNAME checkup.cerebroamigo.com.br aqui
+    Value: !GetAtt CheckupDistribution.DomainName
+    Export:
+      Name: !Sub "${AWS::StackName}-domain"
