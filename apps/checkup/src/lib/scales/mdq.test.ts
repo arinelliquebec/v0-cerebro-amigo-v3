@@ -70,8 +70,8 @@ describe("scoreMdq", () => {
       expect(mdq.items[14].options).toHaveLength(4);
     });
 
-    it("não entra em produção sem conferência da fonte (validated=false)", () => {
-      expect(mdq.validated).toBe(false);
+    it("liberado para produção após conferência do responsável (validated=true)", () => {
+      expect(mdq.validated).toBe(true);
     });
   });
 });

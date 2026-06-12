@@ -70,8 +70,8 @@ describe("scoreAudit", () => {
       expect(audit.items[9].options?.map((o) => o.value)).toEqual([0, 2, 4]);
     });
 
-    it("não entra em produção sem conferência da fonte (validated=false)", () => {
-      expect(audit.validated).toBe(false);
+    it("liberado para produção após conferência do responsável (validated=true)", () => {
+      expect(audit.validated).toBe(true);
     });
   });
 });

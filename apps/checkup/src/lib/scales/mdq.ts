@@ -3,11 +3,9 @@
 // transtorno do espectro bipolar. Versão brasileira validada por
 // Castelo et al., 2010 (Revista Brasileira de Psiquiatria).
 //
-// TODO(validar): conferir caractere a caractere contra o instrumento publicado
-// na validação brasileira (Castelo MS et al., 2010) antes de marcar
-// `validated: true`. O sandbox de desenvolvimento não alcançou a fonte (403);
-// transcrição abaixo aguarda conferência do responsável clínico. Enquanto
-// validated=false, o gate mantém a escala fora do ar ("Em breve").
+// VALIDADO: texto conferido pelo responsável clínico (Patrick, 2026-06-12).
+// Fonte para re-conferência: instrumento publicado na validação brasileira
+// (Castelo MS et al., Rev Bras Psiquiatr, 2010).
 //
 // Estrutura oficial: 13 itens sim/não (sintomas, 1 ponto por "sim") +
 // item 14 (simultaneidade, sim/não) + item 15 (prejuízo funcional, 4 níveis).
@@ -105,8 +103,9 @@ export const mdq: Scale = {
     { min: 0, max: 13, band: "negative", bandLabel: "triagem negativa" },
     { min: 0, max: 13, band: "positive", bandLabel: "triagem positiva" },
   ],
-  // TODO(validar): vide cabeçalho — Castelo et al. 2010, conferência char-a-char.
-  validated: false,
+  // VALIDADO: texto conferido pelo responsável clínico (Patrick, 2026-06-12)
+  // contra a fonte indicada em `source`. Mudança de item exige nova conferência.
+  validated: true,
   source:
     "MDQ (Hirschfeld et al., 2000) — versão brasileira validada (Castelo MS et al., Rev Bras Psiquiatr, 2010)",
 };

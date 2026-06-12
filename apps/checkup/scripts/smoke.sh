@@ -17,7 +17,7 @@ echo "Smoke checkup @ $BASE"
 [ "$(code "$BASE/api/health")" = 200 ] && ok "health" || bad "health"
 [ "$(code "$BASE/")" = 200 ] && ok "home" || bad "home"
 
-for p in depressao ansiedade tdah-adulto; do
+for p in depressao ansiedade tdah-adulto bipolaridade borderline alcool tabagismo; do
   [ "$(code "$BASE/$p")" = 200 ] && ok "landing /$p" || bad "landing /$p"
 done
 
@@ -25,7 +25,7 @@ done
 { [ "$(code "$BASE/crise")" = 200 ] && has "$BASE/crise" "tel:188"; } \
   && ok "/crise SSR (CVV no HTML)" || bad "/crise SSR"
 
-for s in phq9 gad7 asrs18; do
+for s in phq9 gad7 asrs18 audit mdq fagerstrom msi_bpd; do
   { [ "$(code "$BASE/teste/$s")" = 200 ] && has "$BASE/teste/$s" "Começar triagem"; } \
     && ok "/teste/$s quiz" || bad "/teste/$s quiz"
 done
@@ -43,7 +43,7 @@ dev=$(curl -s -w "\n%{http_code}" --max-time 35 -X POST "$BASE/api/devolutiva" \
   && ok "devolutiva (fallback)" || bad "devolutiva"
 
 # PDF — o check que pegou o 500 do react-pdf bundlado pelo Turbopack
-for s in phq9 gad7 asrs18; do
+for s in phq9 gad7 asrs18 audit mdq fagerstrom msi_bpd; do
   tmp=$(mktemp)
   c=$(curl -s -o "$tmp" -w "%{http_code}" --max-time 35 \
     "$BASE/api/pdf?scale=$s&score=12&band=informative&label=x&crisis=false&rid=ab")

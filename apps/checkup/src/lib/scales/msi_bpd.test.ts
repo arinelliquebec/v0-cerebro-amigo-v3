@@ -57,8 +57,8 @@ describe("scoreMsiBpd", () => {
       expect(msiBpd.options.map((o) => o.value).sort()).toEqual([0, 1]);
     });
 
-    it("não entra em produção sem conferência da fonte (validated=false)", () => {
-      expect(msiBpd.validated).toBe(false);
+    it("liberado para produção após conferência do responsável (validated=true)", () => {
+      expect(msiBpd.validated).toBe(true);
     });
   });
 });
