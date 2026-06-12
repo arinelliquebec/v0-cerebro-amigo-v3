@@ -36,7 +36,7 @@ export async function FooterSection() {
                 </Link>
               ))}
             </div>
-            <p className="text-noir-text-dim/60 text-xs">
+            <p className="text-muted-foreground text-xs">
               © 2026 Cérebro Amigo. Todos os direitos reservados.
             </p>
           </div>

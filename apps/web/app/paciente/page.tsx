@@ -319,7 +319,7 @@ export default function PacienteLandingPage() {
               <Link href="/terms" className="text-noir-text-dim transition-colors hover:text-foreground">Termos</Link>
               <Link href="/medico" className="text-noir-text-dim transition-colors hover:text-foreground">Sou médico</Link>
             </div>
-            <p className="text-xs text-noir-text-dim/60">© 2026 Cérebro Amigo</p>
+            <p className="text-xs text-muted-foreground">© 2026 Cérebro Amigo</p>
           </div>
         </div>
       </footer>
