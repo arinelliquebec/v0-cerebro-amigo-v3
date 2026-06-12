@@ -24,13 +24,13 @@ public static class AuthEndpoints
             var emailNorm = req.Email.Trim().ToLowerInvariant();
 
             // Rate limiting: bloqueio após 5 tentativas falhas em 15 min
-            if (rateLimiter.IsBlocked(emailNorm))
+            if (await rateLimiter.IsBlockedAsync(emailNorm))
                 return Results.StatusCode(429);
 
             var user = await db.Usuarios.FirstOrDefaultAsync(u => u.Email == emailNorm);
             if (user is null || !hasher.Verify(req.Senha, user.SenhaHash))
             {
-                rateLimiter.RecordFailure(emailNorm);
+                await rateLimiter.RecordFailureAsync(emailNorm);
 
                 // Antes de devolver 401 genérico, verifica se o email pertence
                 // ao portal do paciente. Se for o caso, devolve 409 com hint pra
@@ -53,11 +53,11 @@ public static class AuthEndpoints
             // Usuário desativado (soft delete) não loga.
             if (user.DesativadoEm is not null)
             {
-                rateLimiter.RecordFailure(emailNorm);
+                await rateLimiter.RecordFailureAsync(emailNorm);
                 return Results.Unauthorized();
             }
 
-            rateLimiter.RecordSuccess(emailNorm);
+            await rateLimiter.RecordSuccessAsync(emailNorm);
             user.UltimoLogin = DateTime.UtcNow;
 
             // Migração gradual: hash legado PBKDF2 → bcrypt no próximo login OK
@@ -141,9 +141,9 @@ public static class AuthEndpoints
         {
             var ip = ClientIp(ctx);
             var rlKey = "signup:" + ip;
-            if (rateLimiter.IsBlocked(rlKey))
+            if (await rateLimiter.IsBlockedAsync(rlKey))
                 return Results.StatusCode(429);
-            rateLimiter.RecordFailure(rlKey); // cada tentativa consome (sucesso também) — protege a API paga
+            await rateLimiter.RecordFailureAsync(rlKey); // cada tentativa consome (sucesso também) — protege a API paga
 
             var src = (req.Src ?? "").Trim().ToLowerInvariant();
             var fromCheckup = src == "checkup";

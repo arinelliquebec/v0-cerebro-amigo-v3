@@ -45,7 +45,7 @@ public static class PacienteAuthEndpoints
 
             // Rate limiting: previne spam de magic links para o mesmo paciente
             var emailNorm = req.Email.Trim().ToLowerInvariant();
-            if (rateLimiter.IsBlocked(emailNorm))
+            if (await rateLimiter.IsBlockedAsync(emailNorm))
                 return Results.StatusCode(429);
 
             // Busca paciente pelo email — ANCORADA no médico dono (não vaza cross-tenant).
@@ -59,7 +59,7 @@ public static class PacienteAuthEndpoints
             if (paciente is null)
             {
                 // Mesmo em 404, registra tentativa para evitar enumeration + spam
-                rateLimiter.RecordFailure(emailNorm);
+                await rateLimiter.RecordFailureAsync(emailNorm);
                 return Results.NotFound();
             }
 
@@ -77,7 +77,7 @@ public static class PacienteAuthEndpoints
             var portalBase = config["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
             var url = $"{portalBase}/p/entrar?token={token}";
 
-            rateLimiter.RecordFailure(emailNorm); // conta tentativa (mesmo sucesso) — previne spam
+            await rateLimiter.RecordFailureAsync(emailNorm); // conta tentativa (mesmo sucesso) — previne spam
             return Results.Ok(new { url, expiraEm = DateTime.UtcNow.AddHours(1) });
         })
         .RequireAuthorization(); // só médico ou serviço interno

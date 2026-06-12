@@ -159,6 +159,9 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddScoped<MedicoOnboardingService>();
 builder.Services.AddSingleton<IPasswordHasher, PasswordHasher>();
+// NpgsqlDataSource dedicado (fora do EF) p/ o rate limiter de login (T1-1):
+// singleton, conexão sob demanda, mesma connection string (já com verify-full).
+builder.Services.AddSingleton(_ => Npgsql.NpgsqlDataSource.Create(postgresConn));
 builder.Services.AddSingleton<LoginRateLimiter>();
 builder.Services.AddSingleton<CryptoService>();
 builder.Services.AddScoped<ITenantContext, TenantContext>();
