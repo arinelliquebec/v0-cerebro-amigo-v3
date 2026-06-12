@@ -10,6 +10,7 @@ export const metadata = {
   title: "Cérebro Amigo — Acompanhamento entre consultas",
   description:
     "Cérebro Amigo: acompanhamento entre consultas para psiquiatria. Entre como paciente ou como médico.",
+  alternates: { canonical: "https://www.cerebroamigo.com.br" },
 }
 
 const opcoes = [

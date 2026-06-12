@@ -17,11 +17,11 @@ const nextConfig = {
   /* Compressão Gzip/Brotli habilitada por padrão; deixamos explícito */
   compress: true,
 
-  /* Imagens: em deploy Docker standalone o optimizer nativo requer configuração
-     adicional de loader. Mantemos unoptimized até infraestrutura de imagem estar
-     provisionada (ex.: CloudFront/ImageKit). Quando migrar, remover esta linha. */
+  /* Imagens: Vercel tem optimizer nativo — serve WebP/AVIF automaticamente.
+     Em Docker standalone (dev local) mantemos unoptimized para evitar
+     dependência de loader externo sem configuração adicional. */
   images: {
-    unoptimized: true,
+    unoptimized: !process.env.VERCEL,
     remotePatterns: [
       {
         protocol: "https",

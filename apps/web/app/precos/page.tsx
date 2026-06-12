@@ -19,6 +19,7 @@ export const metadata = {
     title: "Preços — Cérebro Amigo",
     description: "Planos simples para psiquiatras. 14 dias grátis, sem cartão.",
   },
+  alternates: { canonical: "https://www.cerebroamigo.com.br/precos" },
 }
 
 const planos = [

@@ -49,7 +49,6 @@ export const metadata: Metadata = {
     description: DEFAULT_DESCRIPTION,
     images: ['/og-image.png'],
   },
-  alternates: { canonical: SITE_URL },
 }
 
 export default function RootLayout({

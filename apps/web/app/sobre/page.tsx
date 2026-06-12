@@ -19,6 +19,7 @@ export const metadata = {
     title: "Sobre — Cérebro Amigo",
     description: "Feito por quem vive isso. Developer e paciente há 15+ anos.",
   },
+  alternates: { canonical: "https://www.cerebroamigo.com.br/sobre" },
 }
 
 // Schema Person (fundador)
