@@ -236,9 +236,11 @@ function ResultContent() {
       ) : null}
 
       {/* PDF download — omitido em modo crise. Marca em evidência: o relatório
-          é o vetor de aquisição de médicos (QR do Cérebro Amigo no PDF). */}
-      {!isCrisis && (
-        <section className="glass-noir-deep relative mt-10 overflow-hidden rounded-3xl p-6 sm:p-7">
+          é o vetor de aquisição de médicos (QR do Cérebro Amigo no PDF).
+          Renderiza só após o loading p/ a página não "pular" quando a
+          devolutiva chega (blocos aparecem juntos, com reveal). */}
+      {!loading && !isCrisis && (
+        <section className="glass-noir-deep reveal reveal-2 relative mt-10 overflow-hidden rounded-3xl p-6 sm:p-7">
           <div className="aurora pointer-events-none absolute inset-0" aria-hidden />
           <div className="relative">
             <div className="mb-4 flex items-start gap-4">
@@ -279,8 +281,8 @@ function ResultContent() {
       )}
 
       {/* Consentimento (LGPD) — default desmarcado; só grava se marcar */}
-      {scale && band && (
-        <div className="mt-8">
+      {!loading && scale && band && (
+        <div className="reveal reveal-3 mt-8">
           <label className="glass-noir flex cursor-pointer items-start gap-3 rounded-2xl p-4">
             <input
               type="checkbox"
