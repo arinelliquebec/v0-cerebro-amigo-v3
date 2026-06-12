@@ -47,6 +47,7 @@ from app.agents.base import AgentPayload, BaseAgent, InsightOutput
 from app.core.config import get_settings
 from app.core.db import acquire
 from app.core.llm import ainvoke_structured, sonnet
+from app.core.prompt_loader import get_prompt
 
 logger = structlog.get_logger(__name__)
 
@@ -204,7 +205,7 @@ class RiscoSilenciosoAgent(BaseAgent):
             sonnet(temperature=0.2),
             RiscoSilenciosoLLMOutput,
             [
-                SystemMessage(content=RISCO_SILENCIOSO_SYSTEM_V1),
+                SystemMessage(content=await get_prompt("agents", "risco_silencioso")),
                 HumanMessage(content=_build_user_prompt(nome, metricas)),
             ],
         )

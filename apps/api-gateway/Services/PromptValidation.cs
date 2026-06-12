@@ -26,6 +26,13 @@ public static class PromptValidation
         ["orchestrator:medication_classification"] = ["checkin_resumo", "prescricoes_resumo"],
         // symptoms.py: usado cru (sem .format)
         ["orchestrator:symptom_extraction"] = [],
+        // agents-py (T4-1): os 5 agentes analíticos usam o prompt cru — o
+        // contexto vai na HumanMessage, não há .format() no system.
+        ["agents:adesao"] = [],
+        ["agents:diario"] = [],
+        ["agents:padroes"] = [],
+        ["agents:resumidor"] = [],
+        ["agents:risco_silencioso"] = [],
         // Travados pelo ADR-035 (nunca chegam aqui via painel), crus:
         ["orchestrator:crisis_detection"] = [],
         ["orchestrator:audit"] = [],

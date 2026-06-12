@@ -33,6 +33,7 @@ from app.agents.base import AgentPayload, BaseAgent, InsightOutput
 from app.core.config import get_settings
 from app.core.db import acquire
 from app.core.llm import ainvoke_structured, sonnet
+from app.core.prompt_loader import get_prompt
 
 logger = structlog.get_logger(__name__)
 
@@ -201,7 +202,7 @@ class AdesaoAgent(BaseAgent):
             sonnet(temperature=0.2),
             AdesaoLLMOutput,
             [
-                SystemMessage(content=ADESAO_SYSTEM_V1),
+                SystemMessage(content=await get_prompt("agents", "adesao")),
                 HumanMessage(content=_build_user_prompt(nome, metricas)),
             ],
         )
