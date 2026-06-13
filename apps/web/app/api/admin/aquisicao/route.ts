@@ -50,6 +50,7 @@ async function fetchCheckup(): Promise<{ data: FunnelMetrics | null; erro: strin
     const r = await fetch(CHECKUP_METRICS_URL, {
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
+      signal: AbortSignal.timeout(5000), // não pendurar o cockpit se o Check-up lentar
     })
     if (!r.ok) return { data: null, erro: `Check-up respondeu ${r.status}` }
     return { data: (await r.json()) as FunnelMetrics, erro: null }
@@ -79,8 +80,12 @@ export async function GET() {
       site: "https://www.cerebroamigo.com.br",
     })
   } catch (err) {
-    if (err instanceof GatewayError && (err.status === 401 || err.status === 403))
-      return NextResponse.json({ error: "não autorizado" }, { status: 401 })
+    if (err instanceof GatewayError) {
+      if (err.status === 401 || err.status === 403)
+        return NextResponse.json({ error: "não autorizado" }, { status: 401 })
+      // preserva a semântica do gateway (404/409/429/503…) em vez de achatar tudo em 500
+      return NextResponse.json({ error: "erro no gateway" }, { status: err.status || 502 })
+    }
     return NextResponse.json({ error: "erro interno" }, { status: 500 })
   }
 }

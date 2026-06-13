@@ -861,7 +861,8 @@ public static class AdminEndpoints
                 "SELECT COUNT(*)::int FROM medicos m JOIN assinaturas a ON a.medico_id = m.id " +
                 "WHERE m.signup_source = 'checkup' AND a.status = 'trial'") ?? 0;
             var ridsAtribuidos = await db.Database.ExecuteScalarAsync<int?>(
-                "SELECT COUNT(DISTINCT checkup_rid)::int FROM medicos WHERE checkup_rid IS NOT NULL") ?? 0;
+                "SELECT COUNT(DISTINCT checkup_rid)::int FROM medicos " +
+                "WHERE checkup_rid IS NOT NULL AND signup_source = 'checkup'") ?? 0;
 
             // Cadastros vindos do Check-up por mês (12m, fronteira no fuso de Brasília)
             var cadastrosPorMes = await db.Database.SqlQueryRaw<CadastroMesRow>(@"
