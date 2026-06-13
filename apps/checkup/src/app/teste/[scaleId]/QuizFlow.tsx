@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowRight, ListChecks, LockKeyhole, Undo2 } from "lucide-react";
 import type { Scale, ScaleResult } from "@/lib/scales/types";
 import { scorePhq9 } from "@/lib/scales/phq9";
@@ -40,12 +40,16 @@ export function QuizFlow({ scale }: Props) {
   const router = useRouter();
   // Re-rastreio do acompanhamento (ADR-050 Parte 2): token opaco da série, repassado
   // ao /resultado p/ anexar o novo ponto. Só no caminho normal — NUNCA no de crise.
-  const seriesToken = useSearchParams().get("series") ?? "";
+  // Lido via window PÓS-montagem (não useSearchParams) p/ NÃO jogar o quiz atrás de
+  // Suspense — mantém o QuizFlow renderizado no servidor (SSR; smoke grepa o HTML cru).
+  const [seriesToken, setSeriesToken] = useState("");
   // Sessão efêmera anônima: UUID gerado client-side PÓS-montagem.
   // NÃO gerar no render — crypto.randomUUID quebra o prerender PPR (sem Suspense acima).
   const [sessionId, setSessionId] = useState("");
   useEffect(() => {
     setSessionId(crypto.randomUUID());
+    const t = new URLSearchParams(window.location.search).get("series");
+    if (t) setSeriesToken(t);
   }, []);
 
   const [step, setStep] = useState(-1); // -1 = intro
