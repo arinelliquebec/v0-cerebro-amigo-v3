@@ -8,6 +8,11 @@ const TRIAGENS = [
   { href: "/depressao", label: "Teste de depressão (PHQ-9)" },
   { href: "/ansiedade", label: "Teste de ansiedade (GAD-7)" },
   { href: "/tdah-adulto", label: "Teste de TDAH adulto (ASRS-18)" },
+  { href: "/bipolaridade", label: "Teste de bipolaridade (MDQ)" },
+  { href: "/borderline", label: "Rastreio de borderline (MSI-BPD)" },
+  { href: "/alcool", label: "Uso de álcool (AUDIT)" },
+  { href: "/tabagismo", label: "Tabagismo (Fagerström)" },
+  { href: "/drogas", label: "Uso de drogas (ASSIST)" },
 ] as const
 
 export function SiteFooter() {

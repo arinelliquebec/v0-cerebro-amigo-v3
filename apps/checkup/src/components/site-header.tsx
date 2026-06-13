@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { Logo } from "./logo"
+import { TestsMenu } from "./tests-menu"
 
 // Header calmo do checkup — logo do Cérebro Amigo em destaque. Sem drama
 // (clinical-safety: público pode estar em sofrimento). Sticky discreto,
@@ -26,6 +27,7 @@ export function SiteHeader() {
               {item.label}
             </Link>
           ))}
+          <TestsMenu />
         </nav>
 
         <a
