@@ -104,6 +104,7 @@
   /* ---- LAYOUT HELPERS ---- */
   section { page-break-before: always; }
   section.first { page-break-before: avoid; }
+  body > section:first-child { page-break-before: avoid; } /* chunk de build não inicia com página em branco */
   .grid2 { display: flex; gap: 14px; }
   .grid2 > div { flex: 1; }
 
@@ -177,7 +178,7 @@
 
 <p class="lead">Este guia explica, sem jargão técnico, o que o Cérebro Amigo faz pela sua prática,
 como ele mantém <strong>você no centro de toda decisão clínica</strong>, e como o Check-up Mental
-pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~15 minutos.</p>
+pode trazer novos pacientes até o seu consultório. Capítulos independentes — vá direto ao que interessar (por exemplo, o capítulo 10, sobre o Check-up).</p>
 
 <div class="panel">
   <div class="eyebrow">O essencial em uma frase</div>
@@ -222,7 +223,8 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
     <li><strong>Organiza os sinais</strong> em uma linha do tempo clara — adesão à medicação,
       tendências de humor e sintomas, eventos relevantes.</li>
     <li><strong>Chama a sua atenção</strong> quando algo merece olhar: queda de adesão, retraimento,
-      mudança de padrão — sem nunca tirar a decisão das suas mãos.</li>
+      mudança estatística de padrão — com base em dados objetivos, sem nunca opinar sobre o caso nem
+      tirar a decisão das suas mãos.</li>
     <li><strong>Prepara a consulta</strong> com um resumo do que mudou desde a última vez, para você
       começar o encontro já situado.</li>
   </ul>
@@ -237,8 +239,8 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
       </div>
       <div>
         <h4>Seu paciente</h4>
-        <p style="margin:0">Um aplicativo simples no celular (sem instalar nada da loja) para
-        registrar humor, confirmar medicação, escrever no diário e conversar — tudo sob sua supervisão.</p>
+        <p style="margin:0">Um aplicativo simples no celular para registrar humor, confirmar medicação,
+        escrever no diário e conversar — tudo sob sua supervisão.</p>
       </div>
     </div>
   </div>
@@ -274,10 +276,10 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
   versionados</strong>. A IA não improvisa nessas situações. O que o paciente em sofrimento recebe é
   um conteúdo de acolhimento pré-definido, idêntico e auditável.</p>
 
-  <h4>3 · A sugestão sobe o alerta, nunca o desce</h4>
+  <h4>3 · O alerta nunca é minimizado</h4>
   <p>Quando um assistente avalia algo como adesão ou risco, ele pode <strong>aumentar</strong> o nível
-  de atenção sobre um caso, mas nunca reduzir um sinal que os dados já mostraram. O viés é deliberado:
-  na dúvida, chamar a sua atenção.</p>
+  de atenção sobre um caso, mas nunca esconder ou minimizar um sinal que os dados já mostraram. Na
+  dúvida, ele sempre chama a sua atenção — nunca o contrário.</p>
 
   <div class="safe nobreak">
     <span class="label">Por que isso importa</span>
@@ -300,9 +302,9 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
 
   <h3>O que acontece, passo a passo</h3>
   <ol>
-    <li><strong>Detecção sensível.</strong> Ao processar uma mensagem do paciente, um classificador
-      avalia risco. Ele é <em>fail-safe</em>: na menor dúvida, trata como crise. Um falso positivo é
-      preferível a um falso negativo.</li>
+    <li><strong>Detecção conservadora.</strong> Cada mensagem do paciente é avaliada quanto a sinais
+      de risco. Na menor dúvida, o sistema trata como crise — prefere um alarme falso a deixar passar
+      um caso real.</li>
     <li><strong>Acolhimento imediato com texto fixo.</strong> O paciente recebe na hora um texto de
       apoio pré-aprovado, com canais de ajuda (CVV 188, SAMU 192). Esse texto nunca é gerado por IA.</li>
     <li><strong>Você é notificado.</strong> Um alerta de crise é registrado e enviado a você, com
@@ -317,9 +319,10 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
 
   <div class="safe nobreak">
     <span class="label">Triagem do Check-up também</span>
-    No Check-up Mental (triagem pública), qualquer indício de risco — por exemplo, resposta positiva
-    ao item de ideação do PHQ-9 — interrompe o questionário <strong>antes de qualquer resultado</strong>
-    e leva a uma tela de acolhimento com canais de ajuda. Sem funil comercial, sem rodeios.
+    No Check-up Mental (triagem pública), uma resposta positiva a um item de risco — seja o item de
+    ideação do PHQ-9 ou o item de autoagressão do MSI-BPD — interrompe o questionário <strong>antes de
+    qualquer resultado</strong> e leva a uma tela de acolhimento com canais de ajuda. Sem funil
+    comercial, sem rodeios.
   </div>
 
   <p class="muted">O texto de crise é versionado e auditado clinicamente; sua alteração é travada
@@ -344,8 +347,8 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
     <tr><td class="k">Mensagens</td><td>A conversa entre o paciente e a plataforma, com revisão e possibilidade de assumir o diálogo.</td></tr>
     <tr><td class="k">Agenda</td><td>Consultas, disponibilidade, detecção de conflito, lembretes e agendamento pelo próprio paciente.</td></tr>
     <tr><td class="k">Check-ins</td><td>Registros de humor e confirmações de medicação que o paciente envia entre consultas.</td></tr>
-    <tr><td class="k">Exames</td><td>Acompanhamento de exames laboratoriais relevantes e avisos de pendência ou vencimento.</td></tr>
-    <tr><td class="k">Financeiro / ROI</td><td>Cobrança recorrente da sua assinatura e uma visão do retorno (recall de inativos, blindagem médico-legal).</td></tr>
+    <tr><td class="k">Exames (no prontuário)</td><td>Acompanhamento de exames laboratoriais relevantes e avisos de pendência ou vencimento.</td></tr>
+    <tr><td class="k">Financeiro</td><td>Cobrança da sua assinatura; quais pacientes sumiram há muito tempo (para você decidir reativar o contato); e o registro que comprova o acompanhamento prestado — útil se um dia precisar demonstrar o cuidado.</td></tr>
   </table>
 
   <h3>Você define as regras de cada paciente</h3>
@@ -376,8 +379,8 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
     <tr><th style="width:30%">Assistente</th><th>O que entrega a você</th></tr>
     <tr><td class="k">Resumo pré-consulta</td><td>Um briefing do que mudou nos últimos dias, pronto pouco antes da consulta agendada — para você chegar situado.</td></tr>
     <tr><td class="k">Adesão</td><td>Taxa de doses tomadas, sequências perdidas e tendência de engajamento. O cálculo é objetivo; o assistente só destaca o que merece atenção.</td></tr>
-    <tr><td class="k">Risco silencioso</td><td>Aponta pacientes que sumiram do contato logo após sinais negativos — o retraimento que costuma passar despercebido.</td></tr>
-    <tr><td class="k">Padrões</td><td>Detecta tendências e mudanças bruscas nos sintomas registrados, com métodos estatísticos (não com "opinião").</td></tr>
+    <tr><td class="k">Risco silencioso</td><td>Aponta pacientes que pararam de responder logo depois de registrarem piora de humor ou queda de adesão — o retraimento que costuma passar despercebido.</td></tr>
+    <tr><td class="k">Padrões</td><td>Detecta tendências e mudanças bruscas nos sintomas registrados por cálculo objetivo, não por interpretação.</td></tr>
     <tr><td class="k">Diário</td><td>Sintetiza, sem reproduzir literalmente, as entradas de diário que o paciente escolheu compartilhar antes da consulta.</td></tr>
     <tr><td class="k">Desfecho</td><td>Acompanha resposta, remissão ou não-resposta em escalas após uma troca de medicação. <span class="pill">100% determinístico, sem IA</span></td></tr>
   </table>
@@ -390,8 +393,9 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
 
   <h3>Sob seu controle de custo e ritmo</h3>
   <p>Esses assistentes rodam em ritmos diferentes (alguns minutos antes da consulta, outros uma vez
-  por dia). Há ainda um modo de "ensaio" em que uma automação nova mostra o que faria <em>sem
-  efeito real</em>, até você validar. Você fica no controle de quando e quanto eles trabalham.</p>
+  por dia). Antes de ligar uma automação nova para os seus pacientes, você pode vê-la rodar em
+  <strong>modo de teste</strong>: ela mostra o que enviaria, mas nada chega ao paciente até você
+  aprovar. Você fica no controle de quando e quanto eles trabalham.</p>
 
   <footer class="pg"><span>05 · Assistentes</span><span>6</span></footer>
 </section>
@@ -413,29 +417,32 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
     <li><strong>Leitura longitudinal.</strong> Você vê a curva ao longo do tempo e, após uma troca de
       conduta, o assistente de desfecho sinaliza resposta, remissão ou não-resposta segundo critérios
       objetivos.</li>
-    <li><strong>Gate de segurança.</strong> O item de ideação do PHQ-9 dispara o protocolo de crise
-      (capítulo 03) independentemente do escore final.</li>
+    <li><strong>Rede de segurança.</strong> Itens de risco em qualquer escala que os contenha — por
+      exemplo, o item de ideação do PHQ-9 — disparam o protocolo de crise (capítulo 03),
+      independentemente do escore final.</li>
   </ul>
 
   <div class="safe nobreak">
     <span class="label">O que isso é — e o que não é</span>
-    As escalas são <strong>apoio à decisão</strong>, não a decisão. A interpretação clínica do escore,
-    no contexto do paciente, é sempre sua. O sistema apresenta o número e a tendência; o significado é
-    você quem dá.
+    As escalas são <strong>apoio à decisão</strong>, não a decisão. O sistema apresenta o número e a
+    tendência de forma determinística; o significado clínico, no contexto do paciente, é sempre você
+    quem dá.
   </div>
 
   <footer class="pg"><span>06 · Cuidado por medida</span><span>7</span></footer>
 </section>
 
+<!--SPLIT-->
 <!-- ===================== 07 ===================== -->
 <section id="s7">
   <div class="eyebrow">Capítulo 07</div>
   <h2>Consulta, prescrição e teleconsulta</h2>
 
   <h3>Teleconsulta por vídeo</h3>
-  <p>Atendimento por vídeo <strong>ponto a ponto</strong>, dentro da própria plataforma. A mídia é
-  criptografada de ponta a ponta e <strong>não é gravada</strong>. Para você é uma sala simples; para
-  o paciente, um clique a partir do aplicativo.</p>
+  <p>Atendimento por vídeo dentro da própria plataforma, com mídia criptografada de ponta a ponta e
+  que <strong>não é gravada</strong> — a única exceção é o escriba (abaixo), que você ativa com o
+  consentimento do paciente. Para você é uma sala simples; para o paciente, um clique a partir do
+  aplicativo.</p>
 
   <h3>Escriba clínico (opcional)</h3>
   <p>Durante a teleconsulta, você pode ativar um <strong>escriba</strong> que ajuda a transformar a
@@ -443,10 +450,11 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
   nunca um registro definitivo gerado sozinho. O áudio é descartado após o processamento.</p>
 
   <h3>Prescrição digital</h3>
-  <p>Prescrição integrada via <strong>Memed</strong>, com um <strong>verificador de interações
-  medicamentosas e duplicidades</strong> que sinaliza pontos de atenção para a sua avaliação. A
-  decisão de prescrever, manter ou trocar é sempre sua. Há ainda apoio à <strong>renovação de
-  receitas</strong> de uso contínuo, dentro das regras.</p>
+  <p>Prescrição integrada via <strong>Memed</strong>, com um <strong>verificador determinístico de
+  interações e duplicidades</strong> (baseado em base de dados farmacológica, não em IA) que sinaliza,
+  sem interpretar o caso, pontos para a sua avaliação. A decisão de prescrever, manter ou trocar é
+  sempre sua. Há ainda apoio à <strong>renovação de receitas</strong> de uso contínuo, dentro das
+  regras.</p>
 
   <div class="rule nobreak">
     O verificador de interações <strong>alerta</strong>, não decide. Ele existe como uma rede de
@@ -464,8 +472,8 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
 <section id="s8">
   <div class="eyebrow">Capítulo 08</div>
   <h2>O lado do paciente</h2>
-  <p class="lead">O paciente usa um aplicativo leve no celular (instala direto pelo navegador, sem
-  loja). Tudo o que ele faz ali chega organizado a você — e nada de sensível roda sem a sua
+  <p class="lead">O paciente acessa um aplicativo leve pelo celular, sem precisar baixar nada de uma
+  loja. Tudo o que ele faz ali chega organizado a você — e nada de sensível roda sem a sua
   supervisão.</p>
 
   <table class="nobreak">
@@ -474,7 +482,7 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
     <tr><td class="k">Humor diário</td><td>Registro rápido de humor, que alimenta a curva de evolução.</td></tr>
     <tr><td class="k">Diário</td><td>Texto ou áudio. O paciente escolhe o que compartilhar com você antes da consulta.</td></tr>
     <tr><td class="k">Medicação</td><td>Confirmação de doses e lembretes — a base da métrica de adesão.</td></tr>
-    <tr><td class="k">Questionários</td><td>PHQ-9, GAD-7 e outros, quando você programa.</td></tr>
+    <tr><td class="k">Questionários</td><td>PHQ-9 e GAD-7, quando você programa.</td></tr>
     <tr><td class="k">Lembretes</td><td>Notificações no celular (humor, medicação, consulta) com texto fixo e gentil.</td></tr>
   </table>
 
@@ -524,8 +532,8 @@ pode trazer novos pacientes até o seu consultório. Leitura de ponta a ponta: ~
   <h3>Como funciona para quem faz</h3>
   <ul>
     <li>A pessoa responde, de forma <strong>anônima</strong>, a um ou mais instrumentos validados.</li>
-    <li>Recebe uma devolutiva cuidadosa e um <strong>relatório em PDF</strong> para levar ao
-      profissional de saúde.</li>
+    <li>Recebe uma devolutiva educativa (texto gerado por IA com roteiro fixo e salvaguardas, jamais
+      um diagnóstico) e um <strong>relatório em PDF</strong> para levar ao profissional de saúde.</li>
     <li>O relatório traz um <strong>QR Code</strong> que leva ao cadastro de psiquiatras do Cérebro
       Amigo — é assim que o paciente pode chegar até você.</li>
   </ul>
