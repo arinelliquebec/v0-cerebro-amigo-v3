@@ -187,11 +187,17 @@ public static class CobrancasEndpoints
         app.MapPost("/api/v1/asaas/webhook", async (HttpRequest http, AppDbContext db, IConfiguration cfg) =>
         {
             var esperado = cfg["ASAAS_WEBHOOK_TOKEN"];
-            if (!string.IsNullOrWhiteSpace(esperado))
+            if (string.IsNullOrWhiteSpace(esperado))
             {
-                var recebido = http.Headers["asaas-access-token"].ToString();
-                if (recebido != esperado) return Results.Unauthorized();
+                // Fail-closed (segurança): este endpoint é anônimo e altera estado
+                // financeiro (confirma cobrança, ativa assinatura). Sem o token
+                // configurado não opera. 503 faz o Asaas reenviar quando setado.
+                return Results.Problem(
+                    title: "Webhook indisponível: ASAAS_WEBHOOK_TOKEN não configurado",
+                    statusCode: 503);
             }
+            var recebido = http.Headers["asaas-access-token"].ToString();
+            if (recebido != esperado) return Results.Unauthorized();
 
             using var doc = await JsonDocument.ParseAsync(http.Body);
             var root = doc.RootElement;
