@@ -1,4 +1,4 @@
-# ADR-045 — Validação e fidelidade das escalas do Check-up (PHQ-9, GAD-7, ASRS-18)
+# ADR-051 — Validação e fidelidade das escalas do Check-up (PHQ-9, GAD-7, ASRS-18)
 
 Status: Aceito · Data: 2026-06-11 · Escopo: `apps/checkup` · Relaciona: `apps/checkup/src/lib/scales/CLAUDE.md`, regra inegociável #1 (a IA não diagnostica)
 

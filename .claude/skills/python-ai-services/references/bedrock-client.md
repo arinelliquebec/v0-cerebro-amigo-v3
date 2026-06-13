@@ -112,9 +112,11 @@ tokens_in, tokens_out)` estima e grava `custo_usd` em `mensagens`/`agente_execuc
 Custo é telemetria: `compute_cost` nunca levanta exceção (tier desconhecido / tokens
 ausentes → `None`).
 
-> **Não há gate de custo que bloqueie chamadas** (`MAX_DAILY_LLM_USD` nunca existiu como
-> código). Bloquear chamadas por orçamento gatearia a detecção de crise — exigiria ADR
-> próprio. O price map só popula `custo_usd`.
+> **Teto de custo (ADR-011):** o `custo_usd` que o price map popula alimenta o gate diário
+> do `agents-py` (`cost_gate.py`, `MAX_DAILY_LLM_USD`), que pausa **apenas agentes batch
+> não-críticos** ao atingir o teto. **Crise/conversa** (orchestrator) e o agente
+> `risco_silencioso` **nunca** são gateados; o gate é **fail-open** (erro de contagem →
+> prossegue). A trava de dinheiro de fato é o limite mensal no Console da Anthropic.
 
 ## Se algum dia flipar para Bedrock (precisa de ADR)
 

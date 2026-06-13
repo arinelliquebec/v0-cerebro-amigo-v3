@@ -1,4 +1,4 @@
-# ADR-046 — Check-up roda no EC2 (não na Vercel): quem conecta direto no RDS vive na VPC
+# ADR-052 — Check-up roda no EC2 (não na Vercel): quem conecta direto no RDS vive na VPC
 
 Status: Aceito · Data: 2026-06-11 · Escopo: `apps/checkup`, topologia de deploy · Relaciona: ADR-042 (RLS de tenant), `apps/checkup/CLAUDE.md` (isolamento), ADR-044 (Anthropic API)
 

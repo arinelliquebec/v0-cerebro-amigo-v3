@@ -7,7 +7,7 @@
 
 ## Contexto
 
-O Check-up Mental gera um PDF com QR → `www.cerebroamigo.com.br/medico?src=checkup&rid=<8c>` (corrigido no #1, ADR-045).
+O Check-up Mental gera um PDF com QR → `www.cerebroamigo.com.br/medico?src=checkup&rid=<8c>` (corrigido no #1, ADR-051).
 Hoje `/medico` é só landing de marketing (CTA → `/dashboard` demo): **não há cadastro de médico**, e a "métrica norte"
 (médicos cadastrados por 1.000 testes) **não é medível**. O signup externo do ADR-031 foi **proposto e nunca construído**
 (a branch `feat/rede-extensoes` está 100% no main, mas só a rede social/foto/presença foi mergeada — o signup não).

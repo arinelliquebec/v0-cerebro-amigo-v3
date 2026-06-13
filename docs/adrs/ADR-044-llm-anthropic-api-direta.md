@@ -6,7 +6,7 @@
 **Categoria:** Stack / Compliance / Operação
 **Complementa:** [ADR-015](015-llm-provider-switchavel.md) (camada provider-switchável)
 **Mantém suspenso:** [ADR-008](008-llm-bedrock-nao-anthropic-api.md) (Bedrock-only — já *superseded* pelo ADR-015)
-**Relaciona:** ADR-002 (IA em Python/LangGraph), ADR-004 (LGPD em traces), ADR-018 (cifragem em repouso), ADR-028 (RAG/embeddings Bedrock in-region), ADR-045/046 (isolamento e infra do Check-up), ADR-048 (escalas — entrada estruturada), ADR-050 (Check-up longitudinal)
+**Relaciona:** ADR-002 (IA em Python/LangGraph), ADR-004 (LGPD em traces), ADR-018 (cifragem em repouso), ADR-028 (RAG/embeddings Bedrock in-region), ADR-045/052 (infra e isolamento do Check-up), ADR-048 (escalas — entrada estruturada), ADR-050 (Check-up longitudinal)
 
 ## Contexto
 
@@ -63,7 +63,7 @@ divergente (garantido pelo ADR-015).
   próprio app** (server-side; **nunca** no client/browser), enviando **somente dados
   estruturados de triagem** (escala/escore/faixa) — **jamais** conteúdo clínico cru ou
   PII. O Check-up **não** passa pelo orchestrator (isolamento clínico ⇄ público,
-  ADR-045/046).
+  ADR-045/052).
 - **Cercas:** entrada estruturada apenas; rate-limit por sessão nas rotas de LLM; spend
   limit no Console da Anthropic; **key própria** em workspace separado (CK-6, SSM
   `/cerebro-amigo/checkup/anthropic-api-key`); fallback estático em abuso/erro. **Não
@@ -113,15 +113,16 @@ anônima e não pode importar nem atravessar serviços clínicos. Uma exceção 
   novo ADR.
 - **Cliente exigir AWS-only** → flipar `LLM_PROVIDER=bedrock` (já suportado), após a
   aprovação da AWS.
-- **Necessidade de teto de custo que bloqueie chamadas** → ADR próprio (ver ADR-011,
-  "impl. adiada"): o caminho de detecção de crise **não** pode ser gateado por custo.
+- **Estender o teto de custo ao plano interativo** (hoje o ADR-011 só gateia o batch) →
+  exige ADR próprio definindo o comportamento sob estouro: o caminho de detecção de crise
+  **não** pode ser gateado por custo.
 
 ## Referências
 
 - [ADR-015](015-llm-provider-switchavel.md) — camada provider-switchável; mapeamento de modelos.
 - [ADR-008](008-llm-bedrock-nao-anthropic-api.md) — Bedrock In-Region (suspenso).
 - ADR-004 (LGPD em traces) · ADR-018 (cifragem em repouso) · ADR-028 (RAG/embeddings Bedrock in-region).
-- ADR-045/046 (isolamento e infra do Check-up) · ADR-048 (escalas; entrada estruturada) · ADR-050 (Check-up longitudinal).
+- ADR-045/052 (infra e isolamento do Check-up) · ADR-048 (escalas; entrada estruturada) · ADR-050 (Check-up longitudinal).
 - `docs/aws-bedrock-quota-support-case.md` — quota Bedrock zerada na conta.
 - Skill `python-ai-services` + `references/bedrock-client.md` · `apps/checkup/CLAUDE.md`.
 
