@@ -247,7 +247,7 @@ export function QuizFlow({ scale }: Props) {
                 <span
                   className={cn(
                     "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                    isSelected ? "border-purple" : "border-(--noir-line)"
+                    isSelected ? "border-purple" : "border-[var(--noir-line)]"
                   )}
                   aria-hidden
                 >

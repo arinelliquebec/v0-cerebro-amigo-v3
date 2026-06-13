@@ -47,7 +47,7 @@ export function LandingHero({
         {badges.map((b) => (
           <span
             key={b}
-            className="inline-flex items-center gap-1.5 rounded-full border border-(--noir-glass-border) bg-secondary/60 px-3 py-1 text-xs text-secondary-foreground"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--noir-glass-border)] bg-secondary/60 px-3 py-1 text-xs text-secondary-foreground"
           >
             <Check className="h-3 w-3 text-purple-light" aria-hidden />
             {b}

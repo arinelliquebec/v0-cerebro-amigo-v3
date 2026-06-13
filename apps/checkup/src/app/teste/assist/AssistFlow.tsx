@@ -251,7 +251,7 @@ export function AssistFlow() {
                   <span
                     className={cn(
                       "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-md border-2 transition-colors",
-                      isOn ? "border-purple bg-purple text-white" : "border-(--noir-line)"
+                      isOn ? "border-purple bg-purple text-white" : "border-[var(--noir-line)]"
                     )}
                     aria-hidden
                   >
@@ -328,7 +328,7 @@ export function AssistFlow() {
                 <span
                   className={cn(
                     "flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full border-2 transition-colors",
-                    isSelected ? "border-purple" : "border-(--noir-line)"
+                    isSelected ? "border-purple" : "border-[var(--noir-line)]"
                   )}
                   aria-hidden
                 >

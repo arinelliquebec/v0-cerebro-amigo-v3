@@ -51,7 +51,7 @@ export function MobileNav() {
         aria-expanded={open}
         aria-controls="mobile-nav-panel"
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-(--noir-glass-border) bg-secondary/50 text-foreground transition-colors hover:border-purple hover:text-foreground"
+        className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--noir-glass-border)] bg-secondary/50 text-foreground transition-colors hover:border-purple hover:text-foreground"
       >
         {open ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
       </button>
@@ -66,7 +66,7 @@ export function MobileNav() {
           />
           <div
             id="mobile-nav-panel"
-            className="quiz-step-in absolute inset-x-0 top-full z-50 max-h-[80dvh] overflow-y-auto border-t border-(--noir-glass-border) glass-noir"
+            className="quiz-step-in absolute inset-x-0 top-full z-50 max-h-[80dvh] overflow-y-auto border-t border-[var(--noir-glass-border)] glass-noir"
           >
             <div className="mx-auto max-w-5xl px-4 py-5 sm:px-6">
               <nav aria-label="Triagens">
@@ -98,7 +98,7 @@ export function MobileNav() {
                   pra não competir com o hambúrguer em telas estreitas). */}
               <a
                 href="https://www.cerebroamigo.com.br"
-                className="mt-6 flex min-h-[44px] items-center justify-center gap-1.5 rounded-full border border-(--noir-glass-border) bg-secondary/50 px-4 text-sm font-medium text-secondary-foreground transition-colors hover:border-purple hover:text-foreground"
+                className="mt-6 flex min-h-[44px] items-center justify-center gap-1.5 rounded-full border border-[var(--noir-glass-border)] bg-secondary/50 px-4 text-sm font-medium text-secondary-foreground transition-colors hover:border-purple hover:text-foreground"
               >
                 Conheça o Cérebro Amigo
                 <ArrowRight className="h-4 w-4" aria-hidden />

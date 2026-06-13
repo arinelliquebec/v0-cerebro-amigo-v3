@@ -60,7 +60,7 @@ export function TestsMenu() {
       {open && (
         <div
           id="tests-menu-panel"
-          className="glass-noir absolute left-1/2 top-full z-50 mt-3 w-64 -translate-x-1/2 rounded-2xl border border-(--noir-glass-border) p-3 shadow-xl"
+          className="glass-noir absolute left-1/2 top-full z-50 mt-3 w-64 -translate-x-1/2 rounded-2xl border border-[var(--noir-glass-border)] p-3 shadow-xl"
         >
           <ul className="space-y-3">
             {TRIAGEM_GROUPS.map((group) => (

@@ -35,7 +35,7 @@ export function SiteHeader() {
             vive dentro do MobileNav (drawer), liberando o header estreito. */}
         <a
           href="https://www.cerebroamigo.com.br"
-          className="hidden min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-(--noir-glass-border) bg-secondary/50 px-3.5 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:border-purple hover:text-foreground md:inline-flex"
+          className="hidden min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[var(--noir-glass-border)] bg-secondary/50 px-3.5 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:border-purple hover:text-foreground md:inline-flex"
         >
           Conheça o Cérebro Amigo
           <span aria-hidden>→</span>
