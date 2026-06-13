@@ -171,6 +171,19 @@ Resources:
           - PathPattern: "/api/*"
             TargetOriginId: CheckupEC2
             ViewerProtocolPolicy: redirect-to-https
+            # /api/* tem POST/PUT/etc (events, devolutiva, email-report, tracking, cron).
+            # Sem AllowedMethods o CloudFront default e GET/HEAD -> POST vira 403. Os 7 metodos:
+            AllowedMethods:
+              - GET
+              - HEAD
+              - OPTIONS
+              - PUT
+              - POST
+              - PATCH
+              - DELETE
+            CachedMethods:
+              - GET
+              - HEAD
             # CachingDisabled managed policy
             CachePolicyId: "4135ea2d-6df8-44a3-9df3-4b5a84be39ad"
             OriginRequestPolicyId: !GetAtt ApiOriginRequestPolicy.Id
