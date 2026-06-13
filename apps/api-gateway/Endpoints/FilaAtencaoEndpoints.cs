@@ -49,14 +49,18 @@ public static class FilaAtencaoEndpoints
                     WHERE p.medico_responsavel_id = {0} AND co.status = 'humano'
 
                     UNION ALL
-                    -- 3. Insight crítico/urgente pendente (não visto, não descartado, válido)
-                    SELECT 'insight', i.paciente_id, cl.nome, i.severidade,
+                    -- 3. Insight de alta severidade pendente (não visto, não descartado, válido).
+                    -- Os agentes gravam severidade no vocabulário info|baixa|media|alta|critica;
+                    -- aqui mapeamos para o vocabulário da fila (critico|urgente) p/ os de maior
+                    -- severidade (alta|critica) — os demais não entram na fila.
+                    SELECT 'insight', i.paciente_id, cl.nome,
+                           CASE i.severidade WHEN 'critica' THEN 'critico' ELSE 'urgente' END,
                            i.titulo, i.criado_em,
-                           CASE i.severidade WHEN 'critico' THEN 3 ELSE 4 END
+                           CASE i.severidade WHEN 'critica' THEN 3 ELSE 4 END
                     FROM insights i
                     JOIN clientes cl ON cl.id = i.paciente_id
                     WHERE i.medico_id = {0}
-                      AND i.severidade IN ('critico','urgente')
+                      AND i.severidade IN ('alta','critica')
                       AND i.descartado_em IS NULL
                       AND i.visualizado_em IS NULL
                       AND (i.valido_ate IS NULL OR i.valido_ate > NOW())

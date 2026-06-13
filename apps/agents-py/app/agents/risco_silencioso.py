@@ -14,7 +14,7 @@ Lógica em duas fases:
 2. **Escalada por sinais negativos prévios** — antes do silêncio:
    - humor ≤ threshold_baixo (default 3/10), OU
    - ansiedade ≥ threshold_alto (default 8/10), OU
-   - última tomada de medicação foi `esquecido`, OU
+   - última tomada de medicação foi `esquecida`, OU
    - última entrada de diário compartilhada com humor ≤ threshold_baixo, OU
    - protocolo de crise nos últimos 30 dias
 
@@ -421,7 +421,7 @@ class RiscoSilenciosoAgent(BaseAgent):
                     )
                 )
 
-        # Última tomada antes do silêncio foi 'esquecido'
+        # Última tomada antes do silêncio foi 'esquecida'
         ultima_tomada = await conn.fetchrow(
             """
             SELECT status, horario_previsto
@@ -434,7 +434,7 @@ class RiscoSilenciosoAgent(BaseAgent):
             paciente_id,
             janela_fim,
         )
-        if ultima_tomada and ultima_tomada["status"] == "esquecido":
+        if ultima_tomada and ultima_tomada["status"] == "esquecida":
             sinais.append(
                 SinalNegativo(
                     tipo="medicacao_esquecida",

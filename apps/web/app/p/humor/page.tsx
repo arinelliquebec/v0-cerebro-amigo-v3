@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Smile, Loader2, Check } from "lucide-react"
+import { Smile, Loader2, Check, Heart, Phone } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
 const EMOJIS = ["😣", "😟", "😕", "😐", "🙂", "😌", "😊", "😄", "😁", "🤩"]
@@ -15,6 +15,8 @@ export default function HumorPage() {
   const [enviando, setEnviando] = useState(false)
   const [feito, setFeito] = useState(false)
   const [erro, setErro] = useState(false)
+  // Texto fixo de acolhimento de crise (vem do backend — crisis_copy, nunca editável)
+  const [criseTexto, setCriseTexto] = useState<string | null>(null)
 
   async function registrar() {
     if (humor == null) return
@@ -26,6 +28,12 @@ export default function HumorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ humor, ansiedade, nota: nota || null }),
       })
+      // Crise detectada na nota: registro NÃO foi salvo, mostra o acolhimento.
+      const body = await r.json().catch(() => null)
+      if (body?.crise && body?.crise_texto) {
+        setCriseTexto(body.crise_texto)
+        return
+      }
       if (r.ok) {
         setFeito(true)
         setTimeout(() => router.push("/p"), 1200)
@@ -37,6 +45,45 @@ export default function HumorPage() {
     } finally {
       setEnviando(false)
     }
+  }
+
+  // Acolhimento de crise (texto fixo do backend, NUNCA editável) — regra #2.
+  if (criseTexto) {
+    return (
+      <div className="p-4 pt-8 space-y-5">
+        <h1 className="text-lg font-semibold text-foreground">Estamos com você</h1>
+        <div className="space-y-4 rounded-2xl border-2 border-primary/40 bg-primary/5 p-5">
+          <div className="flex items-center gap-2">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/20">
+              <Heart className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-sm font-medium">Sua mensagem foi levada a sério</p>
+          </div>
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{criseTexto}</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <a
+            href="tel:188"
+            className="flex flex-col items-center gap-1 rounded-xl border-2 border-primary/30 bg-primary/10 p-4 transition-colors hover:bg-primary/20"
+          >
+            <Phone className="h-5 w-5 text-primary" />
+            <span className="text-sm font-semibold">CVV 188</span>
+            <span className="text-[11px] text-muted-foreground">24h gratuito</span>
+          </a>
+          <a
+            href="tel:192"
+            className="flex flex-col items-center gap-1 rounded-xl border-2 border-primary/30 bg-primary/10 p-4 transition-colors hover:bg-primary/20"
+          >
+            <Phone className="h-5 w-5 text-primary" />
+            <span className="text-sm font-semibold">SAMU 192</span>
+            <span className="text-[11px] text-muted-foreground">emergência</span>
+          </a>
+        </div>
+        <Button variant="outline" onClick={() => router.push("/p")} className="w-full">
+          Voltar ao início
+        </Button>
+      </div>
+    )
   }
 
   if (feito) {
