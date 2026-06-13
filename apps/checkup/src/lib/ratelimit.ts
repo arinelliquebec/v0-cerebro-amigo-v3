@@ -113,6 +113,17 @@ export async function checkPdfLimit(ip: string): Promise<RateLimitResult> {
   return r ?? memPdf(ip);
 }
 
+// Opt-in do acompanhamento longitudinal (ADR-050 Parte 2): escrita por sessão na
+// superfície pública → mesmo perfil da devolutiva (3/sessão/24h + 20/IP/h). Baldes
+// próprios no DB (`trk:*`); sem DB (dev/CI) cai no balde in-memory da devolutiva.
+export async function checkTrackingLimit(ip: string, sessionId: string): Promise<RateLimitResult> {
+  const sess = await dbHit(`trk:sess:${sessionId}`, SESSION_WINDOW_MS, SESSION_DEVOLUTIVA_LIMIT, "session_exceeded");
+  if (sess === null) return memDevolutiva(ip, sessionId);
+  if (!sess.allowed) return sess;
+  const ipr = await dbHit(`trk:ip:${ip}`, WINDOW_MS, IP_DEVOLUTIVA_LIMIT, "ip_exceeded");
+  return ipr ?? memDevolutiva(ip, sessionId);
+}
+
 // Expõe o caminho in-memory para teste (vitest roda sem DB → usa o fallback).
 export const _testOnly = {
   resetAll() {

@@ -15,6 +15,10 @@
 -- Crise é first-class: série NUNCA criada p/ teste roteado a crise; re-rastreio reaplica
 -- o gate validado e crise preempta a tela de evolução (lógica no app, docs/CRISIS-PROTOCOL.md).
 
+-- pgcrypto: pgp_sym_encrypt/decrypt do email_enc (cifragem app-side, padrão ADR-018).
+-- gen_random_uuid é core do PG13+, mas a extensão é exigida pelo pgp_sym_*.
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 -- Série de acompanhamento: sequência de re-rastreios de UMA pessoa, de UMA escala.
 -- Identificada por token opaco que viaja no link do e-mail — nunca derivado de PII.
 CREATE TABLE checkup.tracking_series (

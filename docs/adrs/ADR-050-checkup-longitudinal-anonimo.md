@@ -2,8 +2,10 @@
 
 > **Cérebro Amigo** · site oficial: https://www.cerebroamigo.com.br · Check-up Mental: https://checkup.cerebroamigo.com.br
 
-- **Status:** Parte 1 (Cockpit de Aquisição) **Accepted — implementado**; Parte 2 (Check-up longitudinal
-  pseudonimizado) **Proposed — design** (revisão clinical-safety CONDICIONAL aplicada 2026-06-13; migration `0044` escrita).
+- **Status:** Parte 1 (Cockpit de Aquisição) **Accepted — implementado** (PR #38 mergeado/deployado 2026-06-13);
+  Parte 2 (Check-up longitudinal pseudonimizado) **Proposed — design** (revisão clinical-safety CONDICIONAL
+  aplicada 2026-06-13). Fases 1–2 (migration `0044` + opt-in `POST /api/tracking`) **implementadas (dark, flag
+  `NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED` off)**; Fase 3+ (envio SES + erasure + tela de evolução) pendente.
 - **Data:** 2026-06-13
 - **Relacionados:** ADR-046 (signup externo + atribuição do Check-up), ADR-045 (Check-up em ASG/ALB próprio),
   ADR-042 (RLS de tenant), ADR-036 (least-privilege roles — schema `checkup` isolado), ADR-044 (LLM Anthropic),
@@ -191,10 +193,16 @@ CREATE TABLE checkup.tracking_reminders (
 
 ### Fases (sugeridas)
 
-1. **Migration `0044`** (`tracking_series`/`tracking_points`/`tracking_reminders`) — aditiva, isolada. ✅ **escrita**.
-2. Opt-in + criação da série no fim do teste (cifra `email_enc` app-side, ADR-018; `consent_at`; rate-limit).
-   Depende do **SES production-access** (CK-4).
+1. **Migration `0044`** (`tracking_series`/`tracking_points`/`tracking_reminders` + extensão `pgcrypto`)
+   — aditiva, isolada. ✅ **escrita**.
+2. **Opt-in + criação da série no fim do teste** ✅ **implementada (dark)**: rota `POST /api/tracking`
+   (cifra `email_enc` via `pgp_sym_encrypt`/`CHECKUP_ENCRYPTION_KEY`; cria série + 1º ponto + reminder;
+   `consent_at`; `series_token` 256-bit; rate-limit `checkTrackingLimit`; rejeita `crisis=true`;
+   fail-closed sem a chave) + seção opt-in no `/resultado` (só fora de crise). **Não envia e-mail** →
+   **não depende de SES**. Atrás da flag `NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED` (default `false`) para
+   só coletar e-mail quando a Fase 3 (envio + erasure) estiver no ar.
 3. Job de envio do nudge (template fixo, decifra in-memory) + unsubscribe + **erasure** ("apagar meus dados").
+   **Aqui** entra a dependência de **SES production-access** (CK-4).
 4. Tela de evolução por `series_token` (só dados + faixas; `noindex`/`no-store`; gate de crise no re-rastreio).
 5. Job de retenção (purga por `last_seen_at`) + runbook (TTL, erasure manual).
 6. Smoke E2E + **revisão `clinical-safety` final** (gera texto visto pelo usuário).
