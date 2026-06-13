@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, Suspense, type FormEvent } from "react";
 import Link from "next/link";
 import { FileDown, Info } from "lucide-react";
 import type { Devolutiva } from "@/lib/ai/types";
@@ -135,11 +135,20 @@ function ResultContent() {
   const band = searchParams.get("band") ?? "";
   const label = searchParams.get("label") ?? band;
   const isCrisis = searchParams.get("crisis") === "true";
+  // Re-rastreio do acompanhamento (ADR-050 Parte 2): token da série vindo do link.
+  const series = searchParams.get("series") ?? "";
 
   const [devolutiva, setDevolutiva] = useState<Devolutiva | null>(null);
   const [loading, setLoading] = useState(true);
   const [consented, setConsented] = useState(false);
   const [consentSaved, setConsentSaved] = useState(false);
+
+  // Acompanhamento longitudinal (ADR-050 Parte 2) — opt-in SEPARADO do consentimento
+  // anônimo acima. Dark por flag até a Fase 3 (envio/erasure por SES) entrar no ar.
+  const trackingEnabled = process.env.NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED === "true";
+  const [trackEmail, setTrackEmail] = useState("");
+  const [trackConsent, setTrackConsent] = useState(false);
+  const [trackState, setTrackState] = useState<"idle" | "saving" | "done" | "error">("idle");
 
   // Consentimento LGPD: grava test_results SÓ quando o usuário marca (default off).
   // Anônimo — só escala/escore/faixa, sem PII. Não-bloqueante.
@@ -162,6 +171,30 @@ function ResultContent() {
         if (r.ok) setConsentSaved(true);
       })
       .catch(() => {});
+  };
+
+  // Opt-in do acompanhamento: cria a série (e-mail cifrado no servidor). NÃO envia
+  // e-mail (Fase 3). Nunca para crise (a seção só renderiza fora de crise + o servidor
+  // rejeita crisis=true). series_token fica no servidor; não volta na resposta.
+  const handleTracking = (e: FormEvent) => {
+    e.preventDefault();
+    if (!trackConsent || !trackEmail || !sid || !scale || !band || isCrisis) return;
+    setTrackState("saving");
+    fetch("/api/tracking", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId: sid,
+        consent: true,
+        email: trackEmail,
+        scaleId: scale,
+        totalScore: score,
+        band,
+        crisis: isCrisis,
+      }),
+    })
+      .then((r) => setTrackState(r.ok ? "done" : "error"))
+      .catch(() => setTrackState("error"));
   };
 
   useEffect(() => {
@@ -195,6 +228,17 @@ function ResultContent() {
       })
       .finally(() => setLoading(false));
   }, [scale, band, score, label]);
+
+  // Re-rastreio: se o teste veio de um link de acompanhamento (?series=), anexa o novo
+  // ponto à série. NUNCA em crise (crise vai p/ /crise, sem series; e a rota rejeita).
+  useEffect(() => {
+    if (!trackingEnabled || !series || isCrisis || !scale || !band) return;
+    fetch("/api/tracking/point", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token: series, totalScore: score, band, crisis: isCrisis }),
+    }).catch(() => {});
+  }, [trackingEnabled, series, isCrisis, scale, band, score]);
 
   // ASSIST: resultado é POR substância (ADR-049) — decodificado e recomputado
   // deterministicamente do query param (sem PII; faixas vêm do motor).
@@ -385,11 +429,76 @@ function ResultContent() {
         </div>
       )}
 
+      {/* Acompanhar evolução (ADR-050 Parte 2) — opt-in, só fora de crise, atrás de flag.
+          Cria a série; o e-mail é cifrado no servidor. O envio do lembrete é a Fase 3. */}
+      {trackingEnabled && !series && !loading && !isCrisis && scale && band && (
+        <section className="glass-noir reveal reveal-3 mt-8 rounded-2xl p-5">
+          {trackState === "done" ? (
+            <p className="text-sm leading-relaxed text-purple-light">
+              ✓ Pronto. Em 14 dias te lembramos por e-mail de refazer e ver sua evolução.
+              Você pode cancelar ou apagar seus dados a qualquer momento pelo link do e-mail.
+            </p>
+          ) : (
+            <form onSubmit={handleTracking}>
+              <p className="font-display text-lg font-semibold leading-snug text-foreground">
+                Acompanhar sua evolução
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                Quer ver como isso muda com o tempo? Deixe seu e-mail e te lembramos de
+                refazer o Check-up em 14 dias.
+              </p>
+              <input
+                type="email"
+                required
+                value={trackEmail}
+                onChange={(e) => setTrackEmail(e.target.value)}
+                placeholder="seu@email.com"
+                autoComplete="email"
+                className="mt-3 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-purple/40 focus:outline-none"
+              />
+              <label className="mt-3 flex cursor-pointer items-start gap-3">
+                <input
+                  type="checkbox"
+                  checked={trackConsent}
+                  onChange={(e) => setTrackConsent(e.target.checked)}
+                  className="mt-0.5 h-5 w-5 shrink-0 cursor-pointer accent-(--purple)"
+                />
+                <span className="text-xs leading-relaxed text-muted-foreground">
+                  Guardamos seus escores ao longo do tempo e seu e-mail (cifrado) só para te
+                  lembrar e mostrar sua evolução. Não é diagnóstico. Você apaga quando quiser.
+                </span>
+              </label>
+              <button
+                type="submit"
+                disabled={!trackConsent || !trackEmail || trackState === "saving"}
+                className="btn-noir mt-3 w-full disabled:opacity-50"
+              >
+                {trackState === "saving" ? "Salvando..." : "Quero acompanhar"}
+              </button>
+              {trackState === "error" && (
+                <p className="mt-2 text-xs text-amber-300">Não deu pra salvar agora. Tente de novo.</p>
+              )}
+            </form>
+          )}
+        </section>
+      )}
+
       {/* Crisis resources at bottom (crisis mode: already at top; non-crisis: subtle) */}
       {!isCrisis && (
         <p className="mt-7 text-center text-xs text-muted-foreground">
           Se precisar de apoio: <a href="tel:188" className="underline underline-offset-2">CVV 188</a> · 24h
         </p>
+      )}
+
+      {trackingEnabled && series && !isCrisis && (
+        <div className="mt-6 text-center">
+          <Link
+            href={`/evolucao?t=${encodeURIComponent(series)}`}
+            className="text-sm text-purple-light underline-offset-2 hover:underline"
+          >
+            Ver minha evolução →
+          </Link>
+        </div>
       )}
 
       <div className="mt-8 text-center">

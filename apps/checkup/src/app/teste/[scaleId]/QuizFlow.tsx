@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowRight, ListChecks, LockKeyhole, Undo2 } from "lucide-react";
 import type { Scale, ScaleResult } from "@/lib/scales/types";
 import { scorePhq9 } from "@/lib/scales/phq9";
@@ -38,6 +38,9 @@ interface Props {
 
 export function QuizFlow({ scale }: Props) {
   const router = useRouter();
+  // Re-rastreio do acompanhamento (ADR-050 Parte 2): token opaco da série, repassado
+  // ao /resultado p/ anexar o novo ponto. Só no caminho normal — NUNCA no de crise.
+  const seriesToken = useSearchParams().get("series") ?? "";
   // Sessão efêmera anônima: UUID gerado client-side PÓS-montagem.
   // NÃO gerar no render — crypto.randomUUID quebra o prerender PPR (sem Suspense acima).
   const [sessionId, setSessionId] = useState("");
@@ -89,14 +92,15 @@ export function QuizFlow({ scale }: Props) {
       const result: ScaleResult = scoreFn(newAnswers);
       fireEvent("test_completed", sessionId, scale.id);
       router.push(
-        `/resultado?sid=${sessionId}&scale=${scale.id}&score=${result.totalScore}&band=${result.band}&label=${encodeURIComponent(result.bandLabel)}`
+        `/resultado?sid=${sessionId}&scale=${scale.id}&score=${result.totalScore}&band=${result.band}&label=${encodeURIComponent(result.bandLabel)}` +
+          (seriesToken ? `&series=${encodeURIComponent(seriesToken)}` : "")
       );
       return;
     }
 
     setStep((s) => s + 1);
     setSelected(newAnswers[step + 1] >= 0 ? newAnswers[step + 1] : null);
-  }, [selected, answers, step, currentItem, isLastStep, sessionId, scale.id, router]);
+  }, [selected, answers, step, currentItem, isLastStep, sessionId, scale.id, router, seriesToken]);
 
   // Voltar: revisita a pergunta anterior com a resposta dada (pode corrigir).
   // Não interfere no gate de crise — ele só dispara no "Próxima" do item de crise.

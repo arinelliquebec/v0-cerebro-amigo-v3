@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import type { Metadata } from "next";
 import { phq9, gad7, asrs18, audit, mdq, fagerstrom, msiBpd } from "@/lib/scales";
 import { isScaleAvailable } from "@/lib/scales/gate";
@@ -79,5 +80,10 @@ export default async function TestePage({ params }: Props) {
     );
   }
 
-  return <QuizFlow scale={scale} />;
+  // Suspense: QuizFlow lê ?series= (re-rastreio do acompanhamento) via useSearchParams.
+  return (
+    <Suspense fallback={null}>
+      <QuizFlow scale={scale} />
+    </Suspense>
+  );
 }
