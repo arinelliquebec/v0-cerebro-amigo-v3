@@ -1,11 +1,17 @@
-# ADR-050 — Cockpit de Aquisição + Check-up longitudinal anônimo
+# ADR-050 — Cockpit de Aquisição + Check-up longitudinal pseudonimizado
 
 > **Cérebro Amigo** · site oficial: https://www.cerebroamigo.com.br · Check-up Mental: https://checkup.cerebroamigo.com.br
 
-- **Status:** Parte 1 (Cockpit de Aquisição) **Accepted — implementado**; Parte 2 (Check-up longitudinal anônimo) **Proposed — design**.
+- **Status:** Parte 1 (Cockpit de Aquisição) **Accepted — implementado** (PR #38 mergeado/deployado 2026-06-13);
+  Parte 2 (Check-up longitudinal pseudonimizado) **Proposed — design** (revisão clinical-safety CONDICIONAL
+  aplicada 2026-06-13). Fases 1–6 **implementadas (dark/inerte, flag `NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED` off)** — migration `0044`,
+  opt-in `/api/tracking`, envio/unsubscribe/erasure, tela de evolução/re-rastreio, job de retenção, smoke E2E +
+  **sign-off clinical-safety** (abaixo). Falta só **operacional p/ ligar**: SES prod-access (CK-4), envs no SSM,
+  schedulers (cron + retention), flag `=true`.
 - **Data:** 2026-06-13
 - **Relacionados:** ADR-046 (signup externo + atribuição do Check-up), ADR-045 (Check-up em ASG/ALB próprio),
   ADR-042 (RLS de tenant), ADR-036 (least-privilege roles — schema `checkup` isolado), ADR-044 (LLM Anthropic),
+  ADR-018 (cifragem em repouso — modelo do `email_enc`),
   `apps/checkup/CLAUDE.md`, `docs/CRISIS-PROTOCOL.md`, skill `clinical-safety`.
 
 ## Contexto
@@ -26,7 +32,7 @@ Dois fatos definem o momento:
    são todas do lado **clínico** (Scribe, Predição de Crise, DTx, FHIR, Outcomes) — nenhuma toca a aquisição.
 
 Este ADR ataca os dois fatos: **Parte 1** torna a métrica norte visível e acionável (pré-condição de qualquer
-otimização); **Parte 2** transforma o Check-up de evento único em relacionamento longitudinal anônimo, movendo as
+otimização); **Parte 2** transforma o Check-up de evento único em relacionamento longitudinal pseudonimizado, movendo as
 duas alavancas ao mesmo tempo (valor clínico + aquisição) e plantando a semente da ideia de maior impacto do
 roadmap (Outcomes/RWE), que hoje depende de massa de dados.
 
@@ -82,86 +88,171 @@ na env do web (Vercel + container do EC2).
 
 ---
 
-## Parte 2 — Check-up longitudinal anônimo (Proposed, design)
+## Parte 2 — Check-up longitudinal pseudonimizado (Proposed, design)
+
+> **Revisão clinical-safety (2026-06-13): veredito CONDICIONAL.** A arquitetura (isolamento, scoring
+> determinístico, texto fixo, crise first-class, opt-in, minimização) é sã. Três **blockers** foram corrigidos
+> no design abaixo antes de qualquer código:
+> 1. **Modelo de e-mail inviável e mal-rotulado** — não dá pra enviar um nudge dias depois a um `bcrypt(email)`
+>    (hash é mão-única). Para disparar no `due_at` é preciso guardar o endereço de forma **recuperável**
+>    (cifrado em repouso, padrão ADR-018). Isso torna a série **pseudônima, não anônima** — o rótulo "anônimo"
+>    do rascunho original era otimista. Decisão (Rafael, 2026-06-13): **encrypt-and-own** — cifrar e assumir a
+>    barra LGPD (consentimento + eliminação + retenção).
+> 2. **Faltava via de eliminação (direito do titular, LGPD).** Unsubscribe ≠ erasure. Guardar escores de saúde
+>    mental ligados a um e-mail (recuperável) sem rota de exclusão é violação. Resolvido: `deleted_at` + CASCADE +
+>    TTL de retenção (job de purga).
+> 3. **Preempção de crise no re-rastreio precisa ser explícita.** Resolvido no Fluxo: o gate validado roda em
+>    TODO re-rastreio e crise preempta a tela de evolução.
 
 ### Decisão
 
-Transformar o Check-up de **teste avulso** em **acompanhamento longitudinal anônimo** (measurement-based care
-público): ao fim do teste (fora de crise), a pessoa pode optar por **reagendar o re-rastreio** (e-mail opt-in, que
-já existe via `report_emails` + SES) e, ao voltar, ver a **evolução** do seu escore ao longo do tempo.
+Transformar o Check-up de **teste avulso** em **acompanhamento longitudinal pseudonimizado** (measurement-based
+care público): ao fim do teste (fora de crise), a pessoa pode optar por **reagendar o re-rastreio** (e-mail opt-in)
+e, ao voltar pelo link, ver a **evolução** do seu escore ao longo do tempo.
+
+> **Por que pseudônimo e não anônimo:** o nudge é disparado dias depois, então o e-mail **é armazenado** (cifrado
+> em repouso). Diferença deliberada vs `report_emails` (0039), que nunca guarda o e-mail porque envia na hora.
+> A série é, portanto, dado de saúde **pseudonimizado** (categoria especial) — não anônimo.
 
 ### Por que move as duas alavancas
 
 - **Valor ao Cérebro Amigo:** leva o *measurement-based care* (coração clínico do produto) à superfície de maior
-  tráfego; começa a acumular **massa de dados longitudinais anônimos** — o que destrava a ideia #5 do roadmap
-  (Outcomes/RWE), hoje bloqueada por "depende de massa", pelo canal mais barato e volumoso, sem tocar dado
-  identificável.
+  tráfego; começa a acumular **massa de dados longitudinais pseudonimizados** — o que destrava a ideia #5 do roadmap
+  (Outcomes/RWE), hoje bloqueada por "depende de massa", pelo canal mais barato e volumoso, sem tocar o prontuário.
 - **Captação via Check-up:** cada re-rastreio = **novo PDF = novo toque de QR** → multiplica as chances de o médico
   ser alcançado (a aquisição compõe ao longo do tempo, em vez de um disparo único). O e-mail reforça o CTA "leve seu
   acompanhamento ao seu psiquiatra". Sobe `report_generated`, topo do funil de médicos do Cockpit (Parte 1).
 
-### Modelo de dados (schema `checkup`, sem PII, sem FK cross-schema)
+### Modelo de dados (schema `checkup`, sem FK cross-schema) — **migration `0044_checkup_tracking.sql`**
 
 ```sql
--- Série de acompanhamento: identifica uma sequência de re-rastreios SEM PII.
--- O "dono" da série é um token aleatório opaco (no link do e-mail), nunca o e-mail.
+-- Série de re-rastreios de UMA pessoa, de UMA escala. Identificada por token opaco
+-- (no link do e-mail), nunca por PII. Pseudônima: tem consentimento e via de erasure.
 CREATE TABLE checkup.tracking_series (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  series_token TEXT NOT NULL UNIQUE,     -- opaco, no link; nunca derivado de PII
-  scale_id    TEXT NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-  last_seen_at TIMESTAMPTZ
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  series_token TEXT NOT NULL UNIQUE,      -- >=128-bit CSPRNG, gerado no app; nunca derivado de PII
+  scale_id     TEXT NOT NULL,             -- validado no app (escalas evoluem, ADR-048)
+  consent_at   TIMESTAMPTZ NOT NULL DEFAULT now(),  -- opt-in explícito (base legal LGPD)
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+  last_seen_at TIMESTAMPTZ,              -- alimenta a purga por retenção
+  deleted_at   TIMESTAMPTZ              -- erasure (direito do titular); purga assíncrona
 );
 
--- Pontos da série (escore por data). Sem respostas item-a-item, sem texto livre.
+-- Pontos da série: escore por data. Só total + faixa validada (sem item-a-item, sem texto).
 CREATE TABLE checkup.tracking_points (
-  id         BIGSERIAL PRIMARY KEY,
-  series_id  UUID NOT NULL REFERENCES checkup.tracking_series(id) ON DELETE CASCADE,
-  total_score INTEGER NOT NULL,
-  band       TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Agendamento do nudge (e-mail). E-mail só como HASH (LGPD) — o envio guarda o
--- endereço cru apenas em memória no momento do disparo (mesmo padrão de report_emails).
-CREATE TABLE checkup.tracking_reminders (
   id          BIGSERIAL PRIMARY KEY,
   series_id   UUID NOT NULL REFERENCES checkup.tracking_series(id) ON DELETE CASCADE,
-  email_hash  TEXT NOT NULL,            -- bcrypt, como report_emails
-  due_at      TIMESTAMPTZ NOT NULL,
-  sent_at     TIMESTAMPTZ,
-  unsubscribed BOOLEAN NOT NULL DEFAULT FALSE
+  total_score INTEGER NOT NULL CHECK (total_score >= 0),
+  band        TEXT NOT NULL,            -- faixa validada do instrumento (sem narrativa)
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Agendamento do nudge. email_enc = e-mail CIFRADO em repouso (app, pgcrypto/ENCRYPTION_KEY,
+-- padrão ADR-018), decifrado só in-memory no disparo. email_hash = bcrypt, só dedup/unsubscribe.
+CREATE TABLE checkup.tracking_reminders (
+  id              BIGSERIAL PRIMARY KEY,
+  series_id       UUID NOT NULL REFERENCES checkup.tracking_series(id) ON DELETE CASCADE,
+  email_enc       BYTEA NOT NULL,        -- cifrado; NUNCA em claro no banco/log
+  email_hash      TEXT  NOT NULL,        -- bcrypt; NUNCA chave de busca por PII
+  due_at          TIMESTAMPTZ NOT NULL,
+  sent_at         TIMESTAMPTZ,
+  unsubscribed    BOOLEAN NOT NULL DEFAULT FALSE,
+  unsubscribed_at TIMESTAMPTZ,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
 
 ### Fluxo
 
-1. Fim do teste, **fora de crise**, escore moderado/grave → oferta opt-in (checkbox desmarcado): "Quer acompanhar
-   isso? Te lembro de refazer em 14 dias." → cria `tracking_series` + `tracking_reminders` (e-mail = hash).
-2. Job de envio (server-side, in-region SES) dispara o nudge no `due_at`: **template fixo, sem LLM, sem conteúdo
-   clínico** — "faz 14 dias, que tal refazer seu Check-up? [link com `series_token`]". Link de **unsubscribe**
-   obrigatório.
-3. Pessoa volta pelo link → refaz → grava `tracking_points` → vê a **evolução** (gráfico do escore na própria série).
-4. Mesma proteção de crise de hoje (PHQ-9 item 9 / MSI-BPD item 2 → `/crise`); o nudge **nunca** é agendado para
-   quem roteou para crise.
+1. Fim do teste, **fora de crise**, escore moderado/grave → oferta opt-in (checkbox **desmarcado**), com texto de
+   consentimento explícito: "Guardamos seus escores ao longo do tempo (e seu e-mail, cifrado) só pra te lembrar e
+   te mostrar a evolução. Você apaga quando quiser." → cria `tracking_series` (`consent_at`) + `tracking_reminders`
+   (`email_enc` cifrado, `email_hash` bcrypt). Endpoint de criação **rate-limited por sessão** (superfície pública).
+2. Job de envio (server-side, in-region SES) dispara o nudge no `due_at`: decifra `email_enc` só in-memory;
+   **template fixo, sem LLM, sem conteúdo clínico, sem o escore** — "faz 14 dias, que tal refazer seu Check-up?
+   [link com `series_token`]". Link de **unsubscribe** e link de **"apagar meus dados"** obrigatórios em todo e-mail.
+3. Pessoa volta pelo link → **reaplica o gate de crise validado** (PHQ-9 item 9 / MSI-BPD item 2) → grava
+   `tracking_points` → vê a **evolução** (gráfico de escore + faixas validadas, **sem narrativa de tendência**).
+   Página de evolução: `noindex` + `Cache-Control: no-store`; acesso só por `series_token`.
+4. **Crise preempta tudo:** se o (re)rastreio rotear para crise, mostra `/crise` (estático, `docs/CRISIS-PROTOCOL.md`),
+   **nunca** a tela de evolução; e o nudge **nunca** é (re)agendado para a série cujo último ponto roteou a crise.
+5. **Erasure/retenção:** "apagar meus dados" e unsubscribe disparam exclusão (`deleted_at` → purga CASCADE de
+   `tracking_points`/`tracking_reminders`); job de retenção purga séries inativas por `last_seen_at` (TTL no runbook).
 
-### Conformidade (clinical-safety — revisar ANTES de implementar)
+### Conformidade (clinical-safety — blockers resolvidos acima; guardrails travados aqui)
 
-- **Anônimo por padrão (LGPD categoria especial):** série identificada por token opaco, nunca por PII; e-mail só em
-  hash (espelha `report_emails`, sem FK para as respostas); opt-in explícito; **unsubscribe** em todo e-mail.
-- **Crise é first-class:** estática, pré-aprovada (`docs/CRISIS-PROTOCOL.md`); o funil longitudinal jamais sobrepõe
-  o desvio de crise nem manda nudge a quem está em crise.
-- **Triagem nunca é diagnóstico:** o e-mail e a tela de evolução não interpretam resultado; texto fixo, sem geração
-  livre. A IA não calcula escore (scoring é TypeScript determinístico).
+- **Pseudônimo, não anônimo (LGPD categoria especial):** série por token opaco, nunca por PII; e-mail **cifrado em
+  repouso** (não em claro, não só hash) + `email_hash` bcrypt só p/ dedup/unsubscribe; opt-in explícito (`consent_at`);
+  **unsubscribe + erasure** em todo e-mail; retenção limitada (purga por `last_seen_at`). Sem FK para as respostas.
+- **Crise é first-class:** gate validado reaplicado em todo re-rastreio; crise preempta a evolução; nudge nunca a
+  quem roteou para crise. Texto de crise estático e pré-aprovado — nunca gerado.
+- **Triagem nunca é diagnóstico:** e-mail e tela de evolução **não interpretam** resultado — só dados + faixas
+  validadas do instrumento, **sem narrativa de "melhora/piora"**, sem geração livre, sem LLM. Scoring é TypeScript
+  determinístico.
+- **Médico no loop / sem IA clínica:** aceitável **só porque há zero texto de LLM** nesta superfície. Qualquer
+  "personalizar o nudge com IA" reabre as regras 1/3 das inegociáveis — não fazer.
 - **Isolamento:** tudo no schema `checkup`; nenhum dado entra no prontuário; o clínico não importa nada do Check-up.
 
 ### Fases (sugeridas)
 
-1. Migrations (`checkup`: `tracking_series`/`tracking_points`/`tracking_reminders`) — aditivas, testáveis isoladas.
-2. Opt-in + criação da série no fim do teste (reusa `report_emails`/SES; depende do **SES production-access**, CK-4).
-3. Job de envio do nudge (template fixo) + unsubscribe.
-4. Tela de evolução por `series_token`.
-5. Smoke E2E + revisão `clinical-safety` (gera texto visto pelo usuário).
+1. **Migration `0044`** (`tracking_series`/`tracking_points`/`tracking_reminders` + extensão `pgcrypto`)
+   — aditiva, isolada. ✅ **escrita**.
+2. **Opt-in + criação da série no fim do teste** ✅ **implementada (dark)**: rota `POST /api/tracking`
+   (cifra `email_enc` via `pgp_sym_encrypt`/`CHECKUP_ENCRYPTION_KEY`; cria série + 1º ponto + reminder;
+   `consent_at`; `series_token` 256-bit; rate-limit `checkTrackingLimit`; rejeita `crisis=true`;
+   fail-closed sem a chave) + seção opt-in no `/resultado` (só fora de crise). **Não envia e-mail** →
+   **não depende de SES**. Atrás da flag `NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED` (default `false`) para
+   só coletar e-mail quando a Fase 3 (envio + erasure) estiver no ar.
+3. **Envio do nudge + unsubscribe + erasure** ✅ **implementada (inerte até SES)**:
+   `POST /api/tracking/cron` (Bearer `CHECKUP_CRON_TOKEN`, scheduler externo) pega reminders vencidos,
+   decifra o e-mail só in-memory (`pgp_sym_decrypt`), envia template **fixo** (sem LLM, sem escore) por SES,
+   marca `sent_at` por linha (idempotente; falha retenta). `GET /api/tracking/unsubscribe?t=` (one-click,
+   não-destrutivo) e `POST /api/tracking/erase` + página `/descadastrar` (confirmação humana; **DELETE**
+   real com CASCADE — erasure LGPD). Links keyed por `series_token` (sem coluna nova). **Só envia** com
+   flag on + `CHECKUP_CRON_TOKEN` + `CHECKUP_ENCRYPTION_KEY` + **SES production-access (CK-4)** — até lá
+   o envio falha e não marca `sent_at` (retenta), sem efeito colateral.
+4. **Tela de evolução + re-rastreio** ✅ **implementada**: `/evolucao?t=` (server `noindex` + client) lê
+   `GET /api/tracking/series?t=` (escore+faixa por data, `no-store`, marca `last_seen_at`) e plota um
+   gráfico SVG **só de dados — sem narrativa de tendência, sem diagnóstico, zero LLM**. Botão "refazer"
+   → `/teste/<scale>?series=<token>`; o `QuizFlow` repassa o token ao `/resultado` (só no caminho normal,
+   **nunca** no de crise), que anexa o ponto via `POST /api/tracking/point` (rejeita `crisis=true`,
+   rate-limit, 404 se série apagada, atualiza `last_seen_at`). Token-gated (não depende da flag nem de SES).
+5. **Job de retenção + runbook** ✅ **implementada**: `POST /api/tracking/retention` (Bearer
+   `CHECKUP_CRON_TOKEN`, scheduler externo; **não** depende da flag) apaga séries inativas há mais de
+   `CHECKUP_TRACKING_RETENTION_DAYS` (default 365) — DELETE real com CASCADE. Runbook
+   `docs/runbooks/checkup-tracking-retention.md` (TTL, ligar a feature, schedulers, erasure manual por
+   `series_token`, cuidado na rotação da chave).
+6. **Smoke E2E + revisão `clinical-safety` final** ✅: `apps/checkup/scripts/smoke.sh` cobre o contrato
+   dark (opt-in/cron → 404, retention sem token → 503, `/evolucao` + `/descadastrar` → 200). Sign-off abaixo.
+
+### Sign-off clinical-safety final (2026-06-13)
+
+Skill `clinical-safety` + review adversarial multi-agente (4 dimensões × 3 céticos) sobre Fases 2–6.
+Veredito: **APROVADO para ligar quando as pré-condições operacionais estiverem prontas** (SES CK-4,
+envs no SSM, flag on, schedulers). Conformidade com as 5 regras inegociáveis:
+
+1. **IA não pratica medicina:** zero LLM nessa superfície; scoring é TS determinístico; e-mail e tela de
+   evolução são **dados + faixas validadas, sem narrativa de tendência, sem diagnóstico/interpretação**.
+2. **Crise first-class:** série nunca é criada/estendida nem recebe nudge em crise — `QuizFlow` roteia
+   crise para `/crise` (sem `series`), `/resultado` só anexa fora de crise, e `/api/tracking` + `/point`
+   rejeitam `crisis=true`. Tela de crise estática inalterada.
+3. **Médico no loop:** superfície pública anônima, sem resposta de IA ao paciente — N/A; o espírito
+   (nenhum texto clínico gerado) é mantido (template fixo). Qualquer "personalizar com IA" reabre a regra.
+4. **LGPD categoria especial:** pseudonimizado (token opaco 256-bit); e-mail **cifrado em repouso**
+   (pgp_sym), nunca em claro nem em log; **consentimento explícito** validado no servidor (`z.literal(true)`)
+   + checkbox desmarcado; **erasure real** (DELETE CASCADE, self-service + manual por token); **retenção**
+   limitada (purga TTL); minimização (sem item-a-item, sem texto livre); isolamento no schema `checkup`.
+5. **Auditoria imutável:** nenhuma tabela de auditoria tocada.
+
+**Resíduos (operacionais, não de código):** SES production-access (CK-4); setar `CHECKUP_ENCRYPTION_KEY` /
+`CHECKUP_CRON_TOKEN` no SSM; schedulers (cron + retention); flag `=true`. Race unsubscribe×cron conhecida
+(≤1 e-mail após cancelar) — aceitável, documentada.
+
+**Resíduo de design aceito:** a elegibilidade de crise no opt-in/append é **determinada no cliente** (o gate
+validado roda no `QuizFlow`; crise vai p/ `/crise` sem `series`). O servidor não consegue recomputar crise
+sem os itens — e **não recebê-los é a própria minimização** (ADR/skill: sem item-a-item). Defesa server-side:
+`/api/tracking` e `/point` rejeitam `crisis=true`. Um cliente adulterado só prejudicaria a si mesmo (recebe
+lembrete administrativo, nunca texto clínico). Reavaliar só se algum dia o fluxo enviar itens ao servidor.
 
 ---
 
