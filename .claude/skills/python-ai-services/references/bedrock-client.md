@@ -1,105 +1,133 @@
-# Client Bedrock — migração do LLM (Anthropic API → AWS Bedrock In-Region)
+# Client LLM unificado — provider-switchável (ADR-015 + ADR-044)
 
-Referência detalhada da mudança central do V3. Leia ao trocar o client de LLM, configurar região/IAM, ou portar orchestrator-py/agents-py do V2.
+> **Nota:** o arquivo mantém o nome `bedrock-client.md` por compatibilidade de
+> referências, mas documenta o **client unificado** dos serviços Python. O LLM é
+> **provider-switchável** por `LLM_PROVIDER`; o **vigente é Anthropic API direta**
+> (ADR-044). O Bedrock é um caminho **reservado atrás da flag**, hoje inativo.
+> A versão anterior deste doc (SDK `AnthropicBedrock`, "Bedrock-only", ADR-008)
+> está **obsoleta** — o ADR-015 supersedeu o ADR-008, que está suspenso.
 
-## Decisão (ADR-008)
+Leia ao mexer no client de LLM, no roteamento de modelo, em auth/região, ou ao
+cogitar trocar de provider. Código real: `orchestrator-py/app/conversation/llm.py`,
+`agents-py/app/core/llm.py`, `app/config.py`, `app/conversation/pricing.py`.
 
-- **Bedrock In-Region em `sa-east-1`.** Haiku, Sonnet e Opus 4.7 confirmados na região da conta.
-- **Sem `ANTHROPIC_API_KEY`.** Auth por **IAM role** da EC2 (SigV4 automático). Dev: `AWS_PROFILE`.
-- Dado de inferência **não sai do Brasil** → ideal LGPD, sem transferência internacional, sem cross-region.
-- Mesma Messages API → migração é trocar o client, não o fluxo.
+## Decisão (ADR-015, reafirmada pelo ADR-044)
 
-## Opção A — SDK da Anthropic com backend Bedrock (recomendado: menor diff)
+- **`LLM_PROVIDER` ∈ {`anthropic`, `bedrock`}**, default/vigente `anthropic`. Trocar
+  de provider é mudar **uma env var**, não reescrever — prompts, thresholds clínicos
+  e lógica de grafo/agentes ficam **inalterados**.
+- **Por que Anthropic é o vigente:** a residência LGPD que justificaria Bedrock-in-region
+  **não se concretiza** em `sa-east-1` — os model-ids que funcionam no Converse são perfis
+  `global.` (`global.anthropic.claude-*`), que roteiam para fora do BR; on-demand puro
+  (`anthropic.*`) dá `ValidationException`. Logo Anthropic API e Bedrock-global são
+  **equivalentes em residência** (ambos processam fora do BR) e vence a **simplicidade**
+  (uma key, sem quota/Marketplace/perfil/IAM). Soma-se que o acesso aos modelos Anthropic
+  no Bedrock **não foi aprovado pela AWS** (quota zerada) — por isso o ADR-044 mantém `anthropic`.
+- 🔒 **Não reverter para Bedrock sem um novo ADR aprovado.** O caminho Bedrock segue
+  suportado atrás da flag e **não pode ser quebrado** em refactors — mas flipar o default
+  é decisão de arquitetura, não de código.
 
-Mantém a interface `messages.create(...)` que o código do V2 já usa.
+## A factory (o que os call-sites usam)
 
-```python
-# pip install "anthropic[bedrock]"
-from anthropic import AnthropicBedrock
-
-client = AnthropicBedrock(
-    aws_region="sa-east-1",   # BEDROCK_REGION
-    # sem api_key: credenciais resolvidas via IAM role (prod) / AWS_PROFILE (dev)
-)
-
-resp = client.messages.create(
-    model=os.environ["BEDROCK_MODEL_SONNET"],   # ex.: id/inference-profile do Sonnet em Bedrock
-    max_tokens=1024,
-    messages=[{"role": "user", "content": prompt}],
-)
-texto = resp.content[0].text
-```
-
-Streaming (orchestrator-py, SSE):
-
-```python
-with client.messages.stream(
-    model=os.environ["BEDROCK_MODEL_SONNET"],
-    max_tokens=1024,
-    messages=msgs,
-) as stream:
-    for chunk in stream.text_stream:
-        yield chunk          # repassado por SSE → proxy no api-gateway
-```
-
-## Opção B — boto3 puro (se quiser zero dependência Anthropic)
+Os call-sites **nunca** instanciam SDK direto. Chamam helpers que escondem o provider:
 
 ```python
-import boto3, json
-rt = boto3.client("bedrock-runtime", region_name="sa-east-1")
-resp = rt.invoke_model(
-    modelId=os.environ["BEDROCK_MODEL_SONNET"],
-    body=json.dumps({
-        "anthropic_version": "bedrock-2023-05-31",
-        "messages": [{"role": "user", "content": prompt}],
-        "max_tokens": 1024,
-    }),
-)
-texto = json.loads(resp["body"].read())["content"][0]["text"]
+from app.conversation.llm import haiku, sonnet, with_schema  # orchestrator-py
+# from app.core.llm import haiku, sonnet, with_schema, ainvoke_structured  # agents-py
+
+llm = sonnet(temperature=0.3)          # BaseChatModel (LangChain)
+resp = await llm.ainvoke(messages)     # ou .astream_events(...) p/ SSE
+parsed = await with_schema(haiku(), MeuSchema).ainvoke(messages)
 ```
 
-Prefira a Opção A: reaproveita o código do V2 quase sem mudança e mantém paridade de features da Messages API.
+Por baixo, `build_chat_model(tier, *, temperature, max_tokens)` despacha pelo
+`LLM_PROVIDER` (lido 1× da config) com **import lazy** — só o provider ativo precisa
+estar instalado:
+
+```python
+def build_chat_model(tier, *, temperature, max_tokens):
+    s = get_settings()
+    provider = LLMProvider(s.llm_provider)
+    model_id = resolve_model_id(provider, tier)   # id por provider+tier, lido da config
+
+    if provider is LLMProvider.ANTHROPIC:
+        from langchain_anthropic import ChatAnthropic
+        return ChatAnthropic(
+            model=model_id,
+            api_key=s.anthropic_api_key.get_secret_value() if s.anthropic_api_key else None,
+            temperature=temperature, max_tokens=max_tokens,
+        )
+
+    from langchain_aws import ChatBedrockConverse
+    return ChatBedrockConverse(
+        model_id=model_id, region_name=s.bedrock_region,
+        temperature=temperature, max_tokens=max_tokens,
+    )
+```
+
+`agents-py` ainda expõe `ainvoke_structured(llm, schema, messages) -> StructuredCall`,
+que captura `usage_metadata` (tokens) + custo e **falha alto** se o output não validar
+contra o schema.
+
+## Mapeamento de modelos (exatos — ADR-015)
+
+| Tier | `anthropic` (vigente) | `bedrock` (reservado) |
+|---|---|---|
+| HAIKU | `claude-haiku-4-5-20251001` | `global.anthropic.claude-haiku-4-5-20251001-v1:0` |
+| SONNET | `claude-sonnet-4-6` | `global.anthropic.claude-sonnet-4-6` |
+| OPUS | `claude-opus-4-8` | `global.anthropic.claude-opus-4-8` |
+
+Não chumbe IDs no call-site — `resolve_model_id` lê da config. Os defaults vivem em
+`config.py`; sobrescreva por env se a conta exigir.
 
 ## Variáveis de ambiente
 
 ```
+LLM_PROVIDER=anthropic              # vigente. bedrock = reservado, atrás da flag
+
+# LLM_PROVIDER=anthropic (vigente)
+ANTHROPIC_API_KEY=...              # SSM SecureString — NUNCA em código/imagem/log
+ANTHROPIC_MODEL_HAIKU=claude-haiku-4-5-20251001
+ANTHROPIC_MODEL_SONNET=claude-sonnet-4-6
+ANTHROPIC_MODEL_OPUS=claude-opus-4-8
+
+# LLM_PROVIDER=bedrock (reservado — auth via IAM role, sem key)
 AWS_REGION=sa-east-1
-BEDROCK_REGION=sa-east-1          # separada por higiene; hoje = AWS_REGION
-BEDROCK_MODEL_HAIKU=<id/profile do Haiku no Bedrock>
-BEDROCK_MODEL_SONNET=<id/profile do Sonnet no Bedrock>
-BEDROCK_MODEL_OPUS=<id/profile do Opus 4.7 no Bedrock>   # opcional
-# REMOVIDAS: ANTHROPIC_API_KEY, MODEL_HAIKU, MODEL_SONNET (Anthropic), AZURE_*
+BEDROCK_REGION=sa-east-1
+BEDROCK_MODEL_HAIKU=global.anthropic.claude-haiku-4-5-20251001-v1:0
+BEDROCK_MODEL_SONNET=global.anthropic.claude-sonnet-4-6
+BEDROCK_MODEL_OPUS=global.anthropic.claude-opus-4-8
 ```
 
-Os IDs exatos dos modelos no Bedrock devem ser confirmados na conta:
-`aws bedrock list-foundation-models --region sa-east-1` (ou via inference profiles, se a conta usar). Não chumbe IDs no código — leia do ambiente.
+**Auth fail-fast** (validator no startup): `anthropic` exige `ANTHROPIC_API_KEY`;
+`bedrock` exige `BEDROCK_REGION`. O app **não sobe** sem a auth do provider ativo.
 
-## IAM role (EC2)
+**NÃO existem mais:** `MODEL_HAIKU`/`MODEL_SONNET` (nomenclatura V2), nenhum `AZURE_*`.
 
-A instância precisa de permissão de invocação. Política mínima:
+## Custo (provider-aware — pricing.py)
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [{
-    "Effect": "Allow",
-    "Action": ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"],
-    "Resource": "*"
-  }]
-}
-```
+`PRICE_MAP[(provider, tier)]` em USD/Mtoken; `compute_cost(provider, model_id,
+tokens_in, tokens_out)` estima e grava `custo_usd` em `mensagens`/`agente_execucoes`.
+É **estimativa** (list-price) — confirme nas páginas de preço antes de tratar como exato.
+Custo é telemetria: `compute_cost` nunca levanta exceção (tier desconhecido / tokens
+ausentes → `None`).
 
-Restrinja `Resource` aos ARNs dos modelos usados quando possível. Em prod, **nenhuma chave** no `.env` para o LLM — só a role anexada à EC2. Em dev local, `AWS_PROFILE` aponta para credenciais locais.
+> **Não há gate de custo que bloqueie chamadas** (`MAX_DAILY_LLM_USD` nunca existiu como
+> código). Bloquear chamadas por orçamento gatearia a detecção de crise — exigiria ADR
+> próprio. O price map só popula `custo_usd`.
 
-## Checklist de migração
+## Se algum dia flipar para Bedrock (precisa de ADR)
 
-1. `pip install "anthropic[bedrock]"` (ou boto3).
-2. Trocar o construtor do client para `AnthropicBedrock(aws_region=...)`.
-3. Trocar referências de modelo para ler `BEDROCK_MODEL_*` do ambiente.
-4. Remover `ANTHROPIC_API_KEY` do código, `.env` e CI.
-5. Criar/anexar IAM role com `bedrock:InvokeModel*` na EC2.
-6. Confirmar IDs com `list-foundation-models` em sa-east-1.
-7. Validar streaming (SSE) ponta a ponta: orchestrator → gateway proxy → cliente.
-8. Manter `crisis_copy.py` literal e gates de SHADOW_MODE intactos (ver `clinical-safety`).
-9. Confirmar `PII_REDACTION_ENABLED=true` no LangSmith.
-10. Atualizar/gravar ADR-008.
+1. Novo ADR aprovado revertendo/ajustando o ADR-044.
+2. AWS aprovar o acesso aos modelos Anthropic + quota em `sa-east-1` (hoje zerada).
+3. `pip install langchain-aws` no serviço; IAM role com `bedrock:InvokeModel*` na EC2.
+4. `LLM_PROVIDER=bedrock` + `BEDROCK_MODEL_*` no ambiente. Sem mudança de call-site.
+5. Validar streaming/SSE do caminho de crise ponta a ponta.
+
+## Invariantes clinical-safety (preservadas nos dois providers)
+
+- **Streaming/SSE do caminho de crise** idêntico (LangChain normaliza chunks).
+- **Redação de PII** (ADR-004) é hook de trace do LangSmith — provider-agnóstica.
+- **Protocolo de crise** com texto fixo (`crisis_copy.py`) e detecção fail-safe (ADR-006)
+  inalterados — só o transporte do classificador muda.
+- **Structured output** via `with_structured_output` funciona nos dois.
