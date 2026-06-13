@@ -39,6 +39,11 @@ services:
       ORCHESTRATOR_PY_URL: http://orchestrator-py:8081
       AGENTS_PY_URL: http://agents-py:8082
       NOTIFIER_PY_URL: http://notifier-py:8083
+      # Cockpit de Aquisição (ADR-050): BFF clínico lê as métricas AGREGADAS do
+      # Check-up (schema isolado) via HTTP — gateway não acessa o schema `checkup`.
+      # Token: SSM SecureString (mesmo valor no Check-up, que valida). Sem ele → 503.
+      CHECKUP_METRICS_TOKEN: ${CHECKUP_METRICS_TOKEN:-}
+      CHECKUP_METRICS_URL: ${CHECKUP_METRICS_URL:-https://checkup.cerebroamigo.com.br/api/funnel-metrics}
     depends_on:
       api-gateway:
         condition: service_healthy

@@ -35,6 +35,14 @@ ev=$(curl -s --max-time 25 -X POST "$BASE/api/events" -H "Content-Type: applicat
   -d "{\"event\":\"test_started\",\"sessionId\":\"$UUID\",\"scaleId\":\"phq9\"}")
 echo "$ev" | grep -q '"ok":true' && ok "events ok" || bad "events ($ev)"
 
+# evento keyed por rid (lado médico, migration 0042 / ADR-046) — sem sessionId → aceita
+evr=$(curl -s --max-time 25 -X POST "$BASE/api/events" -H "Content-Type: application/json" \
+  -d '{"event":"qr_scanned","rid":"smoke123"}')
+echo "$evr" | grep -q '"ok":true' && ok "events por rid (0042)" || bad "events por rid ($evr)"
+
+# funnel-metrics fail-closed: CI não seta CHECKUP_METRICS_TOKEN → 503 (não expõe; ADR-050)
+[ "$(code "$BASE/api/funnel-metrics")" = 503 ] && ok "funnel-metrics fail-closed (503)" || bad "funnel-metrics fail-closed"
+
 # devolutiva (sem Anthropic → fallback estático)
 dev=$(curl -s -w "\n%{http_code}" --max-time 35 -X POST "$BASE/api/devolutiva" \
   -H "Content-Type: application/json" \

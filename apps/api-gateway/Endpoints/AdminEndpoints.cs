@@ -831,6 +831,71 @@ public static class AdminEndpoints
                 ORDER BY pago_em DESC NULLS LAST", id).ToListAsync();
             return Results.Ok(rows);
         });
+
+        // ─── Cockpit de Aquisição — Check-up Mental (ADR-046 / ADR-050) ─────────
+        // Lado CLÍNICO da métrica norte ("médicos por 1.000 testes"). Lê só o schema
+        // `public` (medicos/assinaturas). O funil do lado paciente vem do próprio
+        // Check-up (endpoint /api/funnel-metrics) e o BFF junta as duas fontes —
+        // o gateway NÃO lê o schema `checkup` (isolamento clínico ⇄ checkup, ADR-042/0036).
+        g.MapGet("/aquisicao", async (AppDbContext db) =>
+        {
+            // Médicos por origem de cadastro (admin | self | checkup | legado)
+            var porOrigem = await db.Database.SqlQueryRaw<OrigemRow>(@"
+                SELECT COALESCE(signup_source, 'legado') AS origem, COUNT(*)::int AS n
+                FROM medicos GROUP BY 1 ORDER BY 2 DESC").ToListAsync();
+
+            // Médicos vindos do Check-up, por status de assinatura
+            var porStatus = await db.Database.SqlQueryRaw<StatusRow>(@"
+                SELECT COALESCE(a.status, 'sem_assinatura') AS status, COUNT(*)::int AS n
+                FROM medicos m
+                LEFT JOIN assinaturas a ON a.medico_id = m.id
+                WHERE m.signup_source = 'checkup'
+                GROUP BY 1 ORDER BY 2 DESC").ToListAsync();
+
+            var total = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM medicos WHERE signup_source = 'checkup'") ?? 0;
+            var ativos = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM medicos m JOIN assinaturas a ON a.medico_id = m.id " +
+                "WHERE m.signup_source = 'checkup' AND a.status = 'ativa'") ?? 0;
+            var emTrial = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM medicos m JOIN assinaturas a ON a.medico_id = m.id " +
+                "WHERE m.signup_source = 'checkup' AND a.status = 'trial'") ?? 0;
+            var ridsAtribuidos = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(DISTINCT checkup_rid)::int FROM medicos WHERE checkup_rid IS NOT NULL") ?? 0;
+
+            // Cadastros vindos do Check-up por mês (12m, fronteira no fuso de Brasília)
+            var cadastrosPorMes = await db.Database.SqlQueryRaw<CadastroMesRow>(@"
+                SELECT to_char(date_trunc('month', criado_em AT TIME ZONE 'America/Sao_Paulo'), 'YYYY-MM') AS mes,
+                       COUNT(*)::int AS n
+                FROM medicos
+                WHERE signup_source = 'checkup' AND criado_em >= (NOW() - INTERVAL '12 months')
+                GROUP BY 1 ORDER BY 1").ToListAsync();
+
+            // Drill-down: últimos médicos atribuídos ao Check-up (nome = dado profissional)
+            var recentes = await db.Database.SqlQueryRaw<MedicoCheckupRow>(@"
+                SELECT m.nome AS medico_nome, COALESCE(a.status, 'sem_assinatura') AS status,
+                       m.checkup_rid AS rid, m.criado_em AS criado_em
+                FROM medicos m
+                LEFT JOIN assinaturas a ON a.medico_id = m.id
+                WHERE m.signup_source = 'checkup'
+                ORDER BY m.criado_em DESC
+                LIMIT 50").ToListAsync();
+
+            return Results.Ok(new
+            {
+                porOrigem,
+                checkup = new
+                {
+                    total,
+                    ativos,
+                    emTrial,
+                    ridsAtribuidos,
+                    porStatus,
+                    cadastrosPorMes,
+                    recentes,
+                },
+            });
+        });
     }
 
     // Validação de CPF (dígitos verificadores) — espelha lib/cpf do front.
@@ -914,6 +979,12 @@ public record InadimplenteRow(
 public record TrialRow(Guid AssinaturaId, Guid MedicoId, string? MedicoNome, DateTime? TrialAte);
 public record CobravelRow(
     Guid AssinaturaId, Guid MedicoId, string? MedicoNome, decimal ValorMensal, string? Cpf);
+
+// ── Cockpit de aquisição (Check-up Mental — ADR-046/ADR-050) ──
+public record OrigemRow(string Origem, int N);
+public record StatusRow(string Status, int N);
+public record CadastroMesRow(string Mes, int N);
+public record MedicoCheckupRow(string? MedicoNome, string Status, string? Rid, DateTime CriadoEm);
 
 // ── Sala de supervisão de crise (metadados, sem conteúdo clínico) ──
 public record CriseEventoRow(
