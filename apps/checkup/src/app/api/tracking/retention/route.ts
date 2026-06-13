@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql } from "@/lib/db";
+import { bearerMatches } from "@/lib/tracking/auth";
 
 /**
  * Purga de retenção do acompanhamento (ADR-050 Parte 2, Fase 5).
@@ -19,7 +20,7 @@ export async function POST(req: NextRequest) {
   if (!cronToken) {
     return NextResponse.json({ error: "cron_disabled" }, { status: 503 });
   }
-  if ((req.headers.get("authorization") ?? "") !== `Bearer ${cronToken}`) {
+  if (!bearerMatches(req.headers.get("authorization"), cronToken)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

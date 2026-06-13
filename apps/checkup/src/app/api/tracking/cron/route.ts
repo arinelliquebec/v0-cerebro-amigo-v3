@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
 import { getSql } from "@/lib/db";
+import { bearerMatches } from "@/lib/tracking/auth";
 import { buildNudgeLinks, buildNudgeEmail } from "@/lib/tracking/nudge-email";
 
 /**
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (!cronToken) {
     return NextResponse.json({ error: "cron_disabled" }, { status: 503 });
   }
-  if ((req.headers.get("authorization") ?? "") !== `Bearer ${cronToken}`) {
+  if (!bearerMatches(req.headers.get("authorization"), cronToken)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
   const key = process.env.CHECKUP_ENCRYPTION_KEY;
