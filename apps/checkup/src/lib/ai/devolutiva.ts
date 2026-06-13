@@ -43,7 +43,12 @@ export async function generateDevolutiva(input: DevolutivaInput): Promise<Devolu
   //    escore ao LLM evita que ele infira "triagem positiva" + minimização (LGPD);
   //  - mdq: bipolaridade é rótulo sensível — texto estático revisado à mão,
   //    nunca geração (decisão registrada no ADR-048; reabrir só com aprovação).
-  if (input.scaleId === "asrs18" || input.scaleId === "msi_bpd" || input.scaleId === "mdq") {
+  if (
+    input.scaleId === "asrs18" ||
+    input.scaleId === "msi_bpd" ||
+    input.scaleId === "mdq" ||
+    input.scaleId === "assist"
+  ) {
     return getFallback(input);
   }
 

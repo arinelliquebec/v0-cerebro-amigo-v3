@@ -25,7 +25,7 @@ const BodySchema = z
       .max(32)
       .regex(/^[A-Za-z0-9-]+$/)
       .optional(),
-    scaleId: z.enum(["phq9", "gad7", "asrs18", "audit", "mdq", "fagerstrom", "msi_bpd"]).optional(),
+    scaleId: z.enum(["phq9", "gad7", "asrs18", "audit", "mdq", "fagerstrom", "msi_bpd", "assist"]).optional(),
   })
   .refine((d) => d.sessionId != null || d.rid != null, {
     message: "sessionId ou rid obrigatório",

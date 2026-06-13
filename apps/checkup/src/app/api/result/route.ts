@@ -8,7 +8,7 @@ import { testResults } from "@/lib/db/schema";
 // (e-mail vive em tabela separada, sem FK — ver /api/email-report).
 const BodySchema = z.object({
   sessionId: z.string().uuid(),
-  scaleId: z.enum(["phq9", "gad7", "asrs18", "audit", "mdq", "fagerstrom", "msi_bpd"]),
+  scaleId: z.enum(["phq9", "gad7", "asrs18", "audit", "mdq", "fagerstrom", "msi_bpd", "assist"]),
   totalScore: z.number().int().min(0).max(100),
   band: z.string().min(1),
   crisisFlag: z.boolean().default(false),

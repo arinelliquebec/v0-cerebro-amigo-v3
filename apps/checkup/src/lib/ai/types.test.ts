@@ -70,6 +70,9 @@ describe("fallbacks estáticos × guardrail (nunca podem cair no GENERIC por reg
       scaleId: "mdq" as const, totalScore: 8, band, bandLabel: band,
     })),
     { scaleId: "msi_bpd" as const, totalScore: 6, band: "informative", bandLabel: "informativo" },
+    ...["low_risk", "moderate_risk", "high_risk"].map((band) => ({
+      scaleId: "assist" as const, totalScore: 12, band, bandLabel: band,
+    })),
   ];
 
   it.each(inputs.map((i) => [`${i.scaleId}/${i.band}`, i] as const))(

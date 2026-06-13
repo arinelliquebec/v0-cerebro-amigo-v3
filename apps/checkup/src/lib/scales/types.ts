@@ -8,7 +8,8 @@ export type ScaleId =
   | "audit"
   | "mdq"
   | "fagerstrom"
-  | "msi_bpd";
+  | "msi_bpd"
+  | "assist";
 
 export interface ResponseOption {
   value: number;

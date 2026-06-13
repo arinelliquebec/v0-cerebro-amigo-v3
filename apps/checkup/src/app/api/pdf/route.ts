@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
   const scale = searchParams.get("scale") ?? "";
   const scoreStr = searchParams.get("score") ?? "0";
   const band = searchParams.get("band") ?? "";
+  const sub = searchParams.get("sub") ?? "";
+  const inj = searchParams.get("inj") === "1";
   const label = searchParams.get("label") ?? "";
   const crisis = searchParams.get("crisis") === "true";
   const rid = searchParams.get("rid") ?? "";
@@ -54,7 +56,7 @@ export async function GET(req: NextRequest) {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const buffer = await renderToBuffer(createElement(CheckupPDF, { scale, score, band, label, crisis, rid, qrDataUrl }) as any);
+  const buffer = await renderToBuffer(createElement(CheckupPDF, { scale, score, band, label, crisis, rid, qrDataUrl, sub, inj }) as any);
 
   return new NextResponse(buffer, {
     headers: {

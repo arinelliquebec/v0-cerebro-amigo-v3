@@ -6,6 +6,7 @@ import Link from "next/link";
 import { FileDown, Info } from "lucide-react";
 import type { Devolutiva } from "@/lib/ai/types";
 import { getFallback } from "@/lib/ai/fallbacks";
+import { decodeAssistResult } from "@/lib/scales/assist";
 
 const SCALE_NAMES: Record<string, string> = {
   phq9: "PHQ-9 — Depressão",
@@ -15,6 +16,7 @@ const SCALE_NAMES: Record<string, string> = {
   mdq: "MDQ — Bipolaridade",
   fagerstrom: "Fagerström — Nicotina",
   msi_bpd: "MSI-BPD — Traços Borderline",
+  assist: "ASSIST — Uso de Substâncias (OMS)",
 };
 
 // Escore máximo por escala (p/ o medidor). ASRS-18 e MSI-BPD são qualitativos
@@ -49,6 +51,9 @@ const BAND_CHIP: Record<string, string> = {
   // MDQ (triagem)
   negative: "border-emerald-400/30 bg-emerald-400/10 text-emerald-300",
   positive: "border-orange-400/30 bg-orange-400/10 text-orange-300",
+  // ASSIST (risco por substância)
+  moderate_risk: "border-amber-400/30 bg-amber-400/10 text-amber-300",
+  high_risk: "border-red-400/40 bg-red-400/15 text-red-200",
 };
 
 const BAND_RING: Record<string, string> = {
@@ -191,7 +196,12 @@ function ResultContent() {
       .finally(() => setLoading(false));
   }, [scale, band, score, label]);
 
-  const pdfHref = `/api/pdf?scale=${scale}&score=${score}&band=${band}&label=${encodeURIComponent(label)}&crisis=${isCrisis}&rid=${sid.slice(0, 8)}`;
+  // ASSIST: resultado é POR substância (ADR-049) — decodificado e recomputado
+  // deterministicamente do query param (sem PII; faixas vêm do motor).
+  const assistSub = scale === "assist" ? decodeAssistResult(searchParams.get("sub") ?? "") : [];
+  const assistInj = scale === "assist" && searchParams.get("inj") === "1";
+
+  const pdfHref = `/api/pdf?scale=${scale}&score=${score}&band=${band}&label=${encodeURIComponent(label)}&crisis=${isCrisis}&rid=${sid.slice(0, 8)}${scale === "assist" ? `&sub=${encodeURIComponent(searchParams.get("sub") ?? "")}&inj=${assistInj ? "1" : "0"}` : ""}`;
   const max = SCALE_MAX[scale];
 
   return (
@@ -203,7 +213,46 @@ function ResultContent() {
           Band "informative" (ASRS-18) é qualitativa: sem número, só rótulo neutro. */}
       <section className="glass-noir-deep reveal mb-8 rounded-3xl p-6 sm:p-7">
         <p className="eyebrow mb-4">Seu resultado · {SCALE_NAMES[scale] ?? scale}</p>
-        {band === "informative" || max === undefined ? (
+        {scale === "assist" ? (
+          <div>
+            {assistSub.length === 0 ? (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Você não relatou uso de substâncias ao longo da vida — risco baixo neste
+                momento.
+              </p>
+            ) : (
+              <div className="space-y-2.5">
+                {assistSub.map((s) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/60 px-4 py-3"
+                  >
+                    <span className="text-sm font-medium capitalize text-foreground">
+                      {s.short}
+                    </span>
+                    <span className="flex items-center gap-3">
+                      <span className="font-mono text-xs text-muted-foreground">{s.score}</span>
+                      <span
+                        className={`inline-block rounded-full border px-2.5 py-1 text-xs font-medium ${BAND_CHIP[s.band] ?? "border-slate-400/30 bg-slate-400/10 text-slate-300"}`}
+                      >
+                        {s.bandLabel}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {assistInj && (
+              <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm leading-relaxed text-amber-800">
+                  Você relatou uso de drogas injetáveis. Esse padrão merece uma conversa com
+                  um profissional de saúde o quanto antes — o CAPS AD atende gratuitamente
+                  pelo SUS, sem julgamento.
+                </p>
+              </div>
+            )}
+          </div>
+        ) : band === "informative" || max === undefined ? (
           <span
             className={`inline-block rounded-full border px-3.5 py-1.5 text-sm font-medium ${BAND_CHIP[band] ?? "border-slate-400/30 bg-slate-400/10 text-slate-300"}`}
           >

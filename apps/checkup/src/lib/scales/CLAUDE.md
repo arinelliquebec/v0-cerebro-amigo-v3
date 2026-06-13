@@ -104,6 +104,15 @@ não conhece UI, IA nem PDF.
 - Fonte p/ conferência: versão pt-BR publicada do MSI-BPD (confirmar existência
   de validação brasileira antes de qualquer verdict).
 
-### ASSIST (drogas) — NÃO implementado (decisão ADR-048)
-- Fluxo matricial por substância, incompatível com o motor atual sem refactor de UX;
-  encurtar/parafrasear é proibido. Reavaliar em fase própria.
+### ASSIST (uso de substâncias) — `assist.ts` (ADR-049, UX próprio)
+- OMS v3.0; versão BR validada (Henrique et al. 2004; material SUPERA/SENAD-MS).
+- **Módulo e fluxo PRÓPRIOS** (não é um `Scale`): Q1 multi-seleção (10 classes,
+  uso na vida) → Q2–Q7 POR substância com regras de pulo oficiais (Q2=nunca pula
+  Q3–Q5; tabaco sem Q5) → Q8 (injetáveis, flag sem pontos). `buildAssistPlan` é
+  puro e testado; UI em `app/teste/assist/AssistFlow.tsx`.
+- Escore por substância (SSI 0–39); cortes: álcool 0–10/11–26/27+ · demais
+  0–3/4–26/27+ (baixo/moderado/alto). Banda geral = pior faixa.
+- Resultado/PDF por substância (serialização `encodeAssistResult`, faixas sempre
+  recomputadas pelo motor). **Devolutiva SEMPRE estática** (tema sensível).
+- "Outras" da Q1 sem campo de texto livre (produto não coleta texto livre — LGPD).
+- Gate: `ASSIST_VALIDATED` em `assist.ts` (TODO(validar): Henrique 2004/SUPERA).

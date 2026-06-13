@@ -298,6 +298,49 @@ const MSI_BPD_FALLBACK: Devolutiva = {
   ],
 };
 
+// ASSIST — uso de substâncias: tema sensível, SEMPRE estático (sem LLM, ADR-049).
+// A banda é a PIOR faixa entre as substâncias; a tabela por substância é
+// renderizada deterministicamente pela UI, nunca por texto gerado.
+const ASSIST_FALLBACKS: Record<string, Devolutiva> = {
+  low_risk: {
+    acolhimento: "Responder com honestidade sobre uso de substâncias é um cuidado real consigo mesmo(a).",
+    leitura: [
+      "Suas respostas sugerem baixo risco relacionado ao uso de substâncias no momento.",
+      "O ASSIST é o instrumento de triagem da OMS — ele estima risco por substância, não é um diagnóstico.",
+    ],
+    limites: "Esta triagem não substitui uma avaliação por profissional de saúde.",
+    proximos_passos: [
+      "Continue atento(a) a mudanças no seu padrão de uso, especialmente em períodos difíceis.",
+      "Se algo mudar, conversar com um profissional de saúde é o melhor primeiro passo.",
+    ],
+  },
+  moderate_risk: {
+    acolhimento: "Olhar de frente para o próprio uso exige coragem — e você acabou de fazer isso.",
+    leitura: [
+      "Suas respostas sugerem risco moderado para pelo menos uma substância — o padrão atual merece atenção antes que cresça.",
+      "Risco moderado significa que reduzir agora é mais fácil do que depois, e que apoio profissional acelera esse caminho.",
+    ],
+    limites: "Esta triagem não substitui uma avaliação por profissional de saúde.",
+    proximos_passos: [
+      "Converse com um profissional — seu médico ou o CAPS AD (atendimento gratuito pelo SUS, sem julgamento).",
+      "Observe as situações em que o uso acontece — esse registro ajuda muito na consulta.",
+    ],
+  },
+  high_risk: {
+    acolhimento: "Chegar até o fim deste teste com honestidade é um ato de coragem. Você não está sozinho(a).",
+    leitura: [
+      "Suas respostas sugerem risco alto para pelo menos uma substância — um padrão que merece cuidado profissional agora.",
+      "Isso é uma condição de saúde, com equipe preparada para ajudar sem julgamento — não uma falha sua.",
+    ],
+    limites: "Esta triagem não substitui uma avaliação por profissional de saúde.",
+    proximos_passos: [
+      "Procure avaliação o quanto antes: CAPS AD (gratuito pelo SUS), seu médico ou um psiquiatra.",
+      "Evite interromper o uso abruptamente por conta própria — a avaliação profissional orienta a forma segura.",
+      "O CVV (188) oferece escuta 24h se você precisar conversar agora.",
+    ],
+  },
+};
+
 const GENERIC_FALLBACK: Devolutiva = {
   acolhimento: "Você deu um passo importante ao parar para verificar como está.",
   leitura: [
@@ -320,6 +363,7 @@ export function getFallback(input: DevolutivaInput): Devolutiva {
     audit: AUDIT_FALLBACKS,
     fagerstrom: FAGERSTROM_FALLBACKS,
     mdq: MDQ_FALLBACKS,
+    assist: ASSIST_FALLBACKS,
   };
   return maps[input.scaleId]?.[input.band] ?? GENERIC_FALLBACK;
 }

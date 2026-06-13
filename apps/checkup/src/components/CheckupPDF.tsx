@@ -8,6 +8,7 @@ import {
   Image,
 } from "@react-pdf/renderer";
 import { BRAND_LOGO_PNG } from "@/lib/brand-logo";
+import { decodeAssistResult } from "@/lib/scales/assist";
 
 const SCALE_NAMES: Record<string, string> = {
   phq9: "PHQ-9 — Triagem de Depressão",
@@ -17,6 +18,7 @@ const SCALE_NAMES: Record<string, string> = {
   mdq: "MDQ — Triagem de Transtorno Bipolar",
   fagerstrom: "Teste de Fagerström — Dependência de Nicotina",
   msi_bpd: "MSI-BPD — Triagem de Traços Borderline",
+  assist: "ASSIST — Triagem de Uso de Substâncias (OMS)",
 };
 
 // Escore máximo possível por instrumento (fato aritmético, não interpretação).
@@ -28,6 +30,7 @@ const SCALE_MAX: Record<string, number> = {
   mdq: 13,
   fagerstrom: 10,
   msi_bpd: 10,
+  assist: 39,
 };
 
 const SCALE_TIMEFRAME: Record<string, string> = {
@@ -38,6 +41,7 @@ const SCALE_TIMEFRAME: Record<string, string> = {
   mdq: "ao longo da vida",
   fagerstrom: "hábito atual",
   msi_bpd: "padrões ao longo da vida adulta",
+  assist: "últimos 3 meses",
 };
 
 // Cores da faixa (impressão clara; tons suaves, sem alarme visual).
@@ -63,6 +67,9 @@ const BAND_COLORS: Record<string, { bg: string; border: string; text: string }> 
   // MDQ
   negative: { bg: "#ECFDF5", border: "#A7F3D0", text: "#065F46" },
   positive: { bg: "#FFF7ED", border: "#FED7AA", text: "#9A3412" },
+  // ASSIST
+  moderate_risk: { bg: "#FFFBEB", border: "#FDE68A", text: "#92400E" },
+  high_risk: { bg: "#FEF2F2", border: "#FCA5A5", text: "#7F1D1D" },
 };
 
 const CRISIS_RESOURCES = [
@@ -201,14 +208,19 @@ interface CheckupPDFProps {
   rid: string;
   /** PNG data-URL do QR, gerado na rota (react-pdf não desenha canvas). */
   qrDataUrl?: string;
+  /** ASSIST: resultado por substância serializado ("maconha:14,...") */
+  sub?: string;
+  /** ASSIST: relatou uso injetável (Q8 > 0) */
+  inj?: boolean;
 }
 
-export function CheckupPDF({ scale, score, band, label, crisis, rid, qrDataUrl }: CheckupPDFProps) {
+export function CheckupPDF({ scale, score, band, label, crisis, rid, qrDataUrl, sub, inj }: CheckupPDFProps) {
   const qrUrl = buildQrUrl(rid);
   const today = new Date().toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
   const max = SCALE_MAX[scale];
   const bandColor = BAND_COLORS[band] ?? BAND_COLORS.informative;
   const isInformative = band === "informative";
+  const assistSub = scale === "assist" ? decodeAssistResult(sub ?? "") : [];
 
   return (
     <Document title="Relatório de Triagem — Check-up Mental">
@@ -246,6 +258,37 @@ export function CheckupPDF({ scale, score, band, label, crisis, rid, qrDataUrl }
 
         {/* Resultado */}
         <Text style={styles.sectionTitle}>Resultado da triagem</Text>
+        {scale === "assist" ? (
+          <View style={styles.table}>
+            {assistSub.length === 0 ? (
+              <View style={styles.rowLast}>
+                <Text style={styles.cellValue}>
+                  Sem uso de substâncias relatado ao longo da vida — risco baixo.
+                </Text>
+              </View>
+            ) : (
+              assistSub.map((s, i) => {
+                const c = BAND_COLORS[s.band] ?? BAND_COLORS.informative;
+                const rowStyle = i === assistSub.length - 1 ? styles.rowLast : styles.row;
+                return (
+                  <View key={s.id} style={rowStyle}>
+                    <Text style={styles.cellLabel}>{s.short}</Text>
+                    <Text style={[styles.cellValue, { color: c.text }]}>
+                      {s.score} pontos — {s.bandLabel}
+                    </Text>
+                  </View>
+                );
+              })
+            )}
+            {inj && (
+              <View style={styles.rowLast}>
+                <Text style={[styles.cellValue, { color: "#7F1D1D" }]}>
+                  Relatou uso de drogas injetáveis — atenção adicional recomendada na avaliação.
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : (
         <View style={styles.hero}>
           <View style={styles.heroScoreBlock}>
             <Text style={styles.heroScore}>{score}</Text>
@@ -270,6 +313,7 @@ export function CheckupPDF({ scale, score, band, label, crisis, rid, qrDataUrl }
             )}
           </View>
         </View>
+        )}
 
         {/* Detalhes */}
         <View style={styles.table}>
@@ -282,7 +326,7 @@ export function CheckupPDF({ scale, score, band, label, crisis, rid, qrDataUrl }
             <Text style={styles.cellValue}>{today}</Text>
           </View>
           <View style={styles.row}>
-            <Text style={styles.cellLabel}>Escore total</Text>
+            <Text style={styles.cellLabel}>{scale === "assist" ? "Maior escore por substância" : "Escore total"}</Text>
             <Text style={styles.cellValue}>{max !== undefined ? `${score} de ${max}` : score}</Text>
           </View>
           <View style={styles.rowLast}>
