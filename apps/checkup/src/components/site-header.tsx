@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { Logo } from "./logo"
 import { TestsMenu } from "./tests-menu"
+import { MobileNav } from "./mobile-nav"
 
 // Header calmo do checkup — logo do Cérebro Amigo em destaque. Sem drama
 // (clinical-safety: público pode estar em sofrimento). Sticky discreto,
@@ -30,14 +31,17 @@ export function SiteHeader() {
           <TestsMenu />
         </nav>
 
+        {/* Badge → só desktop. No mobile o link "Conheça o Cérebro Amigo"
+            vive dentro do MobileNav (drawer), liberando o header estreito. */}
         <a
           href="https://www.cerebroamigo.com.br"
-          className="inline-flex min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-(--noir-glass-border) bg-secondary/50 px-3.5 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:border-purple hover:text-foreground sm:px-4"
+          className="hidden min-h-[36px] shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-(--noir-glass-border) bg-secondary/50 px-3.5 py-1.5 text-xs font-medium text-secondary-foreground transition-colors hover:border-purple hover:text-foreground md:inline-flex"
         >
-          <span className="hidden sm:inline">Conheça o Cérebro Amigo</span>
-          <span className="sm:hidden">cerebroamigo.com.br</span>
-          <span className="hidden sm:inline" aria-hidden>→</span>
+          Conheça o Cérebro Amigo
+          <span aria-hidden>→</span>
         </a>
+
+        <MobileNav />
       </div>
       <div className="hairline" aria-hidden />
     </header>

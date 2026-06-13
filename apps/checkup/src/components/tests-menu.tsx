@@ -4,31 +4,13 @@ import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TRIAGEM_GROUPS } from "@/lib/nav"
 
 // "Todos os testes" — dropdown que expõe as 8 triagens sem entupir a navbar
 // (header calmo, clinical-safety: público pode estar em sofrimento). Desktop-only
-// (a nav é hidden md:flex); no mobile a descoberta vem da home e do footer.
+// (a nav é hidden md:flex); no mobile a descoberta vem do menu hambúrguer (MobileNav).
 // Hand-rolled, sem dep nova: a11y por aria-expanded + Escape + click-outside.
-const GROUPS = [
-  {
-    label: "Humor",
-    items: [
-      { href: "/depressao", label: "Depressão" },
-      { href: "/bipolaridade", label: "Bipolaridade" },
-    ],
-  },
-  { label: "Ansiedade", items: [{ href: "/ansiedade", label: "Ansiedade" }] },
-  { label: "Atenção", items: [{ href: "/tdah-adulto", label: "TDAH adulto" }] },
-  { label: "Personalidade", items: [{ href: "/borderline", label: "Borderline" }] },
-  {
-    label: "Uso de substâncias",
-    items: [
-      { href: "/alcool", label: "Álcool" },
-      { href: "/tabagismo", label: "Tabagismo" },
-      { href: "/drogas", label: "Drogas" },
-    ],
-  },
-] as const
+// Grupos vêm de @/lib/nav (mesma fonte do MobileNav).
 
 export function TestsMenu() {
   const [open, setOpen] = useState(false)
@@ -81,7 +63,7 @@ export function TestsMenu() {
           className="glass-noir absolute left-1/2 top-full z-50 mt-3 w-64 -translate-x-1/2 rounded-2xl border border-(--noir-glass-border) p-3 shadow-xl"
         >
           <ul className="space-y-3">
-            {GROUPS.map((group) => (
+            {TRIAGEM_GROUPS.map((group) => (
               <li key={group.label}>
                 <p className="px-2 text-[0.65rem] font-medium uppercase tracking-[0.18em] text-muted-foreground">
                   {group.label}
