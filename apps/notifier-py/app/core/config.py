@@ -36,11 +36,13 @@ class Settings(BaseSettings):
     push_ttl_seconds: int = 3600
     push_urgency: Literal["very-low", "low", "normal", "high"] = "normal"
 
-    # Email fallback (quando push falha em TODOS os devices)
-    # Se None, o fallback é desabilitado (loga o fato mas não envia email).
+    # Email fallback (quando push falha em TODOS os devices). Ligado por padrão —
+    # lembrete de medicação que não chega tem peso clínico. Só envia de fato se
+    # RESEND_API_KEY estiver presente (sem chave, loga 'disabled' e não envia);
+    # pode ser desligado com EMAIL_FALLBACK_ENABLED=false.
     resend_api_key: SecretStr | None = Field(default=None, validation_alias="RESEND_API_KEY")
     email_from: str = Field(default="Cérebro Amigo <noreply@cerebroamigo.com.br>", validation_alias="EMAIL_FROM")
-    email_fallback_enabled: bool = Field(default=False)
+    email_fallback_enabled: bool = Field(default=True, validation_alias="EMAIL_FALLBACK_ENABLED")
 
     # Lembretes de consulta (push/email 24h e 1h antes). Desligar = não despacha.
     consulta_lembretes_enabled: bool = Field(default=True)

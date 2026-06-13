@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { BookText, Pill, CalendarClock, Smile, ChevronRight, LogOut, MessageCircle, User, Wallet } from "lucide-react"
+import { BookText, Pill, CalendarClock, Smile, ChevronRight, LogOut, MessageCircle, User } from "lucide-react"
 import { gatewayPaciente, GatewayPacienteError } from "@/lib/gateway-paciente"
 import { Button } from "@/components/ui/button"
 import { sairPaciente } from "./entrar/actions"
@@ -72,21 +72,6 @@ export default async function PortalHome() {
           <p className="text-xs text-muted-foreground">
             {data.jaRegistrouHumorHoje ? "Obrigado por compartilhar." : "Registre seu humor em segundos"}
           </p>
-        </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-      </Link>
-
-      {/* Pagamentos */}
-      <Link
-        href="/p/pagamentos"
-        className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4"
-      >
-        <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary/10 text-primary">
-          <Wallet className="h-5 w-5" />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-medium text-foreground">Pagamentos</p>
-          <p className="text-xs text-muted-foreground">Pague sua consulta via Pix</p>
         </div>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </Link>

@@ -274,10 +274,39 @@ public static class PortalPacienteEndpoints
         // ====================================================================
         g.MapPost("/humor", async (
             [FromBody] RegistrarHumorRequest req,
-            AppDbContext db, ClaimsPrincipal user) =>
+            AppDbContext db, IHttpClientFactory httpFactory,
+            IConfiguration cfg, ClaimsPrincipal user) =>
         {
             var pid = PacienteAuthEndpoints.GetPacienteId(user);
             if (pid is null) return Results.Unauthorized();
+
+            // A nota é texto livre do paciente — triagem de crise ANTES de salvar
+            // (regra #2 clinical-safety), igual ao diário. Sem nota não há texto a
+            // triar; o registro numérico de humor segue direto.
+            if (!string.IsNullOrWhiteSpace(req.Nota))
+            {
+                var crise = await TriarCriseTexto(req.Nota, pid.Value, httpFactory, cfg);
+                if (crise is null)
+                {
+                    // Triagem indisponível: fail-closed (regra #2). Não salvamos a
+                    // nota não-triada e não inventamos texto de crise aqui.
+                    return Results.Problem(
+                        title: "Não foi possível registrar agora",
+                        detail: "Tente novamente em instantes.",
+                        statusCode: StatusCodes.Status503ServiceUnavailable);
+                }
+                if (crise.Crise)
+                {
+                    // agents-py já acionou o protocolo (texto fixo, trilha, notifica
+                    // médico, pausa). A nota NÃO é salva; o front exibe o acolhimento.
+                    return Results.Ok(new
+                    {
+                        crise = true,
+                        crise_texto = crise.CriseTexto,
+                        salvo = false,
+                    });
+                }
+            }
 
             await db.Database.ExecuteSqlRawAsync(@"
                 INSERT INTO sintomas (paciente_id, humor, ansiedade, sono_horas, energia, nota)
@@ -322,19 +351,44 @@ public static class PortalPacienteEndpoints
             return Results.Ok(meds);
         });
 
-        // Confirmar tomada via portal (alternativa ao WhatsApp)
-        g.MapPost("/medicacoes/confirmar/{tomadaId:guid}", async (
-            Guid tomadaId, [FromBody] ConfirmarTomadaRequest req,
+        // Confirmar tomada via portal (alternativa ao WhatsApp).
+        // O id recebido é o da PRESCRIÇÃO (é o que GET /medicacoes devolve), não o
+        // da tomada. Confirma a tomada pendente de hoje gerada pelo job de check-ins;
+        // se não houver (job não rodou ou dose extra), cria um registro pontual.
+        // Em ambos os caminhos o filtro por paciente_id garante isolamento de tenant.
+        g.MapPost("/medicacoes/confirmar/{prescricaoId:guid}", async (
+            Guid prescricaoId, [FromBody] ConfirmarTomadaRequest req,
             AppDbContext db, ClaimsPrincipal user) =>
         {
             var pid = PacienteAuthEndpoints.GetPacienteId(user);
             if (pid is null) return Results.Unauthorized();
 
+            // 1) Confirma a tomada pendente de hoje desta prescrição (a do gerador).
             var rows = await db.Database.ExecuteSqlRawAsync(@"
                 UPDATE tomadas_medicacao
                 SET status = {0}, horario_real = NOW(), nota_paciente = NULLIF({1}, '')
-                WHERE id = {2} AND paciente_id = {3}",
-                req.Status, req.Nota ?? "", tomadaId, pid.Value);
+                WHERE id = (
+                    SELECT id FROM tomadas_medicacao
+                    WHERE prescricao_id = {2} AND paciente_id = {3}
+                      AND status = 'pendente'
+                      AND horario_previsto::date = NOW()::date
+                    ORDER BY horario_previsto
+                    LIMIT 1
+                )",
+                req.Status, req.Nota ?? "", prescricaoId, pid.Value);
+
+            // 2) Sem pendente hoje: registra a tomada pontual, validando posse + ativa.
+            if (rows == 0)
+            {
+                rows = await db.Database.ExecuteSqlRawAsync(@"
+                    INSERT INTO tomadas_medicacao
+                      (prescricao_id, paciente_id, horario_previsto, horario_real,
+                       status, nota_paciente)
+                    SELECT id, paciente_id, NOW(), NOW(), {0}, NULLIF({1}, '')
+                    FROM prescricoes
+                    WHERE id = {2} AND paciente_id = {3} AND ativa = TRUE",
+                    req.Status, req.Nota ?? "", prescricaoId, pid.Value);
+            }
 
             return rows > 0 ? Results.NoContent() : Results.NotFound();
         });
