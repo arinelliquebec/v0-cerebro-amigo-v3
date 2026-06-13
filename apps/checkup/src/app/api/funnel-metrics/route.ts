@@ -42,8 +42,12 @@ export async function GET(req: NextRequest) {
 
   const sql = getSql();
   if (!sql) {
-    // sem DB (dev/CI) — devolve zeros, não quebra o cockpit
-    return NextResponse.json(emptyPayload(), { headers: { "Cache-Control": "no-store" } });
+    // DB indisponível: fail-closed. Não mascarar como "sem dados" (200 zerado) — isso
+    // contaminaria a métrica norte do cockpit sem erro explícito. O BFF degrada p/ "indisponível".
+    return NextResponse.json(
+      { error: "db_unavailable" },
+      { status: 503, headers: { "Cache-Control": "no-store" } },
+    );
   }
 
   try {
@@ -98,13 +102,4 @@ export async function GET(req: NextRequest) {
     console.error(`Error: funnel-metrics falhou: ${msg}`); // → CloudWatch (CK-1)
     return NextResponse.json({ error: "query_failed" }, { status: 500 });
   }
-}
-
-function emptyPayload() {
-  return {
-    eventos: Object.fromEntries(EVENT_TYPES.map((e) => [e, 0])),
-    escalas: SCALES.map((s) => ({ scale: s, testStarted: 0, testCompleted: 0, reportGenerated: 0 })),
-    testCompletedPorMes: [] as { mes: string; n: number }[],
-    geradoEm: new Date().toISOString(),
-  };
 }

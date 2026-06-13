@@ -40,8 +40,10 @@ evr=$(curl -s --max-time 25 -X POST "$BASE/api/events" -H "Content-Type: applica
   -d '{"event":"qr_scanned","rid":"smoke123"}')
 echo "$evr" | grep -q '"ok":true' && ok "events por rid (0042)" || bad "events por rid ($evr)"
 
-# funnel-metrics fail-closed: CI não seta CHECKUP_METRICS_TOKEN → 503 (não expõe; ADR-050)
-[ "$(code "$BASE/api/funnel-metrics")" = 503 ] && ok "funnel-metrics fail-closed (503)" || bad "funnel-metrics fail-closed"
+# funnel-metrics protegido: sem token configurado → 503 (fail-closed); com token mas sem
+# header Authorization → 401. Ambos = não expõe métricas em superfície pública (ADR-050).
+fmc=$(code "$BASE/api/funnel-metrics")
+{ [ "$fmc" = 503 ] || [ "$fmc" = 401 ]; } && ok "funnel-metrics protegido ($fmc)" || bad "funnel-metrics protegido ($fmc)"
 
 # devolutiva (sem Anthropic → fallback estático)
 dev=$(curl -s -w "\n%{http_code}" --max-time 35 -X POST "$BASE/api/devolutiva" \
