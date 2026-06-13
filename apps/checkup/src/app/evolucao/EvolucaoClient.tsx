@@ -105,16 +105,16 @@ export default function EvolucaoClient() {
       <section className="glass-noir rounded-3xl p-6 sm:p-7">
         <h1 className="font-display text-xl font-semibold leading-snug text-foreground">Sua evolução</h1>
 
-        {state === "loading" && <p className="mt-3 text-sm text-muted-foreground">Carregando...</p>}
+        {state === "loading" && <p role="status" aria-live="polite" className="mt-3 text-sm text-muted-foreground">Carregando...</p>}
 
         {state === "notfound" && (
-          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
+          <p role="status" aria-live="polite" className="mt-3 text-sm leading-relaxed text-muted-foreground">
             Não encontramos seu acompanhamento. O link pode ter expirado ou os dados foram apagados.
           </p>
         )}
 
         {state === "error" && (
-          <p className="mt-3 text-sm leading-relaxed text-amber-300">Não deu pra carregar agora. Tente de novo.</p>
+          <p role="alert" className="mt-3 text-sm leading-relaxed text-amber-300">Não deu pra carregar agora. Tente de novo.</p>
         )}
 
         {state === "ok" && series && (

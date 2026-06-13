@@ -4,6 +4,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { getSql } from "@/lib/db";
 import { checkTrackingLimit } from "@/lib/ratelimit";
+import { bandSchema } from "@/lib/tracking/bands";
 
 /**
  * Check-up longitudinal PSEUDONIMIZADO — opt-in (ADR-050 Parte 2, Fase 2).
@@ -31,7 +32,7 @@ const BodySchema = z.object({
   email: z.string().email().max(254),
   scaleId: z.enum(["phq9", "gad7", "asrs18", "audit", "mdq", "fagerstrom", "msi_bpd", "assist"]),
   totalScore: z.number().int().min(0).max(100),
-  band: z.string().min(1).max(40),
+  band: bandSchema,
   crisis: z.boolean().default(false),
 });
 

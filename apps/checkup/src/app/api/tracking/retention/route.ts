@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
   }
 
   const raw = Number(process.env.CHECKUP_TRACKING_RETENTION_DAYS);
-  const days = Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : DEFAULT_RETENTION_DAYS;
+  // raw >= 1 (não >0): 0.5 passaria e viraria 0 no floor → purga TODAS as séries.
+  const days = Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : DEFAULT_RETENTION_DAYS;
 
   try {
     // inatividade = sem re-rastreio (last_seen_at) há `days`; cai p/ created_at se nunca visto.

@@ -34,7 +34,7 @@ export default function DescadastrarClient() {
             Link inválido. Use o link do e-mail de acompanhamento.
           </p>
         ) : state === "done" ? (
-          <p className="mt-3 text-sm leading-relaxed text-purple-light">
+          <p role="status" aria-live="polite" className="mt-3 text-sm leading-relaxed text-purple-light">
             ✓ Pronto. Seus escores de acompanhamento e o e-mail (cifrado) foram apagados em
             definitivo. Você não receberá mais lembretes.
           </p>
@@ -52,7 +52,7 @@ export default function DescadastrarClient() {
               {state === "deleting" ? "Apagando..." : "Apagar meus dados"}
             </button>
             {state === "error" && (
-              <p className="mt-2 text-xs text-amber-300">Não deu pra apagar agora. Tente de novo.</p>
+              <p role="alert" className="mt-2 text-xs text-amber-300">Não deu pra apagar agora. Tente de novo.</p>
             )}
           </>
         )}

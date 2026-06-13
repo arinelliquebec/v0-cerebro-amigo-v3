@@ -232,13 +232,13 @@ function ResultContent() {
   // Re-rastreio: se o teste veio de um link de acompanhamento (?series=), anexa o novo
   // ponto à série. NUNCA em crise (crise vai p/ /crise, sem series; e a rota rejeita).
   useEffect(() => {
-    if (!series || isCrisis || !scale || !band) return;
+    if (!trackingEnabled || !series || isCrisis || !scale || !band) return;
     fetch("/api/tracking/point", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token: series, totalScore: score, band, crisis: isCrisis }),
     }).catch(() => {});
-  }, [series, isCrisis, scale, band, score]);
+  }, [trackingEnabled, series, isCrisis, scale, band, score]);
 
   // ASSIST: resultado é POR substância (ADR-049) — decodificado e recomputado
   // deterministicamente do query param (sem PII; faixas vêm do motor).
@@ -465,7 +465,7 @@ function ResultContent() {
                 />
                 <span className="text-xs leading-relaxed text-muted-foreground">
                   Guardamos seus escores ao longo do tempo e seu e-mail (cifrado) só para te
-                  lembrar e mostrar sua evolução. Nada de diagnóstico. Você apaga quando quiser.
+                  lembrar e mostrar sua evolução. Não é diagnóstico. Você apaga quando quiser.
                 </span>
               </label>
               <button
@@ -490,7 +490,7 @@ function ResultContent() {
         </p>
       )}
 
-      {series && !isCrisis && (
+      {trackingEnabled && series && !isCrisis && (
         <div className="mt-6 text-center">
           <Link
             href={`/evolucao?t=${encodeURIComponent(series)}`}

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
 import { checkTrackingLimit } from "@/lib/ratelimit";
+import { bandSchema } from "@/lib/tracking/bands";
 
 /**
  * Anexa um ponto de re-rastreio à série (ADR-050 Parte 2, Fase 4).
@@ -16,7 +17,7 @@ import { checkTrackingLimit } from "@/lib/ratelimit";
 const BodySchema = z.object({
   token: z.string().min(1).max(256),
   totalScore: z.number().int().min(0).max(100),
-  band: z.string().min(1).max(40),
+  band: bandSchema,
   crisis: z.boolean().default(false),
 });
 

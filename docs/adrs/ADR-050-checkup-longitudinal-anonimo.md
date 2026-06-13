@@ -248,6 +248,12 @@ envs no SSM, flag on, schedulers). Conformidade com as 5 regras inegociáveis:
 `CHECKUP_CRON_TOKEN` no SSM; schedulers (cron + retention); flag `=true`. Race unsubscribe×cron conhecida
 (≤1 e-mail após cancelar) — aceitável, documentada.
 
+**Resíduo de design aceito:** a elegibilidade de crise no opt-in/append é **determinada no cliente** (o gate
+validado roda no `QuizFlow`; crise vai p/ `/crise` sem `series`). O servidor não consegue recomputar crise
+sem os itens — e **não recebê-los é a própria minimização** (ADR/skill: sem item-a-item). Defesa server-side:
+`/api/tracking` e `/point` rejeitam `crisis=true`. Um cliente adulterado só prejudicaria a si mesmo (recebe
+lembrete administrativo, nunca texto clínico). Reavaliar só se algum dia o fluxo enviar itens ao servidor.
+
 ---
 
 ## Notas

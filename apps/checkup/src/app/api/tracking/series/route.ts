@@ -36,7 +36,12 @@ export async function GET(req: NextRequest) {
   if (rows.length === 0) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
   // atividade → alimenta a retenção (não bloqueia a resposta).
-  await sql`UPDATE checkup.tracking_series SET last_seen_at = now() WHERE series_token = ${t}`.catch(() => {});
+  await sql`UPDATE checkup.tracking_series SET last_seen_at = now() WHERE series_token = ${t}`.catch(
+    (err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error(`Error: tracking/series — update last_seen_at falhou: ${msg}`);
+    },
+  );
 
   return NextResponse.json(
     {
