@@ -223,19 +223,11 @@ Resources:
             - HEAD
             - OPTIONS
 
-        CustomErrorResponses:
-          - ErrorCode: 404
-            ResponseCode: 404
-            ResponsePagePath: /404
-            ErrorCachingMinTTL: 10
-          - ErrorCode: 500
-            ResponseCode: 500
-            ResponsePagePath: /500
-            ErrorCachingMinTTL: 0
-          - ErrorCode: 503
-            ResponseCode: 503
-            ResponsePagePath: /500
-            ErrorCachingMinTTL: 0
+        # SEM CustomErrorResponses: app e SSR (Next), que ja serve /404 e erros com o
+        # status certo na origin. Os CERs anteriores (404->/404, 500/503->/500) eram
+        # nocivos: (1) mascaravam erro JSON de /api/* com pagina HTML; (2) /500 nao existe
+        # no Next -> 500/503 cascateavam p/ 404 (retention sem token virava 404 em vez de 503).
+        # Deixar a origin dona dos erros — paginas 404 do usuario seguem identicas.
 
       Tags:
         - Key: Project
