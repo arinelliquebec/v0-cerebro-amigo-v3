@@ -17,8 +17,6 @@ import { getSql } from "@/lib/db";
  * 503 (não expõe métricas de negócio por engano em superfície pública).
  */
 
-export const dynamic = "force-dynamic";
-
 const EVENT_TYPES = [
   "test_started",
   "crisis_routed",
