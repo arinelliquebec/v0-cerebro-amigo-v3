@@ -4,9 +4,10 @@
 
 - **Status:** Parte 1 (Cockpit de Aquisição) **Accepted — implementado** (PR #38 mergeado/deployado 2026-06-13);
   Parte 2 (Check-up longitudinal pseudonimizado) **Proposed — design** (revisão clinical-safety CONDICIONAL
-  aplicada 2026-06-13). Fases 1–4 (migration `0044` + opt-in `/api/tracking` + envio/unsubscribe/erasure + tela de evolução/re-rastreio)
-  **implementadas (dark/inerte, flag `NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED` off; envio só com SES prod-access
-  CK-4)**; Fase 5+ (job de retenção, smoke E2E + revisão clinical-safety final) pendente.
+  aplicada 2026-06-13). Fases 1–6 **implementadas (dark/inerte, flag `NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED` off)** — migration `0044`,
+  opt-in `/api/tracking`, envio/unsubscribe/erasure, tela de evolução/re-rastreio, job de retenção, smoke E2E +
+  **sign-off clinical-safety** (abaixo). Falta só **operacional p/ ligar**: SES prod-access (CK-4), envs no SSM,
+  schedulers (cron + retention), flag `=true`.
 - **Data:** 2026-06-13
 - **Relacionados:** ADR-046 (signup externo + atribuição do Check-up), ADR-045 (Check-up em ASG/ALB próprio),
   ADR-042 (RLS de tenant), ADR-036 (least-privilege roles — schema `checkup` isolado), ADR-044 (LLM Anthropic),
@@ -216,8 +217,36 @@ CREATE TABLE checkup.tracking_reminders (
    → `/teste/<scale>?series=<token>`; o `QuizFlow` repassa o token ao `/resultado` (só no caminho normal,
    **nunca** no de crise), que anexa o ponto via `POST /api/tracking/point` (rejeita `crisis=true`,
    rate-limit, 404 se série apagada, atualiza `last_seen_at`). Token-gated (não depende da flag nem de SES).
-5. Job de retenção (purga por `last_seen_at`) + runbook (TTL, erasure manual).
-6. Smoke E2E + **revisão `clinical-safety` final** (gera texto visto pelo usuário).
+5. **Job de retenção + runbook** ✅ **implementada**: `POST /api/tracking/retention` (Bearer
+   `CHECKUP_CRON_TOKEN`, scheduler externo; **não** depende da flag) apaga séries inativas há mais de
+   `CHECKUP_TRACKING_RETENTION_DAYS` (default 365) — DELETE real com CASCADE. Runbook
+   `docs/runbooks/checkup-tracking-retention.md` (TTL, ligar a feature, schedulers, erasure manual por
+   `series_token`, cuidado na rotação da chave).
+6. **Smoke E2E + revisão `clinical-safety` final** ✅: `apps/checkup/scripts/smoke.sh` cobre o contrato
+   dark (opt-in/cron → 404, retention sem token → 503, `/evolucao` + `/descadastrar` → 200). Sign-off abaixo.
+
+### Sign-off clinical-safety final (2026-06-13)
+
+Skill `clinical-safety` + review adversarial multi-agente (4 dimensões × 3 céticos) sobre Fases 2–6.
+Veredito: **APROVADO para ligar quando as pré-condições operacionais estiverem prontas** (SES CK-4,
+envs no SSM, flag on, schedulers). Conformidade com as 5 regras inegociáveis:
+
+1. **IA não pratica medicina:** zero LLM nessa superfície; scoring é TS determinístico; e-mail e tela de
+   evolução são **dados + faixas validadas, sem narrativa de tendência, sem diagnóstico/interpretação**.
+2. **Crise first-class:** série nunca é criada/estendida nem recebe nudge em crise — `QuizFlow` roteia
+   crise para `/crise` (sem `series`), `/resultado` só anexa fora de crise, e `/api/tracking` + `/point`
+   rejeitam `crisis=true`. Tela de crise estática inalterada.
+3. **Médico no loop:** superfície pública anônima, sem resposta de IA ao paciente — N/A; o espírito
+   (nenhum texto clínico gerado) é mantido (template fixo). Qualquer "personalizar com IA" reabre a regra.
+4. **LGPD categoria especial:** pseudonimizado (token opaco 256-bit); e-mail **cifrado em repouso**
+   (pgp_sym), nunca em claro nem em log; **consentimento explícito** validado no servidor (`z.literal(true)`)
+   + checkbox desmarcado; **erasure real** (DELETE CASCADE, self-service + manual por token); **retenção**
+   limitada (purga TTL); minimização (sem item-a-item, sem texto livre); isolamento no schema `checkup`.
+5. **Auditoria imutável:** nenhuma tabela de auditoria tocada.
+
+**Resíduos (operacionais, não de código):** SES production-access (CK-4); setar `CHECKUP_ENCRYPTION_KEY` /
+`CHECKUP_CRON_TOKEN` no SSM; schedulers (cron + retention); flag `=true`. Race unsubscribe×cron conhecida
+(≤1 e-mail após cancelar) — aceitável, documentada.
 
 ---
 

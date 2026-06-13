@@ -10,6 +10,7 @@ fail=0
 ok()  { echo "  ✓ $1"; }
 bad() { echo "  ✗ $1"; fail=1; }
 code(){ curl -s -o /dev/null -w "%{http_code}" --max-time 25 "$1"; }
+codepost(){ curl -s -o /dev/null -w "%{http_code}" --max-time 25 -X POST -H "Content-Type: application/json" -d "{}" "$1"; }
 has() { curl -s --max-time 25 "$1" | grep -q "$2"; }
 
 echo "Smoke checkup @ $BASE"
@@ -44,6 +45,15 @@ echo "$evr" | grep -q '"ok":true' && ok "events por rid (0042)" || bad "events p
 # header Authorization → 401. Ambos = não expõe métricas em superfície pública (ADR-050).
 fmc=$(code "$BASE/api/funnel-metrics")
 { [ "$fmc" = 503 ] || [ "$fmc" = 401 ]; } && ok "funnel-metrics protegido ($fmc)" || bad "funnel-metrics protegido ($fmc)"
+
+# acompanhamento longitudinal (ADR-050 Parte 2): DARK por padrão (flag off no CI) — o
+# opt-in e o cron de envio respondem 404; a purga de retenção exige cron-token → 503.
+[ "$(codepost "$BASE/api/tracking")" = 404 ] && ok "tracking opt-in dark (404)" || bad "tracking opt-in dark"
+[ "$(codepost "$BASE/api/tracking/cron")" = 404 ] && ok "tracking cron dark (404)" || bad "tracking cron dark"
+[ "$(codepost "$BASE/api/tracking/retention")" = 503 ] && ok "tracking retention sem token (503)" || bad "tracking retention sem token"
+# páginas utilitárias por token (links de e-mail) renderizam (noindex)
+[ "$(code "$BASE/evolucao")" = 200 ] && ok "/evolucao render" || bad "/evolucao render"
+[ "$(code "$BASE/descadastrar")" = 200 ] && ok "/descadastrar render" || bad "/descadastrar render"
 
 # devolutiva (sem Anthropic → fallback estático)
 dev=$(curl -s -w "\n%{http_code}" --max-time 35 -X POST "$BASE/api/devolutiva" \
