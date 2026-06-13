@@ -36,9 +36,10 @@ public static class InsightsEndpoints
                   AND i.visualizado_em IS NULL
                   AND (i.valido_ate IS NULL OR i.valido_ate > NOW())
                 ORDER BY
+                  -- severidade no vocabulário dos agentes: critica|alta|media|baixa|info
                   CASE i.severidade
-                    WHEN 'critico' THEN 1 WHEN 'urgente' THEN 2
-                    WHEN 'atencao' THEN 3 ELSE 4 END,
+                    WHEN 'critica' THEN 1 WHEN 'alta' THEN 2
+                    WHEN 'media' THEN 3 WHEN 'baixa' THEN 4 ELSE 5 END,
                   i.criado_em DESC
                 LIMIT 50",
                 medicoId).ToListAsync();
@@ -108,7 +109,7 @@ public static class InsightsEndpoints
                        agente, titulo, conteudo,
                        severidade, criado_em
                 FROM insights
-                WHERE paciente_id = {0} AND agente = 'resumidor_pre_consulta'
+                WHERE paciente_id = {0} AND agente = 'resumo_pre_consulta'
                   AND descartado_em IS NULL
                   AND (valido_ate IS NULL OR valido_ate > NOW())
                 ORDER BY criado_em DESC LIMIT 1",

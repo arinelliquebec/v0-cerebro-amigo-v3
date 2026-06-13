@@ -316,7 +316,7 @@ class AdesaoAgent(BaseAgent):
                 """
                 SELECT
                     COUNT(*) AS total,
-                    COUNT(*) FILTER (WHERE status = 'tomado') AS tomadas
+                    COUNT(*) FILTER (WHERE status = 'tomada') AS tomadas
                 FROM tomadas_medicacao
                 WHERE prescricao_id = $1
                   AND horario_previsto BETWEEN $2 AND $3
@@ -360,7 +360,7 @@ class AdesaoAgent(BaseAgent):
         )
         max_seq, cur = 0, 0
         for row in rows:
-            perdida = row["status"] != "tomado"
+            perdida = row["status"] != "tomada"
             if perdida:
                 cur += 1
                 max_seq = max(max_seq, cur)
@@ -387,7 +387,7 @@ class AdesaoAgent(BaseAgent):
             """
             SELECT
                 COUNT(*) AS total,
-                COUNT(*) FILTER (WHERE status = 'tomado') AS tomadas
+                COUNT(*) FILTER (WHERE status = 'tomada') AS tomadas
             FROM tomadas_medicacao
             WHERE paciente_id = $1
               AND horario_previsto BETWEEN $2 AND $3
