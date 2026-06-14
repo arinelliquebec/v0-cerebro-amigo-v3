@@ -213,3 +213,39 @@ jobs:
       - name: Build
         working-directory: apps/web
         run: pnpm build
+
+  # Build + testes do checkup no PR — fecha o gap que deixou um build quebrado do
+  # checkup passar verde: o connection() do CK-11 só falhava no deploy (smoke-checkup),
+  # nunca no PR, porque o checkup não era validado aqui. Espelha o job `web`:
+  # Node 24 + pnpm 10. `pnpm test` cobre o motor de escalas (clinical-safety, 181
+  # casos); `pnpm build` faz o type-check strict completo (o que pega a classe do CK-11).
+  # Sem step de lint dedicado: o checkup não tem ESLint configurado e `next lint`
+  # saiu no Next 16 — o gate de tipos é o próprio build (strict), como no job `web`.
+  checkup:
+    name: checkup — testes + build (Next.js)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.15.0"
+
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@10.33.3 --activate
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --filter "./apps/checkup..."
+
+      - name: Unit tests (vitest)
+        working-directory: apps/checkup
+        run: pnpm test
+
+      - name: Build
+        working-directory: apps/checkup
+        run: pnpm build
