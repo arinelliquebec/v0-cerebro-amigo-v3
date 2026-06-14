@@ -23,10 +23,12 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any, ClassVar
+from zoneinfo import ZoneInfo
 
 import structlog
 
 from app.core.db import acquire
+from app.core.tz import local_slot_to_utc, resolve_patient_tz
 from app.jobs.base import BaseJob
 
 logger = structlog.get_logger(__name__)
@@ -61,7 +63,8 @@ class GeradorCheckinsMedicacaoJob(BaseJob):
                 prescricoes = await conn.fetch(
                     """
                     SELECT pr.id, pr.paciente_id, pr.medicamento, pr.dose_descricao,
-                           pr.horarios, pr.inicio_em, pr.fim_em
+                           pr.horarios, pr.inicio_em, pr.fim_em,
+                           pa.config_lembretes
                     FROM prescricoes pr
                     JOIN pacientes pa ON pa.cliente_id = pr.paciente_id
                     WHERE pr.ativa = TRUE
@@ -84,6 +87,11 @@ class GeradorCheckinsMedicacaoJob(BaseJob):
                         continue  # médico desligou o lembrete deste paciente
                     expira_horas = int(cfg.get("expira_horas", 4) or 4)
 
+                    # Horários da prescrição são horários de parede LOCAIS do
+                    # paciente (DEBT G-4): resolve o fuso
+                    # (config_lembretes.timezone → default do produto).
+                    tz = resolve_patient_tz(p["config_lembretes"])
+
                     # 2. Para cada horário do dia atual + amanhã
                     horarios_a_gerar = self._gerar_horarios_na_janela(
                         horarios=list(p["horarios"]),
@@ -91,6 +99,7 @@ class GeradorCheckinsMedicacaoJob(BaseJob):
                         ate=ate,
                         inicio_prescricao=p["inicio_em"],
                         fim_prescricao=p["fim_em"],
+                        tz=tz,
                     )
 
                     for horario_previsto in horarios_a_gerar:
@@ -178,23 +187,27 @@ class GeradorCheckinsMedicacaoJob(BaseJob):
         ate: datetime,
         inicio_prescricao: date,
         fim_prescricao: date | None,
+        tz: ZoneInfo,
     ) -> list[datetime]:
-        """Gera datetimes na janela [agora, ate] considerando horários por dia.
+        """Gera datetimes (UTC) na janela [agora, ate] a partir de horários por dia.
 
-        Retorna apenas horários DENTRO da janela e da vigência da prescrição.
-        Considera UTC; ajustar TZ se necessário antes da produção (TODO).
+        Os horários da prescrição são horários de PAREDE no fuso do paciente
+        (`tz`), convertidos para UTC (DEBT G-4). Itera sobre dias LOCAIS para
+        não perder nem duplicar slots na borda do dia. Retorna apenas horários
+        dentro da janela e da vigência da prescrição.
         """
         out: list[datetime] = []
-        cursor_dia = agora.date()
-        while cursor_dia <= ate.date():
-            # Respeita vigência da prescrição
+        cursor_dia = agora.astimezone(tz).date()
+        fim_local = ate.astimezone(tz).date()
+        while cursor_dia <= fim_local:
+            # Respeita vigência da prescrição (datas locais)
             if cursor_dia < inicio_prescricao:
                 cursor_dia += timedelta(days=1)
                 continue
             if fim_prescricao and cursor_dia > fim_prescricao:
                 break
             for h in horarios:
-                slot = datetime.combine(cursor_dia, h, tzinfo=UTC)
+                slot = local_slot_to_utc(cursor_dia, h, tz)
                 if agora <= slot <= ate:
                     out.append(slot)
             cursor_dia += timedelta(days=1)
