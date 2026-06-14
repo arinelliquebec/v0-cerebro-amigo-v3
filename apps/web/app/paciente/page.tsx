@@ -3,7 +3,6 @@ import { Logo } from "@/components/logo"
 import { Button } from "@/components/ui/button"
 import { CardContent } from "@/components/ui/card"
 import { SpotlightCard } from "@/components/ui/spotlight-card"
-import { NeuralField } from "@/components/landing/neural-field"
 import { AuroraBackdrop } from "@/components/landing/aurora-backdrop"
 import { Eyebrow } from "@/components/landing/eyebrow"
 import { Reveal, RevealGroup, RevealItem } from "@/components/landing/reveal"
@@ -79,10 +78,7 @@ export default function PacienteLandingPage() {
 
       {/* ── Hero ── */}
       <section className="relative overflow-hidden pt-16 pb-24 lg:pt-24">
-        <AuroraBackdrop grid />
-        <div className="pointer-events-none absolute inset-0 opacity-60">
-          <NeuralField />
-        </div>
+        <AuroraBackdrop grid shader intensity={0.8} />
         <div className="pointer-events-none absolute inset-x-0 bottom-0 h-32 bg-gradient-to-t from-background to-transparent" />
 
         <div className="container relative mx-auto max-w-6xl px-5">

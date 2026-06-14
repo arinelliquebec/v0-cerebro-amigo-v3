@@ -1,0 +1,283 @@
+"use client"
+
+import { useEffect, useRef } from "react"
+
+/**
+ * AuroraShader — aurora field "magnífico" via WebGL (fragment shader FBM).
+ * Camada-base animada do AuroraBackdrop, só na landing pública.
+ *
+ * Decisões de engenharia (mesmo ethos do NeuralField):
+ *  - WebGL puro (raw), ZERO deps novas: 1 quad full-screen + 1 fragment shader.
+ *    Sem Three.js (150KB+) nem OGL (dep). ~ bundle leve, perf previsível.
+ *  - SSR-safe: renderiza só <canvas> determinístico; todo acesso a
+ *    window/gl/getComputedStyle fica no useEffect → sem mismatch de hidratação.
+ *  - Fallback = zero regressão: o canvas começa transparente e só pinta se
+ *    TODAS as guardas passarem. Senão, o `.aurora` CSS estático atrás aparece.
+ *  - Guardas: desktop-only (≥768px), WebGL disponível, prefers-reduced-motion
+ *    (1 frame), DPR cap 1.5 (fill-rate bound), pausa em aba oculta / fora de
+ *    vista, cleanup total, resiliência a context-loss.
+ *  - Cores lidas dos CSS vars (getComputedStyle), parseadas p/ uniform vec3 —
+ *    GLSL não lê CSS var. Fallbacks iguais aos tokens (nunca pinta preto).
+ */
+
+const VERT = `
+attribute vec2 aPos;
+varying vec2 vUv;
+void main() {
+  vUv = aPos * 0.5 + 0.5;
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}
+`
+
+const FRAG = `
+precision highp float;
+varying vec2 vUv;
+uniform vec2  uRes;
+uniform float uTime;
+uniform vec3  uPurple;
+uniform vec3  uCoral;
+uniform vec3  uGlow;
+uniform float uIntensity;
+
+float hash(vec2 p){ p = fract(p * vec2(123.34, 345.45)); p += dot(p, p + 34.345); return fract(p.x * p.y); }
+float noise(vec2 p){
+  vec2 i = floor(p), f = fract(p);
+  float a = hash(i), b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0)), d = hash(i + vec2(1.0, 1.0));
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+float fbm(vec2 p){
+  float v = 0.0, amp = 0.55;
+  mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
+  for (int i = 0; i < 5; i++) { v += amp * noise(p); p = m * p; amp *= 0.5; }
+  return v;
+}
+void main(){
+  vec2 uv = vUv;
+  float aspect = uRes.x / max(uRes.y, 1.0);
+  vec2 p = vec2(uv.x * aspect, uv.y);
+  float t = uTime * 0.06;                                   // drift lento
+  vec2 q = vec2(fbm(p * 1.5 + vec2(0.0, t)), fbm(p * 1.5 + vec2(5.2, -t * 0.8)));
+  float bands = fbm(p * 2.2 + q * 1.8 + vec2(0.0, t * 1.5)); // domínio warp → fitas
+  float depth = smoothstep(1.05, 0.15, uv.y);               // mais forte no topo (casa com .aurora)
+  float ribbon = smoothstep(0.35, 0.85, bands) * depth;
+  vec3 col = mix(uPurple, uCoral, smoothstep(0.55, 0.95, bands) * 0.6);
+  col += uGlow * pow(ribbon, 3.0) * 0.5;                    // brilho nas cristas
+  float a = ribbon * uIntensity;
+  a *= smoothstep(0.0, 0.25, uv.y);                         // fade na base
+  gl_FragColor = vec4(col * a, a);                          // premultiplied alpha
+}
+`
+
+/** Parseia "rgb(a)(...)" ou "#rrggbb" → [r,g,b] em 0..1. */
+function parseColor(input: string, fallback: [number, number, number]): [number, number, number] {
+  const s = input.trim()
+  if (!s) return fallback
+  const m = s.match(/rgba?\(([^)]+)\)/i)
+  if (m) {
+    const parts = m[1].split(",").map((v) => parseFloat(v))
+    if (parts.length >= 3 && parts.every((n, i) => i > 2 || !Number.isNaN(n))) {
+      return [parts[0] / 255, parts[1] / 255, parts[2] / 255]
+    }
+  }
+  const hex = s.match(/^#([0-9a-f]{6})$/i)
+  if (hex) {
+    const int = parseInt(hex[1], 16)
+    return [((int >> 16) & 255) / 255, ((int >> 8) & 255) / 255, (int & 255) / 255]
+  }
+  return fallback
+}
+
+export function AuroraShader({
+  className,
+  intensity = 0.85,
+}: {
+  className?: string
+  intensity?: number
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const rafRef = useRef<number>(0)
+
+  useEffect(() => {
+    const cv = canvasRef.current
+    if (!cv) return
+
+    // Desktop only: canvas fica transparente → .aurora CSS cobre o espaço.
+    if (window.matchMedia("(max-width: 767px)").matches) return
+
+    const gl = (cv.getContext("webgl2", { premultipliedAlpha: true, antialias: false }) ||
+      cv.getContext("webgl", { premultipliedAlpha: true, antialias: false })) as
+      | WebGLRenderingContext
+      | null
+    if (!gl) return
+
+    // Cores do tema (mesmo padrão do NeuralField).
+    const cs = getComputedStyle(cv)
+    const uPurple = parseColor(cs.getPropertyValue("--noir-aurora-1"), [0.431, 0.373, 0.69])
+    const uCoral = parseColor(cs.getPropertyValue("--coral"), [0.898, 0.451, 0.451])
+    const uGlow = parseColor(cs.getPropertyValue("--noir-node-active"), [0.702, 0.651, 0.855])
+
+    const compile = (type: number, src: string) => {
+      const sh = gl.createShader(type)
+      if (!sh) return null
+      gl.shaderSource(sh, src)
+      gl.compileShader(sh)
+      if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+        gl.deleteShader(sh)
+        return null
+      }
+      return sh
+    }
+
+    let program: WebGLProgram | null = null
+    let buffer: WebGLBuffer | null = null
+    try {
+      const vs = compile(gl.VERTEX_SHADER, VERT)
+      const fs = compile(gl.FRAGMENT_SHADER, FRAG)
+      if (!vs || !fs) return
+      program = gl.createProgram()
+      if (!program) return
+      gl.attachShader(program, vs)
+      gl.attachShader(program, fs)
+      gl.linkProgram(program)
+      gl.deleteShader(vs)
+      gl.deleteShader(fs)
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        gl.deleteProgram(program)
+        return
+      }
+    } catch {
+      return
+    }
+
+    gl.useProgram(program)
+    buffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
+    const aPos = gl.getAttribLocation(program, "aPos")
+    gl.enableVertexAttribArray(aPos)
+    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
+
+    const uRes = gl.getUniformLocation(program, "uRes")
+    const uTime = gl.getUniformLocation(program, "uTime")
+    gl.uniform3fv(gl.getUniformLocation(program, "uPurple"), uPurple)
+    gl.uniform3fv(gl.getUniformLocation(program, "uCoral"), uCoral)
+    gl.uniform3fv(gl.getUniformLocation(program, "uGlow"), uGlow)
+    gl.uniform1f(gl.getUniformLocation(program, "uIntensity"), intensity)
+
+    gl.enable(gl.BLEND)
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA) // premultiplied
+    gl.clearColor(0, 0, 0, 0)
+
+    const resize = () => {
+      const rect = cv.getBoundingClientRect()
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
+      const w = Math.max(1, Math.floor(rect.width * dpr))
+      const h = Math.max(1, Math.floor(rect.height * dpr))
+      if (cv.width !== w || cv.height !== h) {
+        cv.width = w
+        cv.height = h
+      }
+      gl.viewport(0, 0, w, h)
+      if (uRes) gl.uniform2f(uRes, w, h)
+    }
+
+    const render = (seconds: number) => {
+      if (uTime) gl.uniform1f(uTime, seconds)
+      gl.clear(gl.COLOR_BUFFER_BIT)
+      gl.drawArrays(gl.TRIANGLES, 0, 3)
+    }
+
+    // Relógio acumulado: pausar/retomar sem salto.
+    let clock = 0
+    let last = 0
+    let running = false
+
+    const loop = (now: number) => {
+      if (last === 0) last = now
+      clock += (now - last) / 1000
+      last = now
+      render(clock)
+      rafRef.current = requestAnimationFrame(loop)
+    }
+    const start = () => {
+      if (running) return
+      running = true
+      last = 0
+      rafRef.current = requestAnimationFrame(loop)
+    }
+    const stop = () => {
+      running = false
+      cancelAnimationFrame(rafRef.current)
+    }
+
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+
+    resize()
+    if (reduce) {
+      render(0)
+    }
+
+    const ro = new ResizeObserver(() => {
+      resize()
+      if (reduce) render(0)
+    })
+    ro.observe(cv)
+
+    // Pausa fora de vista.
+    let onScreen = true
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        onScreen = entry.isIntersecting
+        if (reduce) return
+        if (onScreen && !document.hidden) start()
+        else stop()
+      },
+      { threshold: 0 },
+    )
+    io.observe(cv)
+
+    // Pausa com aba oculta.
+    const onVisibility = () => {
+      if (reduce) return
+      if (!document.hidden && onScreen) start()
+      else stop()
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+
+    // Resiliência a context-loss.
+    const onLost = (e: Event) => {
+      e.preventDefault()
+      stop()
+    }
+    const onRestored = () => {
+      if (!reduce && onScreen && !document.hidden) start()
+    }
+    cv.addEventListener("webglcontextlost", onLost as EventListener)
+    cv.addEventListener("webglcontextrestored", onRestored as EventListener)
+
+    if (!reduce && onScreen) start()
+
+    return () => {
+      stop()
+      ro.disconnect()
+      io.disconnect()
+      document.removeEventListener("visibilitychange", onVisibility)
+      cv.removeEventListener("webglcontextlost", onLost as EventListener)
+      cv.removeEventListener("webglcontextrestored", onRestored as EventListener)
+      if (buffer) gl.deleteBuffer(buffer)
+      if (program) gl.deleteProgram(program)
+      gl.getExtension("WEBGL_lose_context")?.loseContext()
+    }
+  }, [intensity])
+
+  return (
+    <canvas
+      ref={canvasRef}
+      aria-hidden
+      className={className}
+      style={{ width: "100%", height: "100%", display: "block", mixBlendMode: "screen" }}
+    />
+  )
+}

@@ -101,7 +101,7 @@ const CONFIANCA = [
 
 export default function HomePage() {
   return (
-    <main className="relative mx-auto w-full max-w-2xl px-4 pb-20 pt-16 sm:px-6 sm:pt-24">
+    <main className="landing-aurora relative mx-auto w-full max-w-2xl px-4 pb-20 pt-16 sm:px-6 sm:pt-24">
       {/* Hero */}
       <div className="mb-12 text-center">
         <p className="eyebrow reveal mb-4">Check-up Mental · gratuito e anônimo</p>
