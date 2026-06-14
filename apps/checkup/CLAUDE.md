@@ -3,7 +3,8 @@
 ## O que é este projeto
 
 Experiência pública e gratuita de **triagem de saúde mental** (não diagnóstico) com
-instrumentos clínicos validados — PHQ-9, GAD-7 e ASRS-18 — devolutiva gerada por IA
+instrumentos clínicos validados — PHQ-9, GAD-7 e ASRS-18 no MVP; hoje **8 no ar**
+(+ AUDIT, MDQ, Fagerström, MSI-BPD e ASSIST — ADR-048/049) — devolutiva gerada por IA
 com guardrails rígidos, e um **relatório em PDF** que a pessoa leva ao médico dela.
 
 Função de negócio: é o motor de aquisição do lançamento do Cérebro Amigo.
@@ -84,7 +85,8 @@ Função de negócio: é o motor de aquisição do lançamento do Cérebro Amigo
 
 ## SEO (a aquisição do lado paciente)
 
-- Três landings SSG no MVP: `/ansiedade`, `/depressao`, `/tdah-adulto`.
+- Landings SSG: MVP `/ansiedade`, `/depressao`, `/tdah-adulto`; expansão (ADR-048/049)
+  `/alcool`, `/bipolaridade`, `/tabagismo`, `/borderline`, `/drogas` — **8 no total**.
   Conteúdo educacional honesto (o que é a escala, o que ela mede e o que não mede),
   CTA para o teste. Metadata API do Next, sitemap, robots, Schema.org básico.
 - Proibido: promessa de cura/tratamento, sensacionalismo, conteúdo gerado raso.
@@ -114,10 +116,19 @@ Função de negócio: é o motor de aquisição do lançamento do Cérebro Amigo
 Contas/login, histórico de testes, comparação temporal, versão B2B/empresas,
 gamificação, chat livre com IA, notificações push, i18n.
 
-> **Escalas (ADR-048, 2026-06-12):** o escopo foi expandido pelo dono — AUDIT,
-> MDQ, Fagerström e MSI-BPD estão no motor com `validated: false` (gate "Em
-> breve") aguardando conferência char-a-char das fontes oficiais. ASSIST
-> (drogas) foi adiado. Regras por escala em `src/lib/scales/CLAUDE.md`.
+> **Exceção (ADR-050 Parte 2): acompanhamento longitudinal.** "Histórico de testes" e
+> "comparação temporal" foram reintroduzidos como subsistema **opt-in** (páginas `/evolucao`
+> e `/descadastrar`; APIs `/api/tracking/*`; nudge por e-mail via SES), **atrás de dark flag**
+> `NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED` (default `false` até o SES sair de sandbox — CK-4).
+> Anônimo/consentido, e-mail cifrado (`pgp_sym`, padrão ADR-018). O resto da lista acima
+> segue fora de escopo.
+
+> **Escalas no ar (ADR-048 + ADR-049):** o escopo foi expandido pelo dono. AUDIT, MDQ,
+> Fagerström e MSI-BPD foram conferidos char-a-char (Patrick, 2026-06-12) e estão **no ar com
+> `validated: true`** + landings (`/alcool`, `/bipolaridade`, `/tabagismo`, `/borderline`).
+> ASSIST (drogas) **também entrou** — `validated: true` (2026-06-13), fluxo próprio (ADR-049) e
+> landing `/drogas`. São **8 instrumentos no ar** (3 do MVP + 5 da expansão). Regras por escala
+> em `src/lib/scales/CLAUDE.md`.
 
 ## Definition of Done do MVP
 
