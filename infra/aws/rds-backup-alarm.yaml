@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
-  Alarme de backup parado do RDS cerebro-postgres (T1-6 / ADR-043 item E).
+  Alarme de backup parado do RDS cerebro-postgres-enc (T1-6 / ADR-043 item E).
   Lambda diaria (EventBridge) mede a idade do snapshot automatico mais recente
   -> metrica CloudWatch Cerebro/RDS BackupAgeHours -> alarme (idade > limite, ou
   Lambda sem publicar -> TreatMissingData breaching) -> SNS/e-mail.
@@ -10,8 +10,10 @@ Description: >
 Parameters:
   DbInstanceId:
     Type: String
-    Default: cerebro-postgres
-    Description: Identificador do RDS a monitorar.
+    Default: cerebro-postgres-enc
+    Description: >
+      Identificador do RDS a monitorar. Default = instancia cifrada do ADR-054
+      (a antiga cerebro-postgres foi descomissionada). Re-apontada em 2026-06-14.
   AlertEmail:
     Type: String
     Description: E-mail do alerta (obrigatorio; passar via --parameter-overrides; confirmar a subscricao SNS no 1o deploy).
