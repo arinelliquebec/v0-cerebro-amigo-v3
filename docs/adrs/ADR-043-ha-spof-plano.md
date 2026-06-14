@@ -47,7 +47,28 @@ observabilidade fraca:
 - **O quê:** restaurar o último backup/PITR num instance temporário, validar contagem
   de tabelas, derrubar. Runbook: `docs/runbooks/rds-restore-drill.md`.
 - **Custo:** ~US$ centavos (instância de minutos) + ~20min. **Fazer já** — backup não
-  testado é backup que pode não existir.
+  testado é backup que pode não existir. **(Feito — T1-5; restore-drill mensal no CI.)**
+
+### D. Conexões sob escala-out — RDS Proxy
+- **Problema:** `db.t4g.medium` tem `max_connections` de só ~340–450 (limitado por RAM).
+  Conforme o checkup escala out (ASG, cada instância com pool) somado aos pools do box
+  clínico (Npgsql do gateway, default 100; orchestrator psycopg3 10 + asyncpg 20; agents
+  10), o teto real sob carga vira **conexões**, não CPU.
+- **O quê:** **RDS Proxy** na frente do RDS — multiplexa "muitas instâncias → poucas
+  conexões" e preserva conexões durante o failover do Multi-AZ (sinergia com o item A).
+- **Custo:** por vCPU da instância RDS/hora (ordem de ~US$10–20/mês nessa escala).
+- **Interim barato (sem Proxy):** orçar `MaxPoolSize` (Npgsql) + pools asyncpg p/ a soma
+  ficar folgada abaixo do `max_connections`; ligar Performance Insights p/ ver
+  `DatabaseConnections` real.
+- **Recomendação:** orçar os pools **agora** (de graça); **RDS Proxy antes do checkup
+  viralizar**, junto do Multi-AZ.
+
+### E. Alarme de backup parado (T1-6)
+- **O quê:** Lambda diária (EventBridge) mede a idade do snapshot automático mais recente
+  do `cerebro-postgres` → métrica `Cerebro/RDS BackupAgeHours` → alarme CloudWatch (idade
+  > limite, ou Lambda sem publicar → `TreatMissingData: breaching`) → SNS/e-mail.
+- **Custo:** desprezível (1 invocação/dia). **IaC:** `infra/aws/rds-backup-alarm.yaml`.
+- **Recomendação:** **fazer já** — backup que para sem alerta é o pior caso do item C.
 
 ## Consequências
 
@@ -57,3 +78,6 @@ observabilidade fraca:
   watchdog (recuperação rápida, alerta), mas não eliminado.
 - Próximo: CloudWatch alarm de status-check do EC2 (auto-recovery da instância) é um
   meio-termo barato antes de B1.
+- Conexões (D) e alerta de backup (E) endereçados no plano: o teto de `max_connections`
+  deixa de ser o limite quando o checkup escala (Proxy/orçamento de pools), e backup
+  parado passa a alertar em vez de ser descoberto na hora do restore.
