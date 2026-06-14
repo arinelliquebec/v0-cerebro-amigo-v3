@@ -2,62 +2,53 @@
 
 **ADR-047** · Reduz LCP de ~3 s → ~1 s com edge cache no PoP de São Paulo.
 
-> ⚠️ **PENDÊNCIA IAM (2026-06-12):** o passo "Invalidar cache CF" do
-> `deploy.yml` está falhando com `AccessDenied` — o user `cerebro-github-actions`
-> não tem `ssm:GetParameter` em `/cerebro-amigo/checkup/cf-distribution-id`
-> (tem `PutParameter` no image-tag, mas não `GetParameter` neste parâmetro).
-> **Efeito real: o CloudFront pode servir HTML/chunks de build anterior após
-> cada deploy do checkup.** Fix (Console IAM → user `cerebro-github-actions`):
->
-> ```json
-> { "Effect": "Allow",
->   "Action": ["ssm:GetParameter"],
->   "Resource": "arn:aws:ssm:sa-east-1:004177894935:parameter/cerebro-amigo/checkup/cf-distribution-id" },
-> { "Effect": "Allow",
->   "Action": ["cloudfront:CreateInvalidation"],
->   "Resource": "*" }
-> ```
->
-> (Conferir se `cloudfront:CreateInvalidation` já existe; o erro atual é no
-> GetParameter, que roda antes.) Remover este aviso quando o job ficar verde.
->
-> **Mitigação no pipeline (2026-06-13):** o passo do `deploy.yml` agora tenta,
-> na falta do `ssm:GetParameter`, descobrir o distribution ID por alias via
-> `cloudfront:ListDistributions`. Ou seja: conceder **(a)** `ssm:GetParameter`
-> no parâmetro acima OU **(b)** `cloudfront:ListDistributions` (+
-> `cloudfront:CreateInvalidation`) resolve. Se ambos faltarem, o job continua
-> vermelho com mensagem apontando para este runbook.
+> **Origem é o ALB do checkup** (ADR-045, já em produção) — não mais o Caddy do
+> box clínico. O `infra/aws/cloudfront-checkup.yaml` já reflete isso
+> (`OriginDomain` = DNS do ALB, `OriginProtocol=http-only`), e o enforcement do
+> segredo de origem é uma **listener rule do ALB** (em
+> `infra/aws/checkup-asg-alb.yaml`, parâmetro `CfOriginSecret`) — não o Caddy.
+
+> ⚠️ **PENDÊNCIA IAM (invalidação no CI):** o passo "Invalidar cache CF" do
+> `deploy.yml` precisa, no user `cerebro-github-actions`, de
+> `ssm:GetParameter` em `/cerebro-amigo/checkup/cf-distribution-id` **OU** de
+> `cloudfront:ListDistributions` (fallback por alias), além de
+> `cloudfront:CreateInvalidation`. Sem isso, o CloudFront pode servir
+> HTML/chunks de um build anterior após cada deploy do checkup. Conceder uma das
+> duas opções resolve. Remover este aviso quando o job ficar verde.
 
 ## Visão geral
 
 ```
-Usuario BR
-    │
+Usuário BR
+    │  HTTPS
     ▼
 CloudFront (edge SP)
-    │ HTTPS
+    │  HTTP:80 + header X-CF-Origin-Secret
     ▼
-EC2 clinico :443 (Caddy)    ← origin atual
-    │                         substituir por ALB quando ADR-045 for provisionado
+ALB cerebro-checkup-alb
+    │  listener :80, rule priority 1: header confere -> forward; senão -> 301 HTTPS
     ▼
-Next.js checkup :3001
+Target Group -> instâncias t3.small (Next.js checkup :3001)
 ```
 
-DNS: zona fica na **Vercel** (nao Registro.br).  
-ACM: cert de checkup.cerebroamigo.com.br deve estar em **us-east-1** (exigencia CF).
+DNS: zona na **Vercel**. Hoje `checkup` resolve pro **DNS do ALB** (CNAME); o
+cutover troca pro domínio do CloudFront.
+ACM: o cert do CloudFront deve estar em **us-east-1** (exigência CF), independente
+da região do resto da infra. (O cert do ALB segue no ACM `sa-east-1`.)
 
 ---
 
-## Fase 0 — Pre-requisitos
+## Fase 0 — Pré-requisitos
 
-- [ ] AWS CLI configurado com perfil que tem permissoes CloudFront + ACM + SSM
+- [ ] AWS CLI com permissões CloudFront + ACM + CloudFormation + SSM
 - [ ] Acesso ao painel Vercel DNS (para alterar CNAME)
+- [ ] ALB do checkup no ar (ADR-045) e `checkup.cerebroamigo.com.br` resolvendo pra ele
 
 ---
 
 ## Fase 1 — Criar cert ACM em us-east-1
 
-> CloudFront exige cert em us-east-1, independente da regiao do resto da infra.
+> CloudFront exige cert em us-east-1.
 
 ```bash
 aws acm request-certificate \
@@ -67,7 +58,7 @@ aws acm request-certificate \
   --query CertificateArn --output text
 ```
 
-Salva o ARN retornado. Depois:
+Pega o CNAME de validação:
 
 ```bash
 aws acm describe-certificate \
@@ -76,204 +67,162 @@ aws acm describe-certificate \
   --query 'Certificate.DomainValidationOptions[0].ResourceRecord'
 ```
 
-Retorna um CNAME assim:
-```json
-{
-  "Name": "_abc123.checkup.cerebroamigo.com.br.",
-  "Type": "CNAME",
-  "Value": "_xyz789.acm-validations.aws."
-}
-```
+Adiciona esse CNAME na **Vercel DNS** (Domains → cerebroamigo.com.br → Add Record:
+Type `CNAME`, Name `_abc123.checkup`, Value `_xyz789.acm-validations.aws.`).
+Aguarda `ISSUED`:
 
-**Adiciona esse CNAME no DNS da Vercel:**
-- Vercel Dashboard → Domains → cerebroamigo.com.br → Add Record
-- Type: `CNAME`
-- Name: `_abc123.checkup` (sem o dominio base)
-- Value: `_xyz789.acm-validations.aws.`
-
-Aguarda validacao (~5 min):
 ```bash
-watch -n 30 "aws acm describe-certificate \
-  --region us-east-1 \
-  --certificate-arn <ARN> \
-  --query 'Certificate.Status' --output text"
-# Aguarda: ISSUED
+watch -n 30 "aws acm describe-certificate --region us-east-1 \
+  --certificate-arn <ARN> --query 'Certificate.Status' --output text"
 ```
 
 ---
 
-## Fase 2 — Criar secret de origem no SSM
+## Fase 2 — Secret de origem (SSM) + listener rule no ALB
 
-Impede acesso direto ao EC2 bypassando o CloudFront. O Caddy valida o header.
+O segredo impede acesso direto ao ALB bypassando o CloudFront. Quem valida é a
+**listener rule do ALB** (não o Caddy).
 
 ```bash
-# Gera secret aleatorio
+# 1) Gera o secret e grava no SSM
 SECRET=$(openssl rand -hex 32)
-
-aws ssm put-parameter \
-  --region sa-east-1 \
+aws ssm put-parameter --region sa-east-1 \
   --name /cerebro-amigo/checkup/cf-origin-secret \
-  --value "$SECRET" \
-  --type SecureString \
-  --overwrite
-
+  --value "$SECRET" --type SecureString --overwrite
 echo "Secret: $SECRET"
-# Salva o valor — vai configurar no Caddy no proximo passo
 ```
 
-**Configura validacao no Caddy (EC2):**
-
-Via SSM Session Manager no EC2 (`cerebro-clinical-box`):
 ```bash
-# Edita /opt/cerebro/Caddyfile ou equivalente
-# Adiciona na secao checkup.cerebroamigo.com.br:
-@notcf {
-  not header X-CF-Origin-Secret <SECRET_AQUI>
-}
-respond @notcf 403
+# 2) Atualiza o stack do ALB/ASG passando o secret -> cria a rule do header
+#    (os demais parâmetros usam os valores atuais; CfOriginSecret vazio = sem rule)
+aws cloudformation deploy --region sa-east-1 \
+  --stack-name <stack-do-asg-alb> \
+  --template-file infra/aws/checkup-asg-alb.yaml \
+  --capabilities CAPABILITY_NAMED_IAM \
+  --parameter-overrides \
+    AcmCertificateArn=<ARN_ACM_SA_EAST_1_DO_ALB> \
+    CfOriginSecret="$SECRET" \
+  --no-fail-on-empty-changeset
 ```
 
-Reinicia Caddy: `sudo systemctl reload caddy`
+> Heads-up: re-deploy do stack reseta `DesiredCapacity` pro `MinSize` (hoje 2) —
+> comportamento esperado; o target-tracking sobe de novo se a CPU pedir.
 
 ---
 
-## Fase 3 — Deploy do stack CloudFront
+## Fase 3 — Deploy do stack CloudFront (us-east-1)
 
 ```bash
+SECRET=$(aws ssm get-parameter --region sa-east-1 \
+  --name /cerebro-amigo/checkup/cf-origin-secret --with-decryption \
+  --query Parameter.Value --output text)
+
 aws cloudformation deploy \
   --region us-east-1 \
   --stack-name cerebro-checkup-cf \
   --template-file infra/aws/cloudfront-checkup.yaml \
   --parameter-overrides \
     AcmCertificateArn=<ARN_DA_FASE_1> \
-    OriginDomain=18.229.175.231 \
+    OriginSecret="$SECRET" \
   --capabilities CAPABILITY_IAM \
   --no-fail-on-empty-changeset
 ```
 
+> `OriginDomain` já tem default = DNS do ALB; só passe se for diferente.
 > Deploy leva ~10 min (CloudFront propaga globalmente).
 
-Pega o dominio CF gerado:
+Pega o domínio CF e salva o Distribution ID no SSM (pro CI invalidar):
+
 ```bash
-aws cloudformation describe-stacks \
-  --region us-east-1 \
+aws cloudformation describe-stacks --region us-east-1 \
   --stack-name cerebro-checkup-cf \
-  --query 'Stacks[0].Outputs[?OutputKey==`DistributionDomain`].OutputValue' \
-  --output text
-# Ex: d1abcdefg.cloudfront.net
+  --query 'Stacks[0].Outputs[?OutputKey==`DistributionDomain`].OutputValue' --output text
+
+DIST_ID=$(aws cloudformation describe-stacks --region us-east-1 \
+  --stack-name cerebro-checkup-cf \
+  --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue' --output text)
+aws ssm put-parameter --region sa-east-1 \
+  --name /cerebro-amigo/checkup/cf-distribution-id \
+  --value "$DIST_ID" --type String --overwrite
 ```
 
 ---
 
-## Fase 4 — Smoke no dominio CF (antes de mudar DNS)
+## Fase 4 — Smoke no domínio CF (antes de mudar o DNS)
 
 ```bash
 CF_DOMAIN="d1abcdefg.cloudfront.net"  # substituir pelo real
 
-# Testa via header Host (simula dominio customizado)
 curl -sv -H "Host: checkup.cerebroamigo.com.br" "https://$CF_DOMAIN/" 2>&1 | grep -E "< HTTP|x-cache|server"
 curl -sv -H "Host: checkup.cerebroamigo.com.br" "https://$CF_DOMAIN/depressao" 2>&1 | grep -E "< HTTP|x-cache"
 curl -sv -H "Host: checkup.cerebroamigo.com.br" "https://$CF_DOMAIN/api/health" 2>&1 | grep -E "< HTTP"
 
-# Verifica header de cache
+# Cache nas landings: 1º hit Miss, 2º hit Hit
 curl -I -H "Host: checkup.cerebroamigo.com.br" "https://$CF_DOMAIN/depressao" | grep -i "x-cache\|age\|cache-control"
-# Primeiro hit: x-cache: Miss from cloudfront
-# Segundo hit:  x-cache: Hit from cloudfront  ← confirma cache ativo
 ```
+
+Se o `/api/health` der erro, confira a **listener rule** do ALB (Fase 2): sem ela,
+o CloudFront recebe 301 do :80 e o smoke quebra.
 
 ---
 
-## Fase 5 — Cutover DNS (zero-downtime)
+## Fase 5 — Cutover DNS (ALB → CloudFront)
 
 Na Vercel DNS (zona cerebroamigo.com.br):
 
-1. **Reduz TTL** do registro `checkup` para 60s. Aguarda TTL atual propagar (~5 min).
-2. **Remove** o registro A atual (`18.229.175.231`).
-3. **Adiciona** CNAME:
-   - Name: `checkup`
-   - Value: `d1abcdefg.cloudfront.net`
-4. Aguarda 2 min.
-5. `curl -I https://checkup.cerebroamigo.com.br/depressao` — confirma `x-cache: Hit from cloudfront`.
+1. **Reduz TTL** do registro `checkup` para 60s. Aguarda o TTL antigo propagar (~5 min).
+2. **Troca o CNAME** `checkup`: de `<DNS do ALB>` para `<domínio CloudFront>`.
+   (Se hoje for um registro A/ALIAS, troque por CNAME apontando ao domínio CF.)
+3. Aguarda ~2 min.
+4. `curl -I https://checkup.cerebroamigo.com.br/depressao` — confirma `x-cache: Hit from cloudfront`.
 
 ---
 
 ## Fase 6 — Smoke final
 
 ```bash
-# Paginas SSG — devem cachear
 for path in / /depressao /ansiedade /tdah-adulto /medico; do
   status=$(curl -s -o /dev/null -w "%{http_code}" "https://checkup.cerebroamigo.com.br$path")
   echo "$path → $status"
 done
 
-# API — deve passar sem cache
 curl -s https://checkup.cerebroamigo.com.br/api/health | python3 -m json.tool
 
-# Fluxo critico — crise nao deve cachear
+# /crise não deve cachear (conteúdo sensível)
 curl -I https://checkup.cerebroamigo.com.br/crise | grep -i "cache-control\|x-cache"
-# Esperado: x-cache: Miss (CachingDisabled)
+# Esperado: x-cache: Miss from cloudfront (CachingDisabled)
 ```
 
 ---
 
-## Invalidar cache (apos deploy novo)
+## Invalidar cache (após cada deploy do checkup)
 
-Adicionar ao job `deploy-checkup` no GitHub Actions:
+Passo do job `deploy-checkup` (ver pendência IAM no topo):
 
 ```bash
-DIST_ID=$(aws ssm get-parameter \
-  --region sa-east-1 \
+DIST_ID=$(aws ssm get-parameter --region sa-east-1 \
   --name /cerebro-amigo/checkup/cf-distribution-id \
   --query Parameter.Value --output text)
-
-aws cloudfront create-invalidation \
-  --distribution-id "$DIST_ID" \
-  --paths "/*"
-```
-
-Salva o Distribution ID no SSM apos o deploy do stack:
-```bash
-DIST_ID=$(aws cloudformation describe-stacks \
-  --region us-east-1 \
-  --stack-name cerebro-checkup-cf \
-  --query 'Stacks[0].Outputs[?OutputKey==`DistributionId`].OutputValue' \
-  --output text)
-
-aws ssm put-parameter \
-  --region sa-east-1 \
-  --name /cerebro-amigo/checkup/cf-distribution-id \
-  --value "$DIST_ID" \
-  --type String \
-  --overwrite
+aws cloudfront create-invalidation --distribution-id "$DIST_ID" --paths "/*"
 ```
 
 ---
 
 ## Rollback
 
-DNS volta ao A record em < 2 min:
-```bash
-# Vercel DNS: remove CNAME checkup, readiciona A record 18.229.175.231
-```
+DNS volta ao ALB em < 2 min: na Vercel, CNAME `checkup` de volta pro **DNS do ALB**.
+O stack CF pode ficar **Disabled** (não deletar — evita recriar o cert).
 
-Stack CF pode ficar desabilitado (nao deletar — evita recriar cert):
 ```bash
-# CloudFront console: Distribution → Disable
-# Ou atualizar stack com Enabled: false
+# CloudFront console: Distribution → Disable  (ou stack update com Enabled: false)
 ```
 
 ---
 
-## Quando ADR-045 (ASG+ALB) for provisionado
+## Endurecimento pós-cutover (recomendado, NÃO durante o cutover)
 
-Atualizar o parametro `OriginDomain` no stack:
-```bash
-aws cloudformation deploy \
-  --region us-east-1 \
-  --stack-name cerebro-checkup-cf \
-  --template-file infra/aws/cloudfront-checkup.yaml \
-  --parameter-overrides \
-    AcmCertificateArn=<ARN> \
-    OriginDomain=<DNS_DO_ALB> \
-    OriginProtocol=https-only
-```
+Depois do cutover estável, o listener **:443** do ALB ainda aceita acesso direto
+(forward sem header) — bypass do CloudFront p/ quem souber o DNS do ALB. Para
+fechar, exigir o mesmo `X-CF-Origin-Secret` no :443 (rule análoga à do :80) ou
+restringir o Security Group do ALB às faixas do CloudFront. **Não fazer durante o
+cutover** (risco de lockout enquanto o DNS ainda aponta direto pro ALB).
