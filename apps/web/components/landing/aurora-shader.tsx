@@ -13,9 +13,9 @@ import { useEffect, useRef } from "react"
  *    window/gl/getComputedStyle fica no useEffect → sem mismatch de hidratação.
  *  - Fallback = zero regressão: o canvas começa transparente e só pinta se
  *    TODAS as guardas passarem. Senão, o `.aurora` CSS estático atrás aparece.
- *  - Guardas: desktop-only (≥768px), WebGL disponível, prefers-reduced-motion
- *    (1 frame), DPR cap 1.5 (fill-rate bound), pausa em aba oculta / fora de
- *    vista, cleanup total, resiliência a context-loss.
+ *  - Guardas: WebGL disponível, prefers-reduced-motion (1 frame), DPR cap
+ *    (1.5 desktop / 1.0 mobile, fill-rate bound), pausa em aba oculta / fora de
+ *    vista, cleanup total, resiliência a context-loss. Mobile roda o shader.
  *  - Cores lidas dos CSS vars (getComputedStyle), parseadas p/ uniform vec3 —
  *    GLSL não lê CSS var. Fallbacks iguais aos tokens (nunca pinta preto).
  */
@@ -103,8 +103,9 @@ export function AuroraShader({
     const cv = canvasRef.current
     if (!cv) return
 
-    // Desktop only: canvas fica transparente → .aurora CSS cobre o espaço.
-    if (window.matchMedia("(max-width: 767px)").matches) return
+    // Mobile também roda o shader, mas com DPR cap mais baixo (bateria/GPU).
+    // Sem WebGL ou em reduced-motion o canvas fica transparente → .aurora CSS cobre.
+    const isMobile = window.matchMedia("(max-width: 767px)").matches
 
     const gl = (cv.getContext("webgl2", { premultipliedAlpha: true, antialias: false }) ||
       cv.getContext("webgl", { premultipliedAlpha: true, antialias: false })) as
@@ -188,7 +189,7 @@ export function AuroraShader({
 
     const resize = () => {
       const rect = cv.getBoundingClientRect()
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
+      const dpr = Math.min(window.devicePixelRatio || 1, isMobile ? 1 : 1.5)
       const w = Math.max(1, Math.floor(rect.width * dpr))
       const h = Math.max(1, Math.floor(rect.height * dpr))
       if (cv.width !== w || cv.height !== h) {

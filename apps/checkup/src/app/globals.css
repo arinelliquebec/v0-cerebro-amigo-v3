@@ -199,12 +199,19 @@ body:has(main.landing-aurora) .noir-backdrop::after {
   0%, 100% { opacity: 0.85; }
   50%      { opacity: 1; }
 }
-/* Mobile: aurora é o tráfego dominante do checkup. Solta o parallax pesado,
-   mantém só a respiração de UMA camada (opacity, baratíssimo). */
+/* Mobile: aurora é o tráfego dominante do checkup. Mantém o parallax das duas
+   camadas (transform/opacity = GPU-composited, sem repaint → LCP/CLS intactos),
+   só desacelera o drift p/ poupar bateria. prefers-reduced-motion ainda zera tudo. */
 @media (max-width: 640px) {
-  body:has(main.landing-aurora) .noir-backdrop::after { animation: none; }
   body:has(main.landing-aurora) .noir-backdrop::before {
-    animation: aurora-breathe 30s ease-in-out infinite;
+    animation:
+      aurora-drift-a 48s ease-in-out infinite alternate,
+      aurora-breathe 30s ease-in-out infinite;
+  }
+  body:has(main.landing-aurora) .noir-backdrop::after {
+    animation:
+      aurora-drift-b 56s ease-in-out infinite alternate,
+      aurora-breathe 36s ease-in-out infinite reverse;
   }
 }
 
