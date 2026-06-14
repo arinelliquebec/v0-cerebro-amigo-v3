@@ -1,6 +1,5 @@
 import Link from "next/link"
 import { Logo } from "@/components/logo"
-import { NeuralField } from "@/components/landing/neural-field"
 import { AuroraBackdrop } from "@/components/landing/aurora-backdrop"
 import { Eyebrow } from "@/components/landing/eyebrow"
 import { Reveal } from "@/components/landing/reveal"
@@ -37,10 +36,7 @@ const opcoes = [
 export default function ChooserPage() {
   return (
     <main className="theme-noir relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-5 py-14 text-foreground antialiased">
-      <AuroraBackdrop grid />
-      <div className="pointer-events-none absolute inset-0 opacity-50">
-        <NeuralField />
-      </div>
+      <AuroraBackdrop grid shader intensity={0.7} />
 
       <div className="relative w-full max-w-3xl">
         <Reveal className="mb-10 text-center">

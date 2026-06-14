@@ -97,7 +97,7 @@ export default function BipolaridadePage() {
         ])}
       />
 
-      <main className="mx-auto max-w-2xl px-4 py-16 sm:px-6">
+      <main className="landing-aurora mx-auto max-w-2xl px-4 py-16 sm:px-6">
         <LandingHero
           icon={<Activity className="h-9 w-9" aria-hidden />}
           eyebrow="Triagem gratuita · MDQ"

@@ -3,7 +3,6 @@
 import { cacheLife } from 'next/cache'
 import Link from "next/link"
 import { HeroPreview } from "@/components/landing/hero-preview"
-import { NeuralField } from "@/components/landing/neural-field"
 import { AuroraBackdrop } from "@/components/landing/aurora-backdrop"
 import { Eyebrow } from "@/components/landing/eyebrow"
 import { Reveal } from "@/components/landing/reveal"
@@ -15,11 +14,10 @@ export async function HeroSection() {
 
   return (
     <section className="relative overflow-hidden pt-20 pb-28 lg:pt-28 lg:pb-36">
-      {/* Camadas de fundo: aurora + grid + campo neural vivo (canvas) */}
-      <AuroraBackdrop grid />
-      <div className="pointer-events-none absolute inset-0 opacity-70">
-        <NeuralField />
-      </div>
+      {/* Camadas de fundo: aurora field WebGL (magnífico) + grid neural.
+          Um único canvas animado por superfície — o shader substitui o
+          NeuralField aqui; `.aurora` estático segue de fallback resiliente. */}
+      <AuroraBackdrop grid shader intensity={0.9} />
       {/* fade do fundo para o conteúdo respirar */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent" />
 

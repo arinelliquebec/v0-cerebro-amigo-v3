@@ -152,6 +152,62 @@
     radial-gradient(50% 40% at 70% 96%, var(--noir-aurora-1), transparent 75%);
 }
 
+/* Aurora VIVA — só nas landings (motor de aquisição), nunca no fluxo clínico.
+   A .noir-backdrop é irmã do conteúdo no <body>, então alcançamos via
+   `body:has(main.landing-aurora)`. Quiz/resultado/crise/evolucao não levam a
+   marca → seguem com o backdrop estático acima (frame de LCP intacto).
+   Movimento só em transform/opacity (GPU-composited, sem repaint de color-stops
+   → protege LCP/CLS). Canvas-free, dependency-free. Sem sintaxe [--var]. */
+body:has(main.landing-aurora) .noir-backdrop {
+  overflow: hidden; /* contém as pseudo-camadas oversize */
+}
+body:has(main.landing-aurora) .noir-backdrop::before,
+body:has(main.landing-aurora) .noir-backdrop::after {
+  content: "";
+  position: absolute;
+  inset: -25%; /* oversize: o drift nunca revela borda */
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+/* Camada A — massas roxas, deriva diagonal + respiração. */
+body:has(main.landing-aurora) .noir-backdrop::before {
+  background:
+    radial-gradient(48% 42% at 42% 8%, var(--noir-aurora-1), transparent 70%),
+    radial-gradient(38% 38% at 10% 60%, var(--noir-aurora-3), transparent 72%);
+  animation:
+    aurora-drift-a 34s ease-in-out infinite alternate,
+    aurora-breathe 22s ease-in-out infinite;
+}
+/* Camada B — acento coral + roxo baixo, deriva oposta (parallax). */
+body:has(main.landing-aurora) .noir-backdrop::after {
+  background:
+    radial-gradient(36% 34% at 86% 18%, var(--noir-aurora-2), transparent 70%),
+    radial-gradient(44% 38% at 72% 94%, var(--noir-aurora-1), transparent 75%);
+  animation:
+    aurora-drift-b 41s ease-in-out infinite alternate,
+    aurora-breathe 28s ease-in-out infinite reverse;
+}
+@keyframes aurora-drift-a {
+  from { transform: translate3d(-3%, -2%, 0) scale(1.04); }
+  to   { transform: translate3d( 4%,  3%, 0) scale(1.10); }
+}
+@keyframes aurora-drift-b {
+  from { transform: translate3d( 3%,  2%, 0) scale(1.06); }
+  to   { transform: translate3d(-4%, -3%, 0) scale(1.12); }
+}
+@keyframes aurora-breathe {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+/* Mobile: aurora é o tráfego dominante do checkup. Solta o parallax pesado,
+   mantém só a respiração de UMA camada (opacity, baratíssimo). */
+@media (max-width: 640px) {
+  body:has(main.landing-aurora) .noir-backdrop::after { animation: none; }
+  body:has(main.landing-aurora) .noir-backdrop::before {
+    animation: aurora-breathe 30s ease-in-out infinite;
+  }
+}
+
 /* Malha neural sutil — linhas finas com fade radial (lembra o site principal). */
 .noir-grid {
   position: fixed;
@@ -346,5 +402,12 @@ body {
   * {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+  /* Aurora viva descansa em estado neutro (não num frame aleatório do drift). */
+  body:has(main.landing-aurora) .noir-backdrop::before,
+  body:has(main.landing-aurora) .noir-backdrop::after {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
   }
 }
