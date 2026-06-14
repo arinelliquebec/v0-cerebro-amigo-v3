@@ -72,6 +72,8 @@ contexto regulatório, sem dependência da memória do autor.
 | [050](ADR-050-checkup-longitudinal-anonimo.md) | Cockpit de Aquisição + Check-up longitudinal pseudonimizado | Accepted (P1) / Proposed (P2) | Produto / Aquisição / Compliance |
 | [051](ADR-051-validacao-escalas-checkup.md) | Validação e fidelidade das escalas do Check-up (PHQ-9, GAD-7, ASRS-18) | Accepted | Segurança clínica / Produto |
 | [052](ADR-052-checkup-no-ec2-nao-vercel.md) | Check-up roda no EC2 (não na Vercel): quem conecta direto no RDS vive na VPC | Accepted | Arquitetura / Infra / Compliance |
+| [053](ADR-053-sizing-box-clinico-t3xlarge.md) | Vertical scaling do box clínico para t3.xlarge + recalibração de recursos | Accepted | Infra / Operação / Segurança clínica |
+| [054](ADR-054-cifragem-em-repouso-rds.md) | Cifragem em repouso do RDS clínico (migração para instância KMS-encrypted via snapshot+restore) | Accepted | Infra / Segurança clínica / LGPD |
 
 ## Status possíveis
 
