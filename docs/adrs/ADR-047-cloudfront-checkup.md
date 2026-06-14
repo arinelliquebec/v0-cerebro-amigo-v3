@@ -1,6 +1,6 @@
 # ADR-047 — CloudFront na frente do checkup.cerebroamigo.com.br
 
-**Status:** Proposto (IaC pronto; pendente provisioning — gated pelo Rafael)  
+**Status:** Provisionado / Accepted — CloudFront no ar desde 2026-06-14 (ver seção "Provisionado")  
 **Data:** 2026-06-12  
 **Autores:** Rafael Arinelli
 
@@ -92,3 +92,17 @@ Após deploy de nova imagem do checkup, o job `deploy-checkup` deve criar invali
 - Deploy de nova imagem requer invalidação CloudFront (adicionado ao job CI).
 - Quando ADR-045 (ASG+ALB) for provisionado, atualizar apenas o parâmetro `OriginDomain` no stack CF — sem recriar distribuição.
 - Provisionamento: ver `docs/runbooks/cloudfront-checkup.md` e `infra/aws/cloudfront-checkup.yaml`.
+
+## Provisionado (2026-06-14)
+
+CloudFront no ar na frente do checkup:
+
+- **Distribution domain:** `d3iuh2vyr5znvv.cloudfront.net` · **ID:** `EIGK9ET6L19TE` (em SSM `/cerebro-amigo/checkup/cf-distribution-id`).
+- **Origin:** ALB do checkup via **HTTP:80 + header `X-CF-Origin-Secret`** (rule priority 1 no `checkup-asg-alb.yaml`, gerenciada por CFN; secret em SSM SecureString, fonte única p/ a rule e p/ o `OriginSecret` do CF).
+- **Cutover:** CNAME `checkup` na Vercel trocado do ALB para o domínio do CloudFront. Smoke OK: landings (`/`, `/depressao`, `/ansiedade`, `/tdah-adulto`, `/alcool`, `/bipolaridade`) 200, `/api/health` ok, `/crise` confirmada **sem cache** (`x-cache: Miss`, behavior `CachingDisabled`). `/medico` 404 é esperado (rota do site principal, não do checkup).
+- **Nota de provisioning:** uma tentativa anterior havia deixado o secret no SSM e uma **listener rule órfã** (priority 1) no :80 — a órfã foi removida e recriada via CFN. Cert ACM em us-east-1 reaproveitado.
+
+**Follow-ups abertos:**
+1. **Invalidação no CI:** conceder ao `cerebro-github-actions` `ssm:GetParameter` em `cf-distribution-id` **ou** `cloudfront:ListDistributions` (+ `cloudfront:CreateInvalidation`) — senão o deploy do checkup serve chunk/HTML antigo. (Ver topo do runbook.)
+2. **Endurecer o :443:** restringir o SG do ALB à managed prefix list do CloudFront (`com.amazonaws.global.cloudfront.origin-facing`), fechando o bypass direto. (Passo pós-cutover do runbook.)
+3. **`/crise` no origin:** o app responde `cache-control: s-maxage=31536000`; deveria ser `no-store` (defesa em profundidade — DEBT CK-11).
