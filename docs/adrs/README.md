@@ -72,7 +72,7 @@ contexto regulatório, sem dependência da memória do autor.
 | [050](ADR-050-checkup-longitudinal-anonimo.md) | Cockpit de Aquisição + Check-up longitudinal pseudonimizado | Accepted (P1) / Proposed (P2) | Produto / Aquisição / Compliance |
 | [051](ADR-051-validacao-escalas-checkup.md) | Validação e fidelidade das escalas do Check-up (PHQ-9, GAD-7, ASRS-18) | Accepted | Segurança clínica / Produto |
 | [052](ADR-052-checkup-no-ec2-nao-vercel.md) | Check-up roda no EC2 (não na Vercel): quem conecta direto no RDS vive na VPC | Accepted | Arquitetura / Infra / Compliance |
-| [053](ADR-053-teleconsulta-multiparticipante-sfu.md) | Teleconsulta multiparticipante (família) via SFU self-hosted (supersede o transporte do 026 ao ser aceito) | Proposed | Produto / Arquitetura / Segurança clínica |
+| [053](ADR-053-teleconsulta-multiparticipante-sfu.md) | Teleconsulta multiparticipante (família) via SFU self-hosted — adiado, feature futura (supersede o transporte do 026 quando implementado) | Proposed | Produto / Arquitetura / Segurança clínica |
 
 ## Status possíveis
 

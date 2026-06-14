@@ -1,6 +1,6 @@
 # ADR-053: Teleconsulta multiparticipante (família) — SFU self-hosted
 
-**Status:** Proposed
+**Status:** Proposed — implementação adiada (feature futura; ver "Custos e dimensionamento")
 **Data:** 2026-06-14
 **Decisores:** Equipe de engenharia + psiquiatra responsável clínico (sign-off clínico/DPO pendente — ver "clinical-safety")
 **Categoria:** Produto / Arquitetura / Segurança clínica
@@ -176,6 +176,77 @@ sem gravar nada e sem persistir mídia** (ver "clinical-safety").
   do escriba — exigiria revisão do ADR-040 e novo consentimento.)
 - **Custo aceito:** banda/CPU de relay de mídia no box do SFU **durante** as
   chamadas (não há custo quando não há sala ativa).
+
+## Custos e dimensionamento
+
+Dimensionamento para o lançamento (~5 psiquiatras): **1 nó**. A quantidade de VMs
+escala com **chamadas simultâneas**, não com número de médicos (todos os tenants
+compartilham o SFU; salas são isoladas por token, não por máquina). O gargalo de
+um SFU é **egress** (transferência de dados para a internet), não CPU/RAM — ele
+encaminha mídia, não transcodifica.
+
+Âncoras `sa-east-1` (jun/2026; confirmar no AWS Pricing Calculator antes de
+provisionar):
+
+- Egress: primeiros **100 GB/mês grátis**, depois **US$0,15/GB** (já com a redução
+  de 40% aplicada em São Paulo; ~67% mais caro que os EUA).
+- EC2 on-demand: `t3.small` ≈ US$21/mês, `t3.medium` ≈ US$42/mês (Savings Plan
+  corta ~30-40%).
+- IPv4 público ≈ US$4/mês; EBS root gp3 ≈ US$2/mês (**sem gravação** = pouco
+  disco). TLS/DNS no próprio nó (Caddy + Let's Encrypt) = US$0; Redis = US$0 (só
+  multi-nó).
+
+Egress por sala (1 Mbps/stream; o SFU manda N-1 streams para cada um dos N peers):
+
+| Sala | Egress | 30 min | 50 min |
+|---|---|---|---|
+| 1:1 (2 pessoas) | 2 Mbps | 0,45 GB | 0,75 GB |
+| Família (4 pessoas) | 12 Mbps | 2,7 GB | 4,5 GB |
+
+Volume-base: 5 médicos × ~8 consultas/dia × ~22 dias ≈ **~880 consultas/mês**.
+
+| Cenário | Premissas | Egress/mês | **Total/mês (1 nó)** |
+|---|---|---|---|
+| Baixo | tudo 1:1, 30 min, 0,6 Mbps | ~238 GB → ~US$21 | **~US$50** |
+| Médio | 50 min, 1 Mbps, 15% família | ~1.155 GB → ~US$158 | **~US$185** |
+| Alto | 50 min, 1,2 Mbps, 30% família | ~1.980 GB → ~US$282 | **~US$310** |
+
+Dominado pelo egress, que é **pay-per-use** (sobe com o número de consultas — e de
+médicos pagantes). No começo, com poucas consultas, o uso fica perto do tier
+grátis (~US$30-50/mês). **HA** (2 nós + ALB + Redis para distribuir salas) soma
+~US$60-90/mês fixos; a recomendação é começar com **1 nó**.
+
+Alavancas (todas no egress): capar resolução (720p→480p ≈ **metade** do egress);
+áudio-only em rede ruim; os 100 GB grátis cobrem o início; Savings Plan na
+instância.
+
+Comparativo na mesma escala: self-hosted ~US$150-185/mês · Daily.co embutível
+~US$420 (e processador estrangeiro) · Zoom 5 hosts ~US$75-100 (não embutido, sem
+escriba). **Custo não é argumento pró-SaaS** — o self-hosted fica na mesma faixa e
+preserva residência + escriba + auditoria. O gasto que a fatura da AWS **não**
+mostra, e que mais pesa, é o **esforço de engenharia/operação** (integração
+LiveKit + token + consentimento + reescrita do `SalaVideo`; plantão quando o vídeo
+cai).
+
+### Priorização — feature futura (adiada)
+
+Decisão de produto (jun/2026, fase de lançamento do SaaS): **implementação
+adiada**. No estágio inicial o custo — sobretudo o esforço de engenharia, mas
+também a infra recorrente (~US$150-185/mês ≈ **R$800-1.000/mês** a ~R$5,5/US$,
+câmbio flutuante, na faixa de uso pleno) — **não se justifica ante outras
+features** com mais retorno agora.
+
+Até a implementação, a **teleconsulta 1:1 (ADR-026, P2P) segue em produção** e
+atende o caso comum; a capacidade **multiparticipante (família)** deste ADR é o
+upgrade a fazer quando um gatilho disparar. O ADR-026 **só será marcado como
+superseded quando o 053 for implementado e aceito** — até lá, é o 026 que vale.
+
+Implementar quando (qualquer um):
+
+- família na teleconsulta virar demanda real e recorrente de médicos/pacientes;
+- a receita/escala diluir o custo (mais médicos pagantes amortizam egress + infra);
+- houver janela de engenharia sem custo de oportunidade sobre features de maior
+  retorno.
 
 ## Gatilhos de revisão
 
