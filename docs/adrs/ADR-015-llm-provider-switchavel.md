@@ -4,7 +4,7 @@
 **Data:** 2026-06-01
 **Decisores:** Rafael Arinelli, Adonai Arinelli
 **Categoria:** Stack / Compliance
-**Supersede:** [ADR-008](008-llm-bedrock-nao-anthropic-api.md) (Bedrock-only)
+**Supersede:** [ADR-008](ADR-008-llm-bedrock-nao-anthropic-api.md) (Bedrock-only)
 **Relaciona:** ADR-002 (IA em Python/LangGraph), ADR-004 (LGPD em traces)
 
 ## Contexto

@@ -1,6 +1,6 @@
 # ADR-008: LLM via AWS Bedrock In-Region (sa-east-1), não ANTHROPIC_API_KEY
 
-**Status:** Superseded by [ADR-015](015-llm-provider-switchavel.md)
+**Status:** Superseded by [ADR-015](ADR-015-llm-provider-switchavel.md)
 **Data:** 2026-05-29
 **Decisores:** Rafael Arinelli, Adonai Arinelli
 **Categoria:** Stack / Compliance
@@ -9,7 +9,7 @@
 > no Brasil via Bedrock In-Region — **não se concretiza** em `sa-east-1`: os
 > perfis de inferência `global.` processam dados fora do BR e não há perfil
 > in-region/Geo da América do Sul. Sem o ganho de residência, "Bedrock-only"
-> deixa de se justificar. O [ADR-015](015-llm-provider-switchavel.md) torna a
+> deixa de se justificar. O [ADR-015](ADR-015-llm-provider-switchavel.md) torna a
 > camada LLM provider-switchável (Anthropic API como default operacional;
 > Bedrock vivo atrás de flag). O conteúdo abaixo é mantido para histórico.
 

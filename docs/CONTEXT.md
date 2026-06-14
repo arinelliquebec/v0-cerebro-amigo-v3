@@ -282,16 +282,16 @@ SCHEDULER_INTERVAL_SECONDS
 
 | # | Decisão | Status |
 |---|---|---|
-| [001](adrs/001-backend-transacional-net.md) | Backend transacional em .NET | Accepted |
-| [002](adrs/002-ia-conversacional-python-langgraph.md) | IA conversacional Python + LangGraph | Accepted |
-| [003](adrs/003-agentes-analiticos-python-vanilla.md) | Agentes analíticos Python sem LangGraph | Accepted |
-| [004](adrs/004-lgpd-traces-langsmith.md) | LGPD em traces LangSmith | Accepted |
-| [005](adrs/005-versionamento-texto-crise.md) | Versionamento texto de crise | Accepted |
-| [006](adrs/006-fail-safe-classificador-crise.md) | Fail-safe classificador de crise | Accepted |
-| [007](adrs/007-gateway-net-nao-go.md) | Gateway .NET, não Go (V3) | Accepted |
-| [008](adrs/008-llm-bedrock-nao-anthropic-api.md) | LLM via Bedrock In-Region, não ANTHROPIC_API_KEY | Superseded by ADR-015 |
-| [009](adrs/009-separacao-plano-interativo-batch.md) | Separação plano interativo (crise) / batch + builds no CI | Accepted |
-| [010](adrs/adr-010-crise-no-diario.md) | Triagem de crise no Diário (áudio e texto) | Accepted |
-| [011](adrs/011-enforcement-custo-llm.md) | Enforcement do teto de custo diário de LLM | Accepted (impl. adiada) |
-| [014](adrs/014-dirty-patients-find-pending.md) | Candidatos incrementais em find_pending ("pacientes sujos") | Proposed |
-| [015](adrs/015-llm-provider-switchavel.md) | Camada LLM provider-switchável (Anthropic API ⇄ Bedrock) | Accepted |
+| [001](adrs/ADR-001-backend-transacional-net.md) | Backend transacional em .NET | Accepted |
+| [002](adrs/ADR-002-ia-conversacional-python-langgraph.md) | IA conversacional Python + LangGraph | Accepted |
+| [003](adrs/ADR-003-agentes-analiticos-python-vanilla.md) | Agentes analíticos Python sem LangGraph | Accepted |
+| [004](adrs/ADR-004-lgpd-traces-langsmith.md) | LGPD em traces LangSmith | Accepted |
+| [005](adrs/ADR-005-versionamento-texto-crise.md) | Versionamento texto de crise | Accepted |
+| [006](adrs/ADR-006-fail-safe-classificador-crise.md) | Fail-safe classificador de crise | Accepted |
+| [007](adrs/ADR-007-gateway-net-nao-go.md) | Gateway .NET, não Go (V3) | Accepted |
+| [008](adrs/ADR-008-llm-bedrock-nao-anthropic-api.md) | LLM via Bedrock In-Region, não ANTHROPIC_API_KEY | Superseded by ADR-015 |
+| [009](adrs/ADR-009-separacao-plano-interativo-batch.md) | Separação plano interativo (crise) / batch + builds no CI | Accepted |
+| [010](adrs/ADR-010-crise-no-diario.md) | Triagem de crise no Diário (áudio e texto) | Accepted |
+| [011](adrs/ADR-011-enforcement-custo-llm.md) | Enforcement do teto de custo diário de LLM | Accepted (impl. adiada) |
+| [014](adrs/ADR-014-dirty-patients-find-pending.md) | Candidatos incrementais em find_pending ("pacientes sujos") | Proposed |
+| [015](adrs/ADR-015-llm-provider-switchavel.md) | Camada LLM provider-switchável (Anthropic API ⇄ Bedrock) | Accepted |

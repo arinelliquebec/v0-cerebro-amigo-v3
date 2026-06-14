@@ -22,37 +22,37 @@ contexto regulatório, sem dependência da memória do autor.
 
 | # | Título | Status | Categoria |
 |---|---|---|---|
-| [001](001-backend-transacional-net.md) | Backend transacional em .NET | Accepted | Stack |
-| [002](002-ia-conversacional-python-langgraph.md) | IA conversacional em Python + LangGraph | Accepted | Stack |
-| [003](003-agentes-analiticos-python-vanilla.md) | Agentes analíticos em Python sem LangGraph | Accepted | Stack |
-| [004](004-lgpd-traces-langsmith.md) | Tratamento de LGPD em traces de LangSmith | Accepted | Compliance |
-| [005](005-versionamento-texto-crise.md) | Versionamento e revisão do texto de crise | Accepted | Segurança clínica |
-| [006](006-fail-safe-classificador-crise.md) | Fail-safe do classificador de crise | Accepted | Segurança clínica |
-| [007](007-gateway-net-nao-go.md) | Gateway transacional em .NET 10, não Go | Accepted | Stack |
-| [008](008-llm-bedrock-nao-anthropic-api.md) | LLM via Bedrock In-Region, não ANTHROPIC_API_KEY | Superseded by ADR-015 | Stack / Compliance |
-| [009](009-separacao-plano-interativo-batch.md) | Separação plano interativo (crise) / batch + builds no CI | Accepted | Arquitetura / Segurança clínica |
-| [010](adr-010-crise-no-diario.md) | Triagem de crise no Diário (áudio e texto) | Accepted | Segurança clínica |
-| [011](011-enforcement-custo-llm.md) | Enforcement do teto de custo diário de LLM | Accepted | Operação / Segurança clínica |
-| [014](014-dirty-patients-find-pending.md) | Candidatos incrementais em find_pending ("pacientes sujos") | Proposed | Performance / Arquitetura |
-| [015](015-llm-provider-switchavel.md) | Camada LLM provider-switchável (Anthropic API ⇄ Bedrock) | Accepted | Stack / Compliance |
-| [016](016-agenda-e-revisao-mensagens.md) | Agenda de consultas + console de revisão de mensagens (read-only) | Accepted | Produto / Arquitetura |
-| [017](017-imutabilidade-audit-trail-no-banco.md) | Imutabilidade do audit trail garantida no banco | Accepted | Segurança clínica / Compliance |
-| [018](018-cifragem-em-repouso.md) | Cifragem em repouso de dados clínicos | Accepted | Segurança clínica / Compliance |
-| [019](019-retomada-automacao-pos-crise.md) | Retomada de automação pós-crise (ato do médico, auditado) | Accepted | Segurança clínica |
-| [020](020-motor-conduta-automacao.md) | Motor de conduta de automação por paciente | Accepted | Produto / Arquitetura |
-| [021](021-escopo-administrativo-ia-comunicacao.md) | Escopo administrativo da IA de comunicação | Accepted | Segurança clínica / Produto |
-| [022](022-notificacao-externa-crise-medico.md) | Notificação externa de crise ao médico (e-mail) | Accepted | Segurança clínica |
-| [023](023-jobs-conduta-shadow.md) | Jobs de conduta + gate SHADOW | Accepted | Arquitetura / Segurança clínica |
-| [024](024-integracao-memed.md) | Integração MEMED (prescrição digital) | Accepted | Produto / Integração |
-| [025](025-agenda-scheduling.md) | Agenda — disponibilidade, conflito, lembretes e self-booking | Accepted | Produto |
-| [026](026-teleconsulta-video-p2p.md) | Teleconsulta por vídeo — WebRTC P2P self-hosted | Accepted | Produto / Arquitetura |
-| [027](027-measurement-based-care.md) | Measurement-Based Care — captura, desfecho e agente | Accepted | Produto / Clínico |
-| [028](028-rag-pgvector.md) | RAG com pgvector — busca semântica doctor-facing | Accepted | Arquitetura / IA |
-| [029](029-monitoramento-exames.md) | Monitoramento de exames laboratoriais e segurança farmacológica | Accepted | Produto / Segurança clínica |
-| [030](030-rede-social-medicos.md) | Rede Social Cérebro Amigo (médicos verificados) | Proposed | Produto |
-| [031](031-rede-extensoes-signup-foto-presenca.md) | Extensões da rede social — signup externo, foto, aprovação, presença | Proposed | Produto |
-| [032](032-renovacao-receita-e-interacoes.md) | Renovação de receita controlada (A4) e rede de segurança de interações (A5) | Accepted | Produto / Segurança clínica |
-| [033](033-monetizacao-roi-blindagem.md) | Monetização do médico (Asaas), dashboard ROI, recall e blindagem médico-legal | Accepted | Produto / Negócio |
+| [001](ADR-001-backend-transacional-net.md) | Backend transacional em .NET | Accepted | Stack |
+| [002](ADR-002-ia-conversacional-python-langgraph.md) | IA conversacional em Python + LangGraph | Accepted | Stack |
+| [003](ADR-003-agentes-analiticos-python-vanilla.md) | Agentes analíticos em Python sem LangGraph | Accepted | Stack |
+| [004](ADR-004-lgpd-traces-langsmith.md) | Tratamento de LGPD em traces de LangSmith | Accepted | Compliance |
+| [005](ADR-005-versionamento-texto-crise.md) | Versionamento e revisão do texto de crise | Accepted | Segurança clínica |
+| [006](ADR-006-fail-safe-classificador-crise.md) | Fail-safe do classificador de crise | Accepted | Segurança clínica |
+| [007](ADR-007-gateway-net-nao-go.md) | Gateway transacional em .NET 10, não Go | Accepted | Stack |
+| [008](ADR-008-llm-bedrock-nao-anthropic-api.md) | LLM via Bedrock In-Region, não ANTHROPIC_API_KEY | Superseded by ADR-015 | Stack / Compliance |
+| [009](ADR-009-separacao-plano-interativo-batch.md) | Separação plano interativo (crise) / batch + builds no CI | Accepted | Arquitetura / Segurança clínica |
+| [010](ADR-010-crise-no-diario.md) | Triagem de crise no Diário (áudio e texto) | Accepted | Segurança clínica |
+| [011](ADR-011-enforcement-custo-llm.md) | Enforcement do teto de custo diário de LLM | Accepted | Operação / Segurança clínica |
+| [014](ADR-014-dirty-patients-find-pending.md) | Candidatos incrementais em find_pending ("pacientes sujos") | Proposed | Performance / Arquitetura |
+| [015](ADR-015-llm-provider-switchavel.md) | Camada LLM provider-switchável (Anthropic API ⇄ Bedrock) | Accepted | Stack / Compliance |
+| [016](ADR-016-agenda-e-revisao-mensagens.md) | Agenda de consultas + console de revisão de mensagens (read-only) | Accepted | Produto / Arquitetura |
+| [017](ADR-017-imutabilidade-audit-trail-no-banco.md) | Imutabilidade do audit trail garantida no banco | Accepted | Segurança clínica / Compliance |
+| [018](ADR-018-cifragem-em-repouso.md) | Cifragem em repouso de dados clínicos | Accepted | Segurança clínica / Compliance |
+| [019](ADR-019-retomada-automacao-pos-crise.md) | Retomada de automação pós-crise (ato do médico, auditado) | Accepted | Segurança clínica |
+| [020](ADR-020-motor-conduta-automacao.md) | Motor de conduta de automação por paciente | Accepted | Produto / Arquitetura |
+| [021](ADR-021-escopo-administrativo-ia-comunicacao.md) | Escopo administrativo da IA de comunicação | Accepted | Segurança clínica / Produto |
+| [022](ADR-022-notificacao-externa-crise-medico.md) | Notificação externa de crise ao médico (e-mail) | Accepted | Segurança clínica |
+| [023](ADR-023-jobs-conduta-shadow.md) | Jobs de conduta + gate SHADOW | Accepted | Arquitetura / Segurança clínica |
+| [024](ADR-024-integracao-memed.md) | Integração MEMED (prescrição digital) | Accepted | Produto / Integração |
+| [025](ADR-025-agenda-scheduling.md) | Agenda — disponibilidade, conflito, lembretes e self-booking | Accepted | Produto |
+| [026](ADR-026-teleconsulta-video-p2p.md) | Teleconsulta por vídeo — WebRTC P2P self-hosted | Accepted | Produto / Arquitetura |
+| [027](ADR-027-measurement-based-care.md) | Measurement-Based Care — captura, desfecho e agente | Accepted | Produto / Clínico |
+| [028](ADR-028-rag-pgvector.md) | RAG com pgvector — busca semântica doctor-facing | Accepted | Arquitetura / IA |
+| [029](ADR-029-monitoramento-exames.md) | Monitoramento de exames laboratoriais e segurança farmacológica | Accepted | Produto / Segurança clínica |
+| [030](ADR-030-rede-social-medicos.md) | Rede Social Cérebro Amigo (médicos verificados) | Proposed | Produto |
+| [031](ADR-031-rede-extensoes-signup-foto-presenca.md) | Extensões da rede social — signup externo, foto, aprovação, presença | Proposed | Produto |
+| [032](ADR-032-renovacao-receita-e-interacoes.md) | Renovação de receita controlada (A4) e rede de segurança de interações (A5) | Accepted | Produto / Segurança clínica |
+| [033](ADR-033-monetizacao-roi-blindagem.md) | Monetização do médico (Asaas), dashboard ROI, recall e blindagem médico-legal | Accepted | Produto / Negócio |
 | [034](ADR-034-cobranca-recorrente-medico.md) | Cobrança recorrente da plataforma ao médico (Fluxo A) via Asaas | Accepted | Produto / Negócio |
 | [035](ADR-035-trava-server-side-prompt-crise.md) | Trava server-side dos prompts de salvaguarda clínica | Accepted | Segurança clínica |
 | [036](ADR-036-cockpit-receita.md) | Cockpit de receita do admin (Fluxo A) | Accepted | Produto / Negócio |

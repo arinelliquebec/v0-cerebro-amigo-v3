@@ -607,14 +607,14 @@ bash infra/seed/run_demo.sh
 
 | # | Decisão | Status |
 |---|---|---|
-| [001](adrs/001-backend-transacional-net.md) | Backend transacional em .NET (não Go) | Accepted |
-| [002](adrs/002-ia-conversacional-python-langgraph.md) | IA conversacional Python + LangGraph | Accepted |
-| [003](adrs/003-agentes-analiticos-python-vanilla.md) | Agentes analíticos Python sem LangGraph | Accepted |
-| [004](adrs/004-lgpd-traces-langsmith.md) | LGPD em traces LangSmith + redação de PII | Accepted |
-| [005](adrs/005-versionamento-texto-crise.md) | Texto de crise versionado em código, não no banco | Accepted |
-| [006](adrs/006-fail-safe-classificador-crise.md) | Fail-safe conservador no classificador de crise | Accepted |
-| [007](adrs/007-gateway-net-nao-go.md) | Gateway .NET 10, não Go — razões V3 | Accepted |
-| [008](adrs/008-llm-bedrock-nao-anthropic-api.md) | LLM via Bedrock In-Region, não ANTHROPIC_API_KEY | Accepted |
+| [001](adrs/ADR-001-backend-transacional-net.md) | Backend transacional em .NET (não Go) | Accepted |
+| [002](adrs/ADR-002-ia-conversacional-python-langgraph.md) | IA conversacional Python + LangGraph | Accepted |
+| [003](adrs/ADR-003-agentes-analiticos-python-vanilla.md) | Agentes analíticos Python sem LangGraph | Accepted |
+| [004](adrs/ADR-004-lgpd-traces-langsmith.md) | LGPD em traces LangSmith + redação de PII | Accepted |
+| [005](adrs/ADR-005-versionamento-texto-crise.md) | Texto de crise versionado em código, não no banco | Accepted |
+| [006](adrs/ADR-006-fail-safe-classificador-crise.md) | Fail-safe conservador no classificador de crise | Accepted |
+| [007](adrs/ADR-007-gateway-net-nao-go.md) | Gateway .NET 10, não Go — razões V3 | Accepted |
+| [008](adrs/ADR-008-llm-bedrock-nao-anthropic-api.md) | LLM via Bedrock In-Region, não ANTHROPIC_API_KEY | Accepted |
 
 ---
 

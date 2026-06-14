@@ -4,13 +4,13 @@
 **Data:** 2026-06-13
 **Decisores:** Rafael Arinelli, Adonai Arinelli
 **Categoria:** Stack / Compliance / Operação
-**Complementa:** [ADR-015](015-llm-provider-switchavel.md) (camada provider-switchável)
-**Mantém suspenso:** [ADR-008](008-llm-bedrock-nao-anthropic-api.md) (Bedrock-only — já *superseded* pelo ADR-015)
+**Complementa:** [ADR-015](ADR-015-llm-provider-switchavel.md) (camada provider-switchável)
+**Mantém suspenso:** [ADR-008](ADR-008-llm-bedrock-nao-anthropic-api.md) (Bedrock-only — já *superseded* pelo ADR-015)
 **Relaciona:** ADR-002 (IA em Python/LangGraph), ADR-004 (LGPD em traces), ADR-018 (cifragem em repouso), ADR-028 (RAG/embeddings Bedrock in-region), ADR-045/052 (infra e isolamento do Check-up), ADR-048 (escalas — entrada estruturada), ADR-050 (Check-up longitudinal)
 
 ## Contexto
 
-O [ADR-015](015-llm-provider-switchavel.md) tornou a camada de acesso ao LLM
+O [ADR-015](ADR-015-llm-provider-switchavel.md) tornou a camada de acesso ao LLM
 **provider-switchável** (`LLM_PROVIDER` ∈ {`anthropic`, `bedrock`}), com `anthropic`
 como default, *supersedendo* o ADR-008 (Bedrock-only). A justificativa foi dupla:
 a residência LGPD que motivava o Bedrock-in-region **não se concretiza** em
@@ -119,8 +119,8 @@ anônima e não pode importar nem atravessar serviços clínicos. Uma exceção 
 
 ## Referências
 
-- [ADR-015](015-llm-provider-switchavel.md) — camada provider-switchável; mapeamento de modelos.
-- [ADR-008](008-llm-bedrock-nao-anthropic-api.md) — Bedrock In-Region (suspenso).
+- [ADR-015](ADR-015-llm-provider-switchavel.md) — camada provider-switchável; mapeamento de modelos.
+- [ADR-008](ADR-008-llm-bedrock-nao-anthropic-api.md) — Bedrock In-Region (suspenso).
 - ADR-004 (LGPD em traces) · ADR-018 (cifragem em repouso) · ADR-028 (RAG/embeddings Bedrock in-region).
 - ADR-045/052 (infra e isolamento do Check-up) · ADR-048 (escalas; entrada estruturada) · ADR-050 (Check-up longitudinal).
 - `docs/aws-bedrock-quota-support-case.md` — quota Bedrock zerada na conta.
