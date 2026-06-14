@@ -80,7 +80,7 @@ Após deploy de nova imagem do checkup, o job `deploy-checkup` deve criar invali
 
 ## Alternativas descartadas
 
-- **Vercel**: bloqueado — RDS em `sa-east-1` não é alcançável (ADR-046).
+- **Vercel**: bloqueado — RDS em `sa-east-1` não é alcançável (ADR-052).
 - **NGINX com proxy_cache no EC2**: sem benefício de edge; apenas local.
 - **CloudFront + S3 export**: Next.js App Router não exporta completamente sem `output: export`; incompatível com Route Handlers (API de PDF, devolutiva IA).
 

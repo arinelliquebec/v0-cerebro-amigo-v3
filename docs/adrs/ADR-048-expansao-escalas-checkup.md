@@ -19,7 +19,7 @@ traços borderline, álcool, tabagismo e drogas ilícitas (pedido de 2026-06-12)
    (o ambiente de desenvolvimento não alcançou as fontes oficiais — 403 de rede).
    `isScaleAvailable` mantém cada escala em "Em breve" até a conferência
    caractere a caractere pelo responsável clínico — o mesmo processo do PHQ-9.
-3. **Sem verdict onde não há cutoff BR** (precedente ASRS-18/ADR-045):
+3. **Sem verdict onde não há cutoff BR** (precedente ASRS-18/ADR-051):
    o **MSI-BPD** fica qualitativo (banda única `informative`) — o cutoff ≥7 é da
    amostra americana e não localizamos validação brasileira com corte publicado.
 4. **Devolutiva estática (sem LLM) para MDQ e MSI-BPD**: bipolaridade e

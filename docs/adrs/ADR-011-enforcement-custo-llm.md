@@ -2,7 +2,7 @@
 
 - **Status:** Aceito — **implementado 2026-06-11** (ver Amendment no fim). O gate descrito na Decisão está em vigor no `agents-py`; sai-se da Alternativa B.
 - **Data:** 2026-06-01
-- **Depende de:** [ADR-015](015-llm-provider-switchavel.md) (camada LLM provider-switchável), que introduziu o price map provider-aware, o `compute_cost()` e a gravação de `custo_usd`.
+- **Depende de:** [ADR-015](ADR-015-llm-provider-switchavel.md) (camada LLM provider-switchável), que introduziu o price map provider-aware, o `compute_cost()` e a gravação de `custo_usd`.
 
 ## Contexto
 

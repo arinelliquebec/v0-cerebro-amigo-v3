@@ -1,7 +1,7 @@
 # Disparo externo de agentes via EventBridge (caminho de evolução)
 
 **Status:** Documentação de arquitetura futura — não implementado.  
-**Pré-requisito:** [ADR-009](../../docs/adrs/009-separacao-plano-interativo-batch.md) — isolamento batch/interativo.  
+**Pré-requisito:** [ADR-009](../../docs/adrs/ADR-009-separacao-plano-interativo-batch.md) — isolamento batch/interativo.  
 **Gatilho de adoção:** quando o APScheduler in-process (mesmo com limits Docker) gerar
 variabilidade inaceitável de latência na triagem de crise, ou quando a box batch for
 separada da box interativa (Fase 2 do ADR-009).

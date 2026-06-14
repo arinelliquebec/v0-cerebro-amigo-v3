@@ -466,11 +466,9 @@ Registro completo em `docs/adrs/`. Principais:
 | 048 | Expansão das escalas do Check-up (AUDIT, MDQ, Fagerström, MSI-BPD) | Accepted |
 | 049 | ASSIST com UX próprio no Check-up | Accepted |
 
-> ¹ **Dívida de numeração conhecida:** os números **045 e 046 estão duplicados** (dois arquivos cada
-> em `docs/adrs/`) e **não existe arquivo `ADR-044`** — a decisão "Anthropic API direta vigente" é
-> referida como ADR-044 no `CLAUDE.md`, mas está formalizada via **ADR-015** (camada
-> provider-switchável) + convenção de projeto. ADR-010 usa prefixo minúsculo (`adr-010-…`); 012/013
-> não têm arquivo. A renumeração é dívida pendente, não erro de conteúdo.
+> ¹ **Numeração:** os ADRs seguem `ADR-NNN-slug.md`, sequenciais e **sem reuso**. Os números
+> **012 e 013** nunca tiveram arquivo (foram planejados no ADR-009 e descartados); fora isso a
+> sequência 001–052 está completa. Índice canônico em [`docs/adrs/README.md`](docs/adrs/README.md).
 
 ---
 
