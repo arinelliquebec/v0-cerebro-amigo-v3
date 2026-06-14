@@ -41,6 +41,18 @@ Parameters:
   LatestAmiId:
     Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
     Default: /aws/service/ami-amazon-linux-latest/al2023-ami-kernel-default-x86_64
+  CfOriginSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: >-
+      Valor de X-CF-Origin-Secret (ADR-047). Buscar do SSM antes do deploy:
+      aws ssm get-parameter --region sa-east-1 --name /cerebro-amigo/checkup/cf-origin-secret --with-decryption --query Parameter.Value --output text
+      Vazio = sem CloudFront na frente (a rule do header nao e criada; comportamento atual).
+
+Conditions:
+  # So cria a listener rule do header quando o secret e informado (provisioning do CloudFront).
+  HasCfOriginSecret: !Not [ !Equals [ !Ref CfOriginSecret, "" ] ]
 
 Resources:
 
@@ -173,6 +185,31 @@ Resources:
       DefaultActions:
         - Type: redirect
           RedirectConfig: { Protocol: HTTPS, Port: "443", StatusCode: HTTP_301 }
+
+  # ── Listener rule p/ o CloudFront (ADR-047) ─────────────────────────────────
+  # O CloudFront fala com o ALB em HTTP:80 (OriginProtocolPolicy http-only) e envia
+  # o header X-CF-Origin-Secret (OriginCustomHeaders do cloudfront-checkup.yaml).
+  # Esta rule (priority 1) faz forward p/ o target group quando o header confere;
+  # sem o header, o default do :80 segue redirecionando p/ 443 — bloqueia acesso
+  # direto ao ALB bypassando o CloudFront. Secret = mesmo valor do SSM
+  # /cerebro-amigo/checkup/cf-origin-secret e do OriginSecret no stack do CF.
+  # So existe quando CfOriginSecret e informado (provisioning do CloudFront).
+  # NOTA: o listener :443 segue aberto (forward direto) p/ nao quebrar o acesso
+  # durante o cutover; endurecer o :443 com o mesmo header e passo pos-cutover.
+  CfOriginHeaderRule:
+    Type: AWS::ElasticLoadBalancingV2::ListenerRule
+    Condition: HasCfOriginSecret
+    Properties:
+      ListenerArn: !Ref HttpRedirect
+      Priority: 1
+      Conditions:
+        - Field: http-header
+          HttpHeaderConfig:
+            HttpHeaderName: X-CF-Origin-Secret
+            Values: [ !Ref CfOriginSecret ]
+      Actions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
 
   # ── Launch template: AL2023 + docker, puxa imagem + segredos do SSM no boot ──
   LaunchTemplate:
