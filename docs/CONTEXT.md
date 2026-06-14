@@ -282,16 +282,53 @@ SCHEDULER_INTERVAL_SECONDS
 
 | # | Decisão | Status |
 |---|---|---|
-| [001](adrs/ADR-001-backend-transacional-net.md) | Backend transacional em .NET | Accepted |
+| [001](adrs/ADR-001-backend-transacional-net.md) | Backend transacional em .NET (não Go) | Accepted |
 | [002](adrs/ADR-002-ia-conversacional-python-langgraph.md) | IA conversacional Python + LangGraph | Accepted |
 | [003](adrs/ADR-003-agentes-analiticos-python-vanilla.md) | Agentes analíticos Python sem LangGraph | Accepted |
-| [004](adrs/ADR-004-lgpd-traces-langsmith.md) | LGPD em traces LangSmith | Accepted |
-| [005](adrs/ADR-005-versionamento-texto-crise.md) | Versionamento texto de crise | Accepted |
-| [006](adrs/ADR-006-fail-safe-classificador-crise.md) | Fail-safe classificador de crise | Accepted |
-| [007](adrs/ADR-007-gateway-net-nao-go.md) | Gateway .NET, não Go (V3) | Accepted |
+| [004](adrs/ADR-004-lgpd-traces-langsmith.md) | LGPD em traces LangSmith + redação de PII | Accepted |
+| [005](adrs/ADR-005-versionamento-texto-crise.md) | Versionamento e revisão do texto de crise | Accepted |
+| [006](adrs/ADR-006-fail-safe-classificador-crise.md) | Fail-safe do classificador de crise | Accepted |
+| [007](adrs/ADR-007-gateway-net-nao-go.md) | Gateway transacional em .NET 10, não Go | Accepted |
 | [008](adrs/ADR-008-llm-bedrock-nao-anthropic-api.md) | LLM via Bedrock In-Region, não ANTHROPIC_API_KEY | Superseded by ADR-015 |
 | [009](adrs/ADR-009-separacao-plano-interativo-batch.md) | Separação plano interativo (crise) / batch + builds no CI | Accepted |
 | [010](adrs/ADR-010-crise-no-diario.md) | Triagem de crise no Diário (áudio e texto) | Accepted |
-| [011](adrs/ADR-011-enforcement-custo-llm.md) | Enforcement do teto de custo diário de LLM | Accepted (impl. adiada) |
+| [011](adrs/ADR-011-enforcement-custo-llm.md) | Enforcement do teto de custo diário de LLM | Accepted |
 | [014](adrs/ADR-014-dirty-patients-find-pending.md) | Candidatos incrementais em find_pending ("pacientes sujos") | Proposed |
 | [015](adrs/ADR-015-llm-provider-switchavel.md) | Camada LLM provider-switchável (Anthropic API ⇄ Bedrock) | Accepted |
+| [016](adrs/ADR-016-agenda-e-revisao-mensagens.md) | Agenda de consultas + console de revisão de mensagens | Accepted |
+| [017](adrs/ADR-017-imutabilidade-audit-trail-no-banco.md) | Imutabilidade do audit trail garantida no banco | Accepted |
+| [018](adrs/ADR-018-cifragem-em-repouso.md) | Cifragem em repouso de dados clínicos | Accepted |
+| [019](adrs/ADR-019-retomada-automacao-pos-crise.md) | Retomada de automação pós-crise (ato do médico, auditado) | Accepted |
+| [020](adrs/ADR-020-motor-conduta-automacao.md) | Motor de conduta de automação por paciente | Accepted |
+| [021](adrs/ADR-021-escopo-administrativo-ia-comunicacao.md) | Escopo administrativo da IA de comunicação | Accepted |
+| [022](adrs/ADR-022-notificacao-externa-crise-medico.md) | Notificação externa de crise ao médico (e-mail) | Accepted |
+| [023](adrs/ADR-023-jobs-conduta-shadow.md) | Jobs de conduta + gate SHADOW | Accepted |
+| [024](adrs/ADR-024-integracao-memed.md) | Integração MEMED (prescrição digital) | Accepted |
+| [025](adrs/ADR-025-agenda-scheduling.md) | Agenda — disponibilidade, conflito, lembretes e self-booking | Accepted |
+| [026](adrs/ADR-026-teleconsulta-video-p2p.md) | Teleconsulta por vídeo — WebRTC P2P self-hosted | Accepted |
+| [027](adrs/ADR-027-measurement-based-care.md) | Measurement-Based Care — captura, desfecho e agente | Accepted |
+| [028](adrs/ADR-028-rag-pgvector.md) | RAG com pgvector — busca semântica doctor-facing | Accepted |
+| [029](adrs/ADR-029-monitoramento-exames.md) | Monitoramento de exames laboratoriais e segurança farmacológica | Accepted |
+| [030](adrs/ADR-030-rede-social-medicos.md) | Rede Social Cérebro Amigo (médicos verificados) | Proposed |
+| [031](adrs/ADR-031-rede-extensoes-signup-foto-presenca.md) | Extensões da rede social — signup externo, foto, aprovação, presença | Proposed |
+| [032](adrs/ADR-032-renovacao-receita-e-interacoes.md) | Renovação de receita controlada (A4) + rede de segurança de interações (A5) | Accepted |
+| [033](adrs/ADR-033-monetizacao-roi-blindagem.md) | Monetização do médico (Asaas), dashboard ROI, recall, blindagem | Accepted |
+| [034](adrs/ADR-034-cobranca-recorrente-medico.md) | Cobrança recorrente da plataforma ao médico (Fluxo A) via Asaas | Accepted |
+| [035](adrs/ADR-035-trava-server-side-prompt-crise.md) | Trava server-side dos prompts de salvaguarda clínica | Accepted |
+| [036](adrs/ADR-036-cockpit-receita.md) | Cockpit de receita do admin (Fluxo A) | Accepted |
+| [037](adrs/ADR-037-sala-supervisao-crise.md) | Sala de supervisão de crise (admin, read-only) | Accepted |
+| [038](adrs/ADR-038-trilha-acesso-dados-sensiveis.md) | Trilha de acesso a dados sensíveis (LGPD art. 37) | Accepted |
+| [039](adrs/ADR-039-console-direitos-titular.md) | Console de direitos do titular (LGPD) | Accepted |
+| [040](adrs/ADR-040-escriba-teleconsulta.md) | Escriba clínico (Ambient Scribe) na teleconsulta | Accepted |
+| [041](adrs/ADR-041-entrega-garantida-alerta-crise.md) | Entrega garantida e escalonamento do alerta de crise | Accepted |
+| [042](adrs/ADR-042-rls-isolamento-tenant.md) | Isolamento de tenant — least-privilege + RLS | Accepted |
+| [043](adrs/ADR-043-ha-spof-plano.md) | Alta disponibilidade e fim do SPOF — plano | Proposed |
+| [044](adrs/ADR-044-llm-anthropic-api-direta.md) | LLM via Anthropic API direta (vigente); Bedrock suspenso | Accepted |
+| [045](adrs/ADR-045-checkup-decouple-asg-alb.md) | Desacoplar o Check-up para infra própria (ALB + ASG) | Accepted |
+| [046](adrs/ADR-046-signup-externo-medico-atribuicao-checkup.md) | Signup externo de médico + atribuição do Check-up | Accepted |
+| [047](adrs/ADR-047-cloudfront-checkup.md) | CloudFront na frente do checkup.cerebroamigo.com.br | Proposed |
+| [048](adrs/ADR-048-expansao-escalas-checkup.md) | Expansão das escalas do Check-up (AUDIT, MDQ, Fagerström, MSI-BPD) | Accepted |
+| [049](adrs/ADR-049-assist-ux-proprio.md) | ASSIST com UX próprio no Check-up Mental | Accepted |
+| [050](adrs/ADR-050-checkup-longitudinal-anonimo.md) | Cockpit de Aquisição + Check-up longitudinal pseudonimizado | Accepted (P1) / Proposed (P2) |
+| [051](adrs/ADR-051-validacao-escalas-checkup.md) | Validação e fidelidade das escalas (PHQ-9, GAD-7, ASRS-18) | Accepted |
+| [052](adrs/ADR-052-checkup-no-ec2-nao-vercel.md) | Check-up roda no EC2 (não na Vercel) | Accepted |
