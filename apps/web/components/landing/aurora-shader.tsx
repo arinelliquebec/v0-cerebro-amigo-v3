@@ -132,43 +132,59 @@ export function AuroraShader({
 
     let program: WebGLProgram | null = null
     let buffer: WebGLBuffer | null = null
-    try {
-      const vs = compile(gl.VERTEX_SHADER, VERT)
-      const fs = compile(gl.FRAGMENT_SHADER, FRAG)
-      if (!vs || !fs) return
-      program = gl.createProgram()
-      if (!program) return
-      gl.attachShader(program, vs)
-      gl.attachShader(program, fs)
-      gl.linkProgram(program)
-      gl.deleteShader(vs)
-      gl.deleteShader(fs)
-      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        gl.deleteProgram(program)
-        return
+    let uRes: WebGLUniformLocation | null = null
+    let uTime: WebGLUniformLocation | null = null
+
+    // (Re)cria TODOS os recursos de GL. Idempotente — roda no mount E no evento
+    // `webglcontextrestored`. Chrome descarta o contexto WebGL de canvas fora de
+    // tela (ex.: ao rolar pro #como-funciona, o hero sai da viewport); sem
+    // reconstruir program/buffer/uniforms, o loop volta a desenhar com um
+    // program morto = tela vazia até dar refresh. Aqui está a recuperação.
+    const setup = (): boolean => {
+      let prog: WebGLProgram | null = null
+      try {
+        const vs = compile(gl.VERTEX_SHADER, VERT)
+        const fs = compile(gl.FRAGMENT_SHADER, FRAG)
+        if (!vs || !fs) return false
+        prog = gl.createProgram()
+        if (!prog) return false
+        gl.attachShader(prog, vs)
+        gl.attachShader(prog, fs)
+        gl.linkProgram(prog)
+        gl.deleteShader(vs)
+        gl.deleteShader(fs)
+        if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
+          gl.deleteProgram(prog)
+          return false
+        }
+      } catch {
+        return false
       }
-    } catch {
-      return
+
+      program = prog
+      gl.useProgram(program)
+
+      buffer = gl.createBuffer()
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
+      const aPos = gl.getAttribLocation(program, "aPos")
+      gl.enableVertexAttribArray(aPos)
+      gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
+
+      uRes = gl.getUniformLocation(program, "uRes")
+      uTime = gl.getUniformLocation(program, "uTime")
+      gl.uniform3fv(gl.getUniformLocation(program, "uPurple"), uPurple)
+      gl.uniform3fv(gl.getUniformLocation(program, "uCoral"), uCoral)
+      gl.uniform3fv(gl.getUniformLocation(program, "uGlow"), uGlow)
+      gl.uniform1f(gl.getUniformLocation(program, "uIntensity"), intensity)
+
+      gl.enable(gl.BLEND)
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA) // premultiplied
+      gl.clearColor(0, 0, 0, 0)
+      return true
     }
 
-    gl.useProgram(program)
-    buffer = gl.createBuffer()
-    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW)
-    const aPos = gl.getAttribLocation(program, "aPos")
-    gl.enableVertexAttribArray(aPos)
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0)
-
-    const uRes = gl.getUniformLocation(program, "uRes")
-    const uTime = gl.getUniformLocation(program, "uTime")
-    gl.uniform3fv(gl.getUniformLocation(program, "uPurple"), uPurple)
-    gl.uniform3fv(gl.getUniformLocation(program, "uCoral"), uCoral)
-    gl.uniform3fv(gl.getUniformLocation(program, "uGlow"), uGlow)
-    gl.uniform1f(gl.getUniformLocation(program, "uIntensity"), intensity)
-
-    gl.enable(gl.BLEND)
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA) // premultiplied
-    gl.clearColor(0, 0, 0, 0)
+    if (!setup()) return
 
     const resize = () => {
       const rect = cv.getBoundingClientRect()
@@ -195,6 +211,10 @@ export function AuroraShader({
     let running = false
 
     const loop = (now: number) => {
+      if (gl.isContextLost()) {
+        running = false
+        return // o handler webglcontextrestored reconstrói e retoma
+      }
       if (last === 0) last = now
       clock += (now - last) / 1000
       last = now
@@ -252,7 +272,13 @@ export function AuroraShader({
       stop()
     }
     const onRestored = () => {
-      if (!reduce && onScreen && !document.hidden) start()
+      if (!setup()) return // recursos invalidados pela perda — recria do zero
+      resize()
+      if (reduce) {
+        render(0)
+        return
+      }
+      if (onScreen && !document.hidden) start()
     }
     cv.addEventListener("webglcontextlost", onLost as EventListener)
     cv.addEventListener("webglcontextrestored", onRestored as EventListener)
