@@ -26,7 +26,11 @@ Parameters:
     Default: t3.small
   MinSize:
     Type: Number
-    Default: 1
+    Default: 2
+    Description: >-
+      Piso do ASG. 2 = zero-gap de disponibilidade (instancias em AZs diferentes;
+      falha de 1 instancia/AZ nao derruba o funil de aquisicao). 1 = mais barato,
+      mas ha um gap de ~minutos enquanto o ASG recria. DesiredCapacity segue o MinSize.
   MaxSize:
     Type: Number
     Default: 6
