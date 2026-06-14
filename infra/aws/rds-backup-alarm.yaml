@@ -14,8 +14,7 @@ Parameters:
     Description: Identificador do RDS a monitorar.
   AlertEmail:
     Type: String
-    Default: arinelliquebec@gmail.com
-    Description: E-mail do alerta (confirmar a subscricao SNS no 1o deploy).
+    Description: E-mail do alerta (obrigatorio; passar via --parameter-overrides; confirmar a subscricao SNS no 1o deploy).
   MaxBackupAgeHours:
     Type: Number
     Default: 168
@@ -30,6 +29,7 @@ Resources:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: cerebro-amigo-rds-backup-alertas
+      KmsMasterKeyId: alias/aws/sns
 
   AlertSubscription:
     Type: AWS::SNS::Subscription

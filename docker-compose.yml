@@ -109,7 +109,8 @@ services:
       context: ./apps/agents-py
     # Plano batch — teto duro. scipy/numpy (padroes) + langchain-aws + asyncpg pool 10.
     # mem_limit: OOM killer mata este cgroup antes do orchestrator.
-    # cpus: at most 2 vCPU; numa box de 4 vCPU, garante ≥2 livres pro plano interativo/crise.
+    # cpus: at most 2 vCPU para agents; com notifier (cpus 1.0), o batch chega a 3 vCPU
+    # numa box de 4 vCPU (≈1 vCPU livre pro interativo/crise); cpu_shares ainda favorece o interativo.
     # cpu_shares: prioridade baixa quando CPU contendida (orchestrator=1024 vs batch=256).
     # Evolução para disparo externo: ver infra/aws/eventbridge-agents-trigger.md
     mem_limit: 4g

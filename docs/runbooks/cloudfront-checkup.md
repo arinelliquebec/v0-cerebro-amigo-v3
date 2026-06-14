@@ -18,7 +18,7 @@
 
 ## Visão geral
 
-```
+```text
 Usuário BR
     │  HTTPS
     ▼
@@ -89,7 +89,7 @@ SECRET=$(openssl rand -hex 32)
 aws ssm put-parameter --region sa-east-1 \
   --name /cerebro-amigo/checkup/cf-origin-secret \
   --value "$SECRET" --type SecureString --overwrite
-echo "Secret: $SECRET"
+echo "Secret gravado no SSM (/cerebro-amigo/checkup/cf-origin-secret)."
 ```
 
 ```bash
@@ -222,7 +222,11 @@ O stack CF pode ficar **Disabled** (não deletar — evita recriar o cert).
 ## Endurecimento pós-cutover (recomendado, NÃO durante o cutover)
 
 Depois do cutover estável, o listener **:443** do ALB ainda aceita acesso direto
-(forward sem header) — bypass do CloudFront p/ quem souber o DNS do ALB. Para
-fechar, exigir o mesmo `X-CF-Origin-Secret` no :443 (rule análoga à do :80) ou
-restringir o Security Group do ALB às faixas do CloudFront. **Não fazer durante o
-cutover** (risco de lockout enquanto o DNS ainda aponta direto pro ALB).
+(forward sem header) — bypass do CloudFront p/ quem souber o DNS do ALB. **Forma
+recomendada de fechar:** restringir o ingress do SG do ALB (portas 80 e 443) à
+**managed prefix list do CloudFront** (`com.amazonaws.global.cloudfront.origin-facing`),
+em vez de `0.0.0.0/0` — bloqueia qualquer acesso que não venha do CloudFront, em todas
+as portas, sem mexer em listener. (Alternativa: rule de header no :443 **+** trocar o
+*default action* do :443 para `fixed-response 403` — só a rule não basta, pois o default
+continua dando forward.) **Não fazer durante o cutover** (risco de lockout enquanto o DNS
+ainda aponta direto pro ALB).
