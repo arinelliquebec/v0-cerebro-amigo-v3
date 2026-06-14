@@ -25,14 +25,15 @@ export async function NavHeader() {
               </Link>
             ))}
           </nav>
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" className="text-muted-foreground hover:text-foreground hover:bg-noir-surface-raised/60 font-medium" asChild>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Button variant="ghost" className="px-3 sm:px-4 text-muted-foreground hover:text-foreground hover:bg-noir-surface-raised/60 font-medium" asChild>
               <Link href="/login">Entrar</Link>
             </Button>
-            <Button variant="coral" className="font-medium transition-all duration-300 hover:-translate-y-0.5" asChild>
+            <Button variant="coral" className="px-3 sm:px-4 font-medium transition-all duration-300 hover:-translate-y-0.5" asChild>
               <Link href="/dashboard">
-                Ver demonstração
-                <ArrowRight className="ml-2 h-4 w-4" />
+                <span className="sm:hidden">Demo</span>
+                <span className="hidden sm:inline">Ver demonstração</span>
+                <ArrowRight className="hidden sm:inline-block sm:ml-2 h-4 w-4" />
               </Link>
             </Button>
           </div>
