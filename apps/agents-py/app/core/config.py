@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # Fallback para jobs operacionais (gerador_checkins, gerador_questionarios).
     scheduler_interval_seconds: int = 300
 
+    # Fuso para interpretar horários de check-in cadastrados pelo médico (DEBT
+    # G-4). Os horários de prescrição são horários de parede LOCAIS do paciente,
+    # não UTC. Override por paciente em pacientes.config_lembretes.timezone.
+    default_timezone: str = "America/Sao_Paulo"  # DEFAULT_TIMEZONE
+
     # SHADOW: novas automações proativas (checkin_humor, alerta_nao_adesao)
     # logam o que fariam SEM efeito até validação clínica (clinical-safety).
     # Não altera os jobs legados nem os agentes analíticos.
