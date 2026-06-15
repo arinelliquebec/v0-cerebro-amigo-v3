@@ -11,6 +11,15 @@ export interface Me {
   usuarioId: string
   email: string
   role: string
+  // Assinatura (ADR-055) — exposto p/ a UI (banner/paywall). SEM enforcement nesta
+  // fase: o gate real vem na Fase D. `bloqueado` é só um sinal pro front aqui.
+  assinaturaStatus?: string | null
+  liberado?: boolean
+  bloqueado?: boolean
+  emPrazo?: boolean
+  diasRestantes?: number | null
+  motivo?: string
+  prazoPagamentoAte?: string | null
 }
 
 // Cache de módulo: evita refetch quando vários componentes (sidebar + header)

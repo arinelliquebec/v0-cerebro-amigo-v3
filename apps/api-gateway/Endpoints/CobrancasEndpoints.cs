@@ -143,9 +143,13 @@ public static class CobrancasEndpoints
             if (medicoId is null) return Results.Forbid();
 
             var a = await db.Database.SqlQueryRaw<MinhaAssinatura>(@"
-                SELECT plano, valor_mensal, moeda, status, trial_ate, asaas_subscription_id
+                SELECT plano, valor_mensal, moeda, status, trial_ate, prazo_pagamento_ate, asaas_subscription_id
                 FROM assinaturas WHERE medico_id = {0}", medicoId.Value).FirstOrDefaultAsync();
             if (a is null) return Results.NotFound(new { error = "sem_assinatura" });
+
+            // ADR-055: situação de acesso (liberado/bloqueado/prazo). Exposto p/ a UI;
+            // o enforcement (gate) vem na Fase D. Não bloqueia nada aqui.
+            var sit = AssinaturaGate.Avaliar(a.Status, a.PrazoPagamentoAte, a.TrialAte, DateTime.UtcNow);
 
             string? invoiceUrl = null;
             if (!string.IsNullOrWhiteSpace(a.AsaasSubscriptionId) && asaas.Configurado)
@@ -162,6 +166,9 @@ public static class CobrancasEndpoints
             {
                 plano = a.Plano, valorMensal = a.ValorMensal, moeda = a.Moeda,
                 status = a.Status, trialAte = a.TrialAte,
+                prazoPagamentoAte = a.PrazoPagamentoAte,
+                liberado = sit.Liberado, emPrazo = sit.EmPrazo,
+                diasRestantes = sit.DiasRestantes, motivo = sit.Motivo,
                 cobrancaAtiva = !string.IsNullOrWhiteSpace(a.AsaasSubscriptionId),
                 invoiceUrl, pagamentos,
             });
@@ -269,7 +276,7 @@ public static class CobrancasEndpoints
 
 public record CriarCobrancaRequest(Guid PacienteId, decimal Valor, string? Descricao, Guid? ConsultaId, DateOnly? Vencimento);
 
-public record MinhaAssinatura(string Plano, decimal ValorMensal, string Moeda, string Status, DateTime? TrialAte, string? AsaasSubscriptionId);
+public record MinhaAssinatura(string Plano, decimal ValorMensal, string Moeda, string Status, DateTime? TrialAte, DateTime? PrazoPagamentoAte, string? AsaasSubscriptionId);
 public record PagamentoMedico(decimal Valor, string? Referencia, string? Metodo, DateTime? PagoEm);
 
 public record CobrancaItem(

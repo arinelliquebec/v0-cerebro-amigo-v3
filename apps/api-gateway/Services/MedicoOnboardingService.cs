@@ -6,7 +6,7 @@ using System.Text;
 namespace ApiGateway.Services;
 
 /// <summary>
-/// Onboarding de médico: cria usuario + medico + assinatura trial + token de convite
+/// Onboarding de médico: cria usuario + medico + assinatura pendente (sem trial, ADR-055) + token de convite
 /// (atômico) e envia o e-mail de ativação. Extraído de AdminEndpoints (ADR-046) para
 /// ser reusado por dois chamadores:
 ///   - admin (POST /api/v1/admin/onboarding/medico): AllowCrmSoftFail = true.
@@ -17,7 +17,9 @@ namespace ApiGateway.Services;
 /// </summary>
 public sealed class MedicoOnboardingService
 {
-    private static readonly string[] PlanosValidos = { "trial", "starter", "pro", "enterprise" };
+    // 'pendente' = assinatura criada sem plano escolhido (sem trial, ADR-055); o plano
+    // real é definido no checkout. 'trial' mantido só para compatibilidade/legado.
+    private static readonly string[] PlanosValidos = { "pendente", "trial", "starter", "pro", "enterprise" };
 
     private readonly AppDbContext _db;
     private readonly CfmClient _cfm;
@@ -109,10 +111,14 @@ public sealed class MedicoOnboardingService
                 medicoId, usuarioId, nome, crm, crmUf, cpf, situacao, val.Nome ?? "",
                 input.SignupSource, input.CheckupRid ?? "");
 
+            // Sem trial (ADR-055): a assinatura nasce 'pendente' com prazo curto de
+            // pagamento (default 5 dias). Vencido sem pagamento confirmado → paywall.
+            // plano/valor reais vêm no checkout; no self-signup chegam 'pendente'/0.
+            var prazoDias = int.TryParse(_cfg["ASSINATURA_PRAZO_PAGAMENTO_DIAS"], out var pd) && pd > 0 ? pd : 5;
             await _db.Database.ExecuteSqlRawAsync(@"
-                INSERT INTO assinaturas (id, medico_id, plano, valor_mensal, status, trial_ate)
-                VALUES ({0},{1},{2},{3},'trial', NOW() + INTERVAL '30 days')",
-                assinaturaId, medicoId, plano, input.ValorMensal);
+                INSERT INTO assinaturas (id, medico_id, plano, valor_mensal, status, prazo_pagamento_ate)
+                VALUES ({0},{1},{2},{3},'pendente', NOW() + make_interval(days => {4}))",
+                assinaturaId, medicoId, plano, input.ValorMensal, prazoDias);
 
             await _db.Database.ExecuteSqlRawAsync(
                 "INSERT INTO medico_invite_tokens (usuario_id, token_hash, expira_em) VALUES ({0},{1}, NOW() + INTERVAL '24 hours')",

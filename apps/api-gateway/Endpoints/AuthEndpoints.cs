@@ -85,13 +85,32 @@ public static class AuthEndpoints
 
             var row = await db.Database.SqlQueryRaw<MedicoMeDto>(@"
                 SELECT m.id AS medico_id, m.nome, m.crm, m.especialidade,
-                       u.id AS usuario_id, u.email, u.role
+                       u.id AS usuario_id, u.email, u.role,
+                       a.status AS assinatura_status, a.prazo_pagamento_ate, a.trial_ate
                 FROM medicos m
                 JOIN usuarios u ON u.id = m.usuario_id
+                LEFT JOIN assinaturas a ON a.medico_id = m.id
                 WHERE m.usuario_id = {0}",
                 usuarioId).FirstOrDefaultAsync();
 
-            return row is null ? Results.Forbid() : Results.Ok(row);
+            if (row is null) return Results.Forbid();
+
+            // ADR-055: situação de acesso exposta p/ a UI (sidebar/banner/paywall).
+            // SEM enforcement aqui — /me NUNCA é gateado (é como o front detecta o
+            // bloqueio). O gate real (Fase D) mora nos endpoints de dashboard.
+            var sit = AssinaturaGate.Avaliar(
+                row.AssinaturaStatus, row.PrazoPagamentoAte, row.TrialAte, DateTime.UtcNow);
+
+            return Results.Ok(new
+            {
+                medicoId = row.MedicoId, nome = row.Nome, crm = row.Crm,
+                especialidade = row.Especialidade, usuarioId = row.UsuarioId,
+                email = row.Email, role = row.Role,
+                assinaturaStatus = row.AssinaturaStatus,
+                liberado = sit.Liberado, bloqueado = !sit.Liberado, emPrazo = sit.EmPrazo,
+                diasRestantes = sit.DiasRestantes, motivo = sit.Motivo,
+                prazoPagamentoAte = row.PrazoPagamentoAte,
+            });
         })
         .RequireAuthorization()
         .WithSummary("Perfil do médico logado (health-check de sessão)");
@@ -161,7 +180,7 @@ public static class AuthEndpoints
 
             var r = await onboarding.OnboardAsync(new OnboardMedicoInput(
                 Nome: req.Nome, Email: req.Email, Crm: req.Crm, CrmUf: req.CrmUf, Cpf: null,
-                Plano: "trial", ValorMensal: 0m,
+                Plano: "pendente", ValorMensal: 0m,
                 SignupSource: fromCheckup ? "checkup" : "self",
                 CheckupRid: rid,
                 AllowCrmSoftFail: false,
@@ -216,4 +235,5 @@ internal record TokenRow(string UsuarioId, DateTime ExpiraEm, DateTime? UsadoEm)
 
 public record MedicoMeDto(
     Guid MedicoId, string Nome, string Crm, string? Especialidade,
-    Guid UsuarioId, string Email, string Role);
+    Guid UsuarioId, string Email, string Role,
+    string? AssinaturaStatus, DateTime? PrazoPagamentoAte, DateTime? TrialAte);
