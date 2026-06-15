@@ -218,6 +218,44 @@ public static class AdminEndpoints
             });
         });
 
+        // ── Reconciliação Asaas (ADR-055 Fase E): divergência status local × Asaas ──
+        // Rede de segurança contra webhook perdido (assinatura presa em status errado).
+        // DETECT-ONLY: não escreve nada — corrigir é decisão humana (evita auto-suspender/
+        // auto-ativar por leitura possivelmente transitória do Asaas). Chamável manual
+        // pelo admin ou por scheduler externo (EventBridge) no futuro.
+        g.MapGet("/asaas/reconciliacao", async (AppDbContext db, AsaasClient asaas) =>
+        {
+            if (!asaas.Configurado)
+                return Results.Json(new { error = "asaas_nao_configurado" }, statusCode: 503);
+
+            var assinaturas = await db.Database.SqlQueryRaw<ReconAssinaturaRow>(@"
+                SELECT a.id AS assinatura_id, a.medico_id, m.nome AS medico_nome,
+                       a.status AS status_local, a.asaas_subscription_id
+                FROM assinaturas a JOIN medicos m ON m.id = a.medico_id
+                WHERE a.asaas_subscription_id IS NOT NULL AND a.status <> 'cancelada'").ToListAsync();
+
+            var divergencias = new List<object>();
+            var indisponiveis = 0;
+            foreach (var a in assinaturas)
+            {
+                var statusAsaas = await asaas.ObterStatusAssinaturaAsync(a.AsaasSubscriptionId!);
+                if (statusAsaas is null) { indisponiveis++; continue; }
+                var esperado = statusAsaas.ToUpperInvariant() switch
+                {
+                    "ACTIVE" => "ativa",
+                    "EXPIRED" or "INACTIVE" => "suspensa",
+                    _ => null,
+                };
+                if (esperado is not null && !string.Equals(esperado, a.StatusLocal, StringComparison.OrdinalIgnoreCase))
+                    divergencias.Add(new
+                    {
+                        assinaturaId = a.AssinaturaId, medicoNome = a.MedicoNome,
+                        statusLocal = a.StatusLocal, statusAsaas, esperado,
+                    });
+            }
+            return Results.Ok(new { verificadas = assinaturas.Count, divergencias, indisponiveis });
+        });
+
         // ── Sala de supervisão de crise (governança platform-wide, READ-ONLY) ─────
         // Lê a trilha imutável protocolos_crise_acionados (clinical-safety regra 5:
         // NUNCA edita/apaga). Expõe só METADADOS (médico, origem, categoria de
@@ -1007,6 +1045,8 @@ public record InadimplenteRow(
 public record TrialRow(Guid AssinaturaId, Guid MedicoId, string? MedicoNome, DateTime? TrialAte);
 public record PendenteRow(
     Guid AssinaturaId, Guid MedicoId, string? MedicoNome, decimal ValorMensal, DateTime? PrazoPagamentoAte);
+public record ReconAssinaturaRow(
+    Guid AssinaturaId, Guid MedicoId, string? MedicoNome, string StatusLocal, string? AsaasSubscriptionId);
 public record CobravelRow(
     Guid AssinaturaId, Guid MedicoId, string? MedicoNome, decimal ValorMensal, string? Cpf);
 
