@@ -34,7 +34,8 @@ observabilidade fraca:
 - **Recomendação:** **fazer** — é o maior ganho de resiliência por real gasto. Dado
   clínico não pode sumir numa falha de AZ. **✅ FEITO 2026-06-14:** `cerebro-postgres`
   Multi-AZ ativo (standby montado em ~3 min; failover automático; endpoint inalterado,
-  sem mudança no app).
+  sem mudança no app). _Nota: a instância foi migrada no mesmo dia para `cerebro-postgres-enc`
+  (cifrada em repouso, também Multi-AZ) — ver ADR-054; a antiga será descomissionada ~16/06._
 
 ### B. Redundância de EC2 (matar o SPOF de compute)
 - **Opção B1 — ALB + 2ª instância (ASG 2x):** balanceador + 2 EC2 idênticas atrás.
@@ -68,10 +69,16 @@ observabilidade fraca:
 
 ### E. Alarme de backup parado (T1-6)
 - **O quê:** Lambda diária (EventBridge) mede a idade do snapshot automático mais recente
-  do `cerebro-postgres` → métrica `Cerebro/RDS BackupAgeHours` → alarme CloudWatch (idade
+  do `cerebro-postgres-enc` → métrica `Cerebro/RDS BackupAgeHours` → alarme CloudWatch (idade
   > limite, ou Lambda sem publicar → `TreatMissingData: breaching`) → SNS/e-mail.
 - **Custo:** desprezível (1 invocação/dia). **IaC:** `infra/aws/rds-backup-alarm.yaml`.
 - **Recomendação:** **fazer já** — backup que para sem alerta é o pior caso do item C.
+- **✅ FEITO 2026-06-14:** stack `cerebro-rds-backup-alarm` no ar (alarme `cerebro-rds-backup-stale`,
+  `State: OK`). **Re-apontado para `cerebro-postgres-enc`** após a migração de cifragem (ADR-054):
+  `cloudformation deploy ... --parameter-overrides DbInstanceId=cerebro-postgres-enc` + invoke da
+  Lambda p/ semear a métrica na nova dimensão. O **default do template** também passou a
+  `cerebro-postgres-enc`, p/ um deploy futuro sem override não voltar a mirar a instância antiga
+  (que será deletada ~16/06).
 
 ## Consequências
 
