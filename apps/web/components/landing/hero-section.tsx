@@ -52,16 +52,24 @@ export async function HeroSection() {
             </Reveal>
 
             <Reveal delay={0.18}>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button variant="coral" size="lg" className="text-base px-8 py-6 rounded-xl transition-all duration-300 hover:-translate-y-0.5" asChild>
-                  <Link href="/dashboard">
-                    Ver demonstração gratuita
-                    <ArrowRight className="ml-2 h-5 w-5" />
+              <div className="flex flex-col gap-3">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Button variant="coral" size="lg" className="text-base px-8 py-6 rounded-xl transition-all duration-300 hover:-translate-y-0.5" asChild>
+                    <Link href="/dashboard">
+                      Ver demonstração gratuita
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Link>
+                  </Button>
+                  <Button variant="glass" size="lg" className="text-base px-8 py-6 rounded-xl transition-all duration-200" asChild>
+                    <Link href="/medicos/cadastro">Criar conta</Link>
+                  </Button>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Já tem conta?{" "}
+                  <Link href="/login" className="font-medium text-foreground underline underline-offset-4 hover:text-accent transition-colors">
+                    Entrar
                   </Link>
-                </Button>
-                <Button variant="glass" size="lg" className="text-base px-8 py-6 rounded-xl transition-all duration-200" asChild>
-                  <Link href="/login">Já tenho conta</Link>
-                </Button>
+                </p>
               </div>
             </Reveal>
 
