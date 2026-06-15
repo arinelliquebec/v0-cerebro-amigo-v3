@@ -1,8 +1,8 @@
 # ADR-055: Sem trial — acesso por assinatura com prazo de pagamento (paywall) + cadência mensal/trimestral
 
-**Status:** Proposed
+**Status:** Accepted — Fases A/B/D implementadas (PRs #58/#59); Fase C/E pendentes.
 **Data:** 2026-06-15
-**Decisores:** Dono (Rafael) + equipe de engenharia; revisão `clinical-safety` antes de implementar.
+**Decisores:** Dono (Rafael) + equipe de engenharia; revisão `clinical-safety` do gate: **OK** (ver "Decisão de implementação do gate").
 **Categoria:** Produto / Negócio / Segurança clínica
 **Relação:** estende e revê a premissa de **trial** do **ADR-034** (cobrança recorrente)
 e do **ADR-046** (onboarding cria assinatura `trial` de 30 dias). Não cria modelo
@@ -109,16 +109,55 @@ dados, se houver). Atualizar os enums e contadores que hoje falam "trial":
 
 ## Progresso
 
-- ✅ **Fase 1 (backend) — branch `claude/paywall-sem-trial`:** migration `0045`
-  (`assinaturas.prazo_pagamento_ate`); `MedicoOnboardingService` cria assinatura
-  `pendente` + prazo (`ASSINATURA_PRAZO_PAGAMENTO_DIAS`, default 5) em vez de trial
-  30d; `/medico/signup` passa `plano='pendente'`. **Sem enforcement ainda** (acesso
-  inalterado) — fundação. **Migrations NÃO aplicadas em prod.**
+- ✅ **Fase A (fundação) — PR #58:** migration `0045` (`assinaturas.prazo_pagamento_ate`)
+  **APLICADA em prod 2026-06-15** (coluna verificada via SSM); `MedicoOnboardingService`
+  cria `pendente` + prazo (`ASSINATURA_PRAZO_PAGAMENTO_DIAS`, default 5); `/medico/signup`
+  passa `plano='pendente'`.
+- ✅ **Fase B (expõe situação) — PR #58:** `AssinaturaGate.Avaliar(status,prazo,trial,now)`
+  (puro) exposto em `GET /api/v1/minha-assinatura` e `GET /api/v1/auth/me`
+  (`liberado/bloqueado/emPrazo/diasRestantes/motivo`). Sem enforcement.
+- ✅ **Fase D (gate + UI) — PR #59:** enforcement ligado. Ver "Decisão de implementação do gate".
+- ⏳ Fase C (self-checkout): botão "Pagar agora" na tela de bloqueio (reusa `invoiceUrl`
+  de `ObterLinkAtualAsync`, já existe). Depende de Asaas prod.
 - ⏳ Fase 2 (cadência): Asaas `cycle` mensal/trimestral + valor do ciclo (−10%).
-- ⏳ Fase 3 (self-checkout): catálogo de planos + criar subscription Asaas + tela
-  "ative sua assinatura" com escolha de plano.
-- ⏳ Fase 4 (gate): enforcement server-side + paywall, **com a invariante de crise**.
-- ⏳ Fase 5: enums/cockpit do admin (`trial`→`pendente`).
+- ⏳ Fase E (admin/cockpit): `trial`→`pendente` + widget inadimplência + job de
+  reconciliação status×Asaas (rede contra webhook perdido).
+
+## Decisão de implementação do gate (Fase D)
+
+O "and/or gateway/BFF" do ADR foi resolvido assim:
+
+- **Enforcement no gateway (autoritativo):** `AssinaturaGateFilter` (`IEndpointFilter`),
+  aplicado **opt-in** via `.RequireAssinaturaAtiva()` só nos grupos de **dashboard do
+  médico**: `pacientes`, `prescricoes`, `evolucao`, `insights`, `consultas`. Bloqueado →
+  **HTTP 402** + JSON `{error, motivo, prazoPagamentoAte, checkoutUrl}`.
+- **OPT-IN, não block-by-default (escolha de segurança):** só o que é decorado gateia.
+  Endpoint novo esquecido fica **acessível** (fail-open), nunca bloqueia crise por
+  omissão. O inverso (block-by-default + whitelist de crise) arriscaria cegar uma crise
+  ao esquecer de isentar um endpoint.
+- **FAIL-OPEN:** erro de DB / médico ou assinatura ausente / requisição não-médica →
+  libera (`await next`). Status desconhecido em `AssinaturaGate.Avaliar` → liberado.
+- **Nunca gateado** (sem o filtro): `/api/v1/crise/*`, `/api/v1/notificacoes` (alerta ao
+  médico), `/api/v1/portal/paciente/*`, `/internal/*`, `/api/v1/auth/*`,
+  `/api/v1/cobrancas` + `minha-assinatura`.
+- **UI (web):** `PaywallGate` no `app/dashboard/layout.tsx` — bloqueado → tela "Ative sua
+  assinatura"; em prazo → banner. `/dashboard/financeiro` **exenta** (onde o médico paga).
+  A tela de paywall **lista as crises ativas** (`GET /api/crise`) com "Estou ciente"
+  (`POST /api/crise/{id}/ciente`) — caminho não gateado → médico bloqueado ainda age na crise.
+- **Prova (Testcontainers, `AssinaturaGateIntegrationTests`):** médico bloqueado →
+  `/api/v1/pacientes` **402** E `/api/v1/crise/ativas` **200**; ativa/em-prazo/sem-assinatura
+  liberados. + 13 testes unitários de `AssinaturaGate`.
+
+### Revisão clinical-safety do gate — OK
+
+- **Regra #2 (crise fixa):** gate nunca toca o caminho de crise; `crisis_copy` intacto. ✓
+- **Regra #3 (médico no loop):** médico bloqueado recebe alerta por e-mail/push (ADR-041,
+  não gateado), age via API de crise não gateada + console de crise na tela de paywall. ✓
+- **Regra #4 (LGPD):** gate lê só a própria assinatura do médico; 402 sem PII/conteúdo
+  clínico (só status/prazo/checkoutUrl); RLS de tenant vale. ✓
+- **Regra #5 (auditoria imutável):** gate é read-only (SELECT); nenhum DELETE/UPDATE em
+  trilha. ✓
+- **Fail-open** garante que ambiguidade/erro nunca cega crise. ✓
 
 ## Consequências / fases sugeridas
 
