@@ -30,9 +30,8 @@ export async function NavHeader() {
               <Link href="/login">Entrar</Link>
             </Button>
             <Button variant="coral" className="px-3 sm:px-4 font-medium transition-all duration-300 hover:-translate-y-0.5" asChild>
-              <Link href="/dashboard">
-                <span className="sm:hidden">Demo</span>
-                <span className="hidden sm:inline">Ver demonstração</span>
+              <Link href="/medicos/cadastro">
+                Criar conta
                 <ArrowRight className="hidden sm:inline-block sm:ml-2 h-4 w-4" />
               </Link>
             </Button>

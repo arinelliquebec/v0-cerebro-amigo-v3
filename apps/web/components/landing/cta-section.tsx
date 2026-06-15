@@ -26,11 +26,11 @@ export async function CTASection() {
             <span className="text-accent [text-shadow:0_0_40px_var(--noir-glow-coral)]">entre consultas</span>
           </h2>
           <p className="text-muted-foreground text-lg mb-12 max-w-lg mx-auto leading-relaxed">
-            Demonstração gratuita. Sem cartão de crédito. Configure em minutos.
+            Crie sua conta e comece a acompanhar seus pacientes entre as consultas.
           </p>
           <Button variant="coral" size="lg" className="text-base px-10 py-6 rounded-xl transition-all duration-300 hover:-translate-y-1" asChild>
-            <Link href="/dashboard">
-              Ver demonstração gratuita
+            <Link href="/medicos/cadastro">
+              Criar conta
               <ArrowRight className="ml-2 h-5 w-5" />
             </Link>
           </Button>

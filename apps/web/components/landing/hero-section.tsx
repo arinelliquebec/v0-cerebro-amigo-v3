@@ -54,8 +54,8 @@ export async function HeroSection() {
             <Reveal delay={0.18}>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button variant="coral" size="lg" className="text-base px-8 py-6 rounded-xl transition-all duration-300 hover:-translate-y-0.5" asChild>
-                  <Link href="/dashboard">
-                    Ver demonstração gratuita
+                  <Link href="/medicos/cadastro">
+                    Criar conta
                     <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
