@@ -52,6 +52,42 @@ Confere (deve listar as colunas novas):
 - **Vercel (web):** `API_GATEWAY_URL=https://api.cerebroamigo.com.br` (já existe p/ os outros BFF).
   `CHECKUP_EVENTS_URL` — opcional (default `https://checkup.cerebroamigo.com.br/api/events`).
 
+## Fase 1b — Ativar o captcha Turnstile (ADR-055)
+
+Opcional, mas recomendado antes de divulgar o cadastro orgânico. **Flag-gated:** enquanto as
+duas chaves não estiverem setadas, o captcha fica desligado (o signup funciona sem ele). As
+**duas andam juntas**. Gerar o widget no Cloudflare Turnstile (gratuito) → obter a `site key`
+(pública) e a `secret key` (segredo). **Nunca** comitar a secret.
+
+**1. Site key → Vercel** (build-time; exige rebuild)
+- Painel: Project → Settings → Environment Variables → `NEXT_PUBLIC_TURNSTILE_SITE_KEY` =
+  `<SITE_KEY>`, scopes **Production + Preview**. Ou via CLI:
+  ```bash
+  vercel env add NEXT_PUBLIC_TURNSTILE_SITE_KEY production   # repetir p/ preview
+  ```
+- Redeploy o www (a `NEXT_PUBLIC_*` só entra no bundle client num novo build).
+
+**2. Secret → gateway (box)** (runtime; lida via `env_file: .env`)
+```bash
+# box i-057860cd97edafefb via Session Manager
+cd /opt/cerebro-amigo-v3
+grep -q '^TURNSTILE_SECRET_KEY=' .env || echo 'TURNSTILE_SECRET_KEY=<SECRET_KEY>' >> .env
+docker compose up -d api-gateway     # relê o .env e recarrega a secret
+# (opcional) guardar no SSM p/ sobreviver a reprovisionamento do box:
+aws ssm put-parameter --region sa-east-1 --type SecureString \
+  --name /cerebro-amigo/turnstile/secret-key --value '<SECRET_KEY>'
+```
+> O `api-gateway` no compose usa `env_file: .env` → basta a var estar no `.env` do box; sem
+> mudança de compose nem de imagem. O deploy clínico **não regenera** o `.env` (só
+> `git pull && docker compose up`), então editar o `.env` é o passo manual de verdade.
+
+**Desativar / rotacionar:** remover as duas chaves (ou só a secret) volta o captcha ao estado
+desligado. Para rotacionar, gerar novo par no Turnstile e repetir os passos 1 e 2.
+
+> ⚠️ `NEXT_PUBLIC_*` é build-time: o web do **box** (imagem ECR) não embute a site key — ok,
+> porque o `/medicos/cadastro` público é servido pela Vercel. Se um dia o box passar a servir
+> o cadastro público, passar `NEXT_PUBLIC_TURNSTILE_SITE_KEY` como build-arg no `docker-bake`.
+
 ## Fase 2 — Merge → deploy
 
 Merge do PR em `main` (normal, **sem** `[skip ci]` — queremos deployar). O pipeline (path filter):
