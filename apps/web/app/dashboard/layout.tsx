@@ -1,5 +1,6 @@
 import { Suspense } from "react"
 import { Sidebar } from "@/components/sidebar"
+import { PaywallGate } from "@/components/assinatura/paywall-gate"
 
 function SidebarWrapper() {
   return (
@@ -22,7 +23,7 @@ export default function DashboardLayout({
       <main className="pl-64 min-h-screen transition-all duration-300 print:pl-0">
         <div className="relative">
           <Suspense fallback={<div className="min-h-[60vh]" />}>
-            {children}
+            <PaywallGate>{children}</PaywallGate>
           </Suspense>
         </div>
       </main>
