@@ -58,7 +58,7 @@ const editarAssinaturaSchema = z.object({
   valor: z.string().min(1, "Valor é obrigatório").refine((v) => {
     return parseBrl(v) >= 0
   }, "Valor inválido"),
-  status: z.enum(["trial", "ativa", "suspensa", "cancelada"]),
+  status: z.enum(["trial", "pendente", "ativa", "suspensa", "cancelada"]),
   notas: z.string().optional(),
   cpf: z.string().optional().refine((v) => !v || cpfValido(v), "CPF inválido"),
 })
@@ -111,6 +111,7 @@ const PLANO_COR: Record<string, string> = {
 }
 const STATUS_COR: Record<string, string> = {
   trial: "text-warning",
+  pendente: "text-warning",
   ativa: "text-success",
   suspensa: "text-destructive",
   cancelada: "text-muted-foreground",
@@ -296,7 +297,7 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
               <Select value={status} onValueChange={(v) => setValue("status", v as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {["trial", "ativa", "suspensa", "cancelada"].map((s) => (
+                  {["trial", "pendente", "ativa", "suspensa", "cancelada"].map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
                 </SelectContent>

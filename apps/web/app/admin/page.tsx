@@ -17,6 +17,7 @@ interface Metricas {
   mensagens7d: number
   checkinsRespondidos7d: number
   trials: number
+  pendentes: number
   assinaturasAtivas: number
   mrr: number
   receitaMes: number
@@ -215,9 +216,9 @@ export default function AdminOverview() {
             iconCls="bg-success/15 text-success"
           />
           <KpiCard
-            title="Em trial"
-            value={String(m?.trials ?? 0)}
-            sub="Aguardando conversão"
+            title="Pendentes"
+            value={String(m?.pendentes ?? 0)}
+            sub="Aguardando 1º pagamento (ADR-055)"
             icon={Activity}
             iconCls="bg-warning/15 text-warning"
           />

@@ -80,9 +80,13 @@ public static class AdminEndpoints
             var custoLlmTotal = await db.Database.ExecuteScalarAsync<decimal?>(
                 "SELECT COALESCE(SUM(custo_usd), 0)::numeric FROM agente_execucoes") ?? 0;
 
-            // Trials ativos
+            // Trials ativos (legado pré-ADR-055)
             var trials = await db.Database.ExecuteScalarAsync<int?>(
                 "SELECT COUNT(*)::int FROM assinaturas WHERE status = 'trial'") ?? 0;
+
+            // Pendentes (ADR-055): assinatura criada, aguardando 1º pagamento.
+            var pendentes = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM assinaturas WHERE status = 'pendente'") ?? 0;
 
             // Assinaturas ativas
             var assinaturasAtivas = await db.Database.ExecuteScalarAsync<int?>(
@@ -98,6 +102,7 @@ public static class AdminEndpoints
                 mensagens7d,
                 checkinsRespondidos7d,
                 trials,
+                pendentes,
                 assinaturasAtivas,
                 // Financeiro (USD e BRL separados — LLM é USD, billing é BRL)
                 mrr,                 // BRL/mês — base MRR
@@ -157,6 +162,27 @@ public static class AdminEndpoints
                   AND a.trial_ate <= (NOW() + INTERVAL '7 days')
                 ORDER BY a.trial_ate").ToListAsync();
 
+            // Pendentes (ADR-055): aguardando 1º pagamento. VENCIDOS = prazo passou →
+            // paywall ativo (potencial churn de entrada; valor_mensal costuma ser 0 até
+            // escolher plano, por isso fica fora do MRR em risco — é contador, não receita).
+            var pendentesAtivos = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT COUNT(*)::int FROM assinaturas WHERE status='pendente'") ?? 0;
+            var pendentesVencidos = await db.Database.SqlQueryRaw<PendenteRow>(@"
+                SELECT a.id AS assinatura_id, a.medico_id, m.nome AS medico_nome,
+                       a.valor_mensal, a.prazo_pagamento_ate
+                FROM assinaturas a JOIN medicos m ON m.id = a.medico_id
+                WHERE a.status='pendente' AND a.prazo_pagamento_ate IS NOT NULL
+                  AND a.prazo_pagamento_ate < NOW()
+                ORDER BY a.prazo_pagamento_ate").ToListAsync();
+            var pendentesVencendo = await db.Database.SqlQueryRaw<PendenteRow>(@"
+                SELECT a.id AS assinatura_id, a.medico_id, m.nome AS medico_nome,
+                       a.valor_mensal, a.prazo_pagamento_ate
+                FROM assinaturas a JOIN medicos m ON m.id = a.medico_id
+                WHERE a.status='pendente' AND a.prazo_pagamento_ate IS NOT NULL
+                  AND a.prazo_pagamento_ate >= NOW()
+                  AND a.prazo_pagamento_ate <= (NOW() + INTERVAL '3 days')
+                ORDER BY a.prazo_pagamento_ate").ToListAsync();
+
             // Funil (aproximado): convidados → ativaram conta → em trial → converteram.
             var convidados = await db.Database.ExecuteScalarAsync<int?>(
                 "SELECT COUNT(*)::int FROM medico_invite_tokens") ?? 0;
@@ -173,7 +199,7 @@ public static class AdminEndpoints
                        a.valor_mensal, m.cpf
                 FROM assinaturas a
                 JOIN medicos m ON m.id = a.medico_id
-                WHERE a.status IN ('trial','ativa')
+                WHERE a.status IN ('trial','pendente','ativa')
                   AND a.asaas_subscription_id IS NULL
                   AND a.valor_mensal > 0
                   AND m.cpf IS NOT NULL AND m.cpf <> ''
@@ -186,9 +212,48 @@ public static class AdminEndpoints
                 receitaMensal,
                 inadimplencia = new { mrrEmRisco, itens = inadimplentes },
                 trials = new { ativos = trialsAtivos, expirando = trialsExpirando },
-                funil = new { convidados, ativaram, emTrial = trialsAtivos, convertidos },
+                pendentes = new { ativos = pendentesAtivos, vencidos = pendentesVencidos, vencendo = pendentesVencendo },
+                funil = new { convidados, ativaram, emTrial = trialsAtivos, emPendente = pendentesAtivos, convertidos },
                 cobraveisSemAsaas,
             });
+        });
+
+        // ── Reconciliação Asaas (ADR-055 Fase E): divergência status local × Asaas ──
+        // Rede de segurança contra webhook perdido (assinatura presa em status errado).
+        // DETECT-ONLY: não escreve nada — corrigir é decisão humana (evita auto-suspender/
+        // auto-ativar por leitura possivelmente transitória do Asaas). Chamável manual
+        // pelo admin ou por scheduler externo (EventBridge) no futuro.
+        g.MapGet("/asaas/reconciliacao", async (AppDbContext db, AsaasClient asaas) =>
+        {
+            if (!asaas.Configurado)
+                return Results.Json(new { error = "asaas_nao_configurado" }, statusCode: 503);
+
+            var assinaturas = await db.Database.SqlQueryRaw<ReconAssinaturaRow>(@"
+                SELECT a.id AS assinatura_id, a.medico_id, m.nome AS medico_nome,
+                       a.status AS status_local, a.asaas_subscription_id
+                FROM assinaturas a JOIN medicos m ON m.id = a.medico_id
+                WHERE a.asaas_subscription_id IS NOT NULL AND a.status <> 'cancelada'").ToListAsync();
+
+            var divergencias = new List<object>();
+            var indisponiveis = 0;
+            foreach (var a in assinaturas)
+            {
+                var statusAsaas = await asaas.ObterStatusAssinaturaAsync(a.AsaasSubscriptionId!);
+                if (statusAsaas is null) { indisponiveis++; continue; }
+                var esperado = statusAsaas.ToUpperInvariant() switch
+                {
+                    "ACTIVE" => "ativa",
+                    "EXPIRED" or "INACTIVE" => "suspensa",
+                    _ => null,
+                };
+                if (esperado is not null && !string.Equals(esperado, a.StatusLocal, StringComparison.OrdinalIgnoreCase))
+                    divergencias.Add(new
+                    {
+                        assinaturaId = a.AssinaturaId, medicoNome = a.MedicoNome,
+                        statusLocal = a.StatusLocal, statusAsaas, esperado,
+                    });
+            }
+            return Results.Ok(new { verificadas = assinaturas.Count, divergencias, indisponiveis });
         });
 
         // ── Sala de supervisão de crise (governança platform-wide, READ-ONLY) ─────
@@ -978,6 +1043,10 @@ public record InadimplenteRow(
     Guid AssinaturaId, Guid MedicoId, string? MedicoNome, string? MedicoEmail,
     decimal ValorMensal, DateTime Desde);
 public record TrialRow(Guid AssinaturaId, Guid MedicoId, string? MedicoNome, DateTime? TrialAte);
+public record PendenteRow(
+    Guid AssinaturaId, Guid MedicoId, string? MedicoNome, decimal ValorMensal, DateTime? PrazoPagamentoAte);
+public record ReconAssinaturaRow(
+    Guid AssinaturaId, Guid MedicoId, string? MedicoNome, string StatusLocal, string? AsaasSubscriptionId);
 public record CobravelRow(
     Guid AssinaturaId, Guid MedicoId, string? MedicoNome, decimal ValorMensal, string? Cpf);
 
