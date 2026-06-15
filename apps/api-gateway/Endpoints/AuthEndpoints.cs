@@ -137,6 +137,7 @@ public static class AuthEndpoints
             [FromBody] MedicoSignupRequest req,
             MedicoOnboardingService onboarding,
             LoginRateLimiter rateLimiter,
+            TurnstileVerifier turnstile,
             HttpContext ctx) =>
         {
             var ip = ClientIp(ctx);
@@ -144,6 +145,15 @@ public static class AuthEndpoints
             if (await rateLimiter.IsBlockedAsync(rlKey))
                 return Results.StatusCode(429);
             await rateLimiter.RecordFailureAsync(rlKey); // cada tentativa consome (sucesso também) — protege a API paga
+
+            // Anti-abuso (ADR-055): valida o Turnstile ANTES da consulta de CRM (paga).
+            // Desligado (sem TURNSTILE_SECRET_KEY) passa direto; fail-closed se indisponível.
+            if (!await turnstile.VerifyAsync(req.TurnstileToken, ip))
+                return Results.Json(new
+                {
+                    error = "captcha_invalido",
+                    mensagem = "Falha na verificação de segurança. Recarregue a página e tente novamente."
+                }, statusCode: 403);
 
             var src = (req.Src ?? "").Trim().ToLowerInvariant();
             var fromCheckup = src == "checkup";
@@ -201,7 +211,7 @@ public static class AuthEndpoints
 
 public record AtivarContaRequest(string Token, string Senha);
 public record MedicoSignupRequest(
-    string Nome, string Email, string Crm, string CrmUf, string? Src, string? Rid);
+    string Nome, string Email, string Crm, string CrmUf, string? Src, string? Rid, string? TurnstileToken);
 internal record TokenRow(string UsuarioId, DateTime ExpiraEm, DateTime? UsadoEm);
 
 public record MedicoMeDto(

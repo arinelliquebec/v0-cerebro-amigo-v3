@@ -188,6 +188,11 @@ builder.Services.AddHttpClient<MemedClient>()
 // controlados no CfmClient — o StandardResilienceHandler duplicaria chamadas PAGAS.
 builder.Services.AddHttpClient<CfmClient>();
 
+// TurnstileVerifier: anti-abuso do signup público de médico (ADR-055). SEM resilience
+// handler — o token do Turnstile é single-use (retry com o mesmo token reprovaria).
+// Flag-gated por TURNSTILE_SECRET_KEY; timeout curto definido no próprio serviço.
+builder.Services.AddHttpClient<TurnstileVerifier>();
+
 // AsaasClient: SEM StandardResilienceHandler — retry automático em POST /payments
 // criaria COBRANÇA DUPLICADA (mesmo motivo do CfmClient). Idempotência fica a
 // cargo do fluxo (1 cobrança por chamada do médico).

@@ -1,11 +1,12 @@
 "use client"
 
-import { Suspense, useEffect, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useRef, useState } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/logo"
+import { Turnstile } from "@/components/turnstile"
 import { CheckCircle2, AlertTriangle, Loader2 } from "lucide-react"
 
 const UFS = [
@@ -22,6 +23,7 @@ const ERRO_MSG: Record<string, string> = {
   crm_indisponivel: "Não foi possível validar seu CRM agora. Tente novamente em instantes.",
   crm_validacao_nao_configurada: "Validação de CRM indisponível no momento. Tente mais tarde.",
   rate_limited: "Muitas tentativas. Aguarde alguns minutos e tente de novo.",
+  captcha_invalido: "Falha na verificação de segurança. Recarregue a página e tente de novo.",
   erro_interno: "Algo deu errado. Tente novamente.",
 }
 
@@ -39,6 +41,11 @@ function CadastroForm() {
   const [estado, setEstado] = useState<"idle" | "enviando" | "ok" | "erro">("idle")
   const [erro, setErro] = useState<string | null>(null)
   const eventFired = useRef(false)
+
+  // Captcha (ADR-055): só exigido quando há site key (senão, captcha desligado).
+  const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const handleToken = useCallback((t: string | null) => setTurnstileToken(t), [])
 
   // doctor_signup_started: 1x ao abrir o form vindo do Check-up (atribuição).
   useEffect(() => {
@@ -62,6 +69,10 @@ function CadastroForm() {
       setErro("É necessário concordar com o tratamento dos dados para continuar.")
       return
     }
+    if (siteKey && !turnstileToken) {
+      setErro("Confirme que você não é um robô antes de continuar.")
+      return
+    }
     setEstado("enviando")
     try {
       const r = await fetch("/api/medico-signup", {
@@ -74,6 +85,7 @@ function CadastroForm() {
           crmUf,
           src: fromCheckup ? "checkup" : null,
           rid: fromCheckup ? rid : null,
+          turnstileToken,
         }),
       })
       if (r.status === 202) {
@@ -162,7 +174,9 @@ function CadastroForm() {
         </span>
       </label>
 
-      <Button type="submit" className="w-full" disabled={estado === "enviando"}>
+      {siteKey && <Turnstile siteKey={siteKey} onToken={handleToken} />}
+
+      <Button type="submit" className="w-full" disabled={estado === "enviando" || (!!siteKey && !turnstileToken)}>
         {estado === "enviando" && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
         {estado === "enviando" ? "Validando CRM…" : "Criar conta"}
       </Button>

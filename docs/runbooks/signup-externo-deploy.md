@@ -46,6 +46,9 @@ Confere (deve listar as colunas novas):
 
 - **Gateway:** `INFOSIMPLES_TOKEN`, `CRM_VALIDATION_ENABLED`, `RESEND_API_KEY`/`EMAIL_FROM`,
   `PORTAL_PACIENTE_URL` (link de ativação) — já usados pelo onboarding admin.
+- **Captcha (ADR-055):** `TURNSTILE_SECRET_KEY` no **gateway** (SSM SecureString) +
+  `NEXT_PUBLIC_TURNSTILE_SITE_KEY` na **Vercel** (web). As duas andam juntas: sem elas o
+  captcha fica desligado (sem proteção, mas não quebra). Gerar no Cloudflare Turnstile (gratuito).
 - **Vercel (web):** `API_GATEWAY_URL=https://api.cerebroamigo.com.br` (já existe p/ os outros BFF).
   `CHECKUP_EVENTS_URL` — opcional (default `https://checkup.cerebroamigo.com.br/api/events`).
 
@@ -70,6 +73,8 @@ CI deploy-checkup precisa das perms IAM já concedidas (`CerebroCheckupAsgDeploy
    `crm_situacao='Regular'`; `assinaturas.status='trial'`.
 4. **Anti-fraude:** repetir com nome divergente → 422 `nome_divergente`. CRM cancelado → 422 `crm_invalido`.
    6 tentativas rápidas do mesmo IP → 429.
+   **Captcha (ADR-055, se as chaves Turnstile estiverem setadas):** o widget aparece no form e o
+   POST sem token resolvido → 403 `captcha_invalido`. Sem as chaves, o passo é pulado (desligado).
 5. **Ativação:** abrir o link do e-mail (`/ativar-conta?token=`) → define senha → `/login` entra → JWT ok.
 6. **Métrica:** `SELECT signup_source, count(*) FROM medicos GROUP BY 1;` e junção
    `funnel_events.rid ⇄ medicos.checkup_rid`.
@@ -86,7 +91,8 @@ CI deploy-checkup precisa das perms IAM já concedidas (`CerebroCheckupAsgDeploy
 ## Pendências conhecidas (pós-MVP)
 - Teste xUnit dedicado do endpoint `/auth/medico/signup` (mock CfmClient/Resend) — hoje coberto por build + 44 testes de isolamento.
 - Enumeração de e-mail (409 `email_em_uso`) — risco baixo (CRM é público); avaliar resposta genérica.
-- Spoof de X-Forwarded-For no rate-limit — mitigado por cache 30d do CfmClient + spend limit Infosimples.
+- Spoof de X-Forwarded-For no rate-limit — mitigado por cache 30d do CfmClient + spend limit Infosimples
+  + Turnstile (ADR-055) quando ativo.
 - Teste xUnit dedicado do endpoint `/api/v1/admin/aquisicao` (Cockpit, ADR-050) — hoje coberto por build; read-only.
 
 ---

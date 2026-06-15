@@ -29,6 +29,9 @@ export async function POST(req: NextRequest) {
         crmUf: body.crmUf,
         src: body.src ?? null,
         rid: body.rid ?? null,
+        // Token do Cloudflare Turnstile (ADR-055). O gateway é quem valida; aqui
+        // só repassamos. null quando o captcha está desligado (sem site key).
+        turnstileToken: body.turnstileToken ?? null,
       }),
       cache: "no-store",
     })
