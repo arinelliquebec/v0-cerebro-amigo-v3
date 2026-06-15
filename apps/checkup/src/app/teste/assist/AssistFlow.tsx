@@ -202,7 +202,7 @@ export function AssistFlow() {
 
   const progressBar = (
     <div className="mb-8">
-      <div className="mb-2 flex items-baseline justify-between text-xs text-muted-foreground">
+      <div className="mb-2 flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
         <span>
           Etapa <span className="font-semibold text-foreground">{done + 1}</span> de {totalSteps}
         </span>
@@ -266,12 +266,12 @@ export function AssistFlow() {
           <div className="mt-auto flex gap-3 pt-8">
             <button
               onClick={() => setPhase("intro")}
-              className="btn-ghost-noir min-h-[52px]"
+              className="btn-ghost-noir min-h-[52px] shrink-0"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
               Voltar
             </button>
-            <button onClick={handleQ1Next} className="btn-noir flex-1 text-lg">
+            <button onClick={handleQ1Next} className="btn-noir flex-1 min-w-0 text-lg">
               {selected.length === 0 ? "Nunca usei nenhuma — ver resultado" : "Próxima"}
               <ArrowRight className="h-5 w-5" aria-hidden />
             </button>
@@ -341,7 +341,7 @@ export function AssistFlow() {
         </div>
 
         <div className="mt-auto flex gap-3 pt-8">
-          <button onClick={onBack} className="btn-ghost-noir min-h-[52px]">
+          <button onClick={onBack} className="btn-ghost-noir min-h-[52px] shrink-0">
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Voltar
           </button>
@@ -349,7 +349,7 @@ export function AssistFlow() {
             onClick={onNext}
             disabled={picked === null}
             className={cn(
-              "flex-1 text-lg",
+              "flex-1 min-w-0 text-lg",
               picked !== null
                 ? "btn-noir"
                 : "min-h-[52px] cursor-not-allowed rounded-[14px] bg-muted py-3.5 font-medium text-muted-foreground"

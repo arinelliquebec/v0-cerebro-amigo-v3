@@ -30,7 +30,7 @@ export function SiteFooter() {
             </p>
             <a
               href="https://www.cerebroamigo.com.br"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-purple-light underline-offset-4 hover:underline"
+              className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-purple-light underline-offset-4 hover:underline"
             >
               Conheça a plataforma <span aria-hidden>→</span>
             </a>
@@ -41,12 +41,12 @@ export function SiteFooter() {
             <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted-foreground">
               Triagens
             </p>
-            <ul className="space-y-2.5">
+            <ul className="space-y-1">
               {TRIAGENS.map((t) => (
                 <li key={t.href}>
                   <Link
                     href={t.href}
-                    className="text-sm text-foreground/80 transition-colors hover:text-foreground"
+                    className="flex min-h-[44px] items-center text-sm text-foreground/80 transition-colors hover:text-foreground"
                   >
                     {t.label}
                   </Link>
@@ -66,7 +66,7 @@ export function SiteFooter() {
             </p>
             <a
               href="https://www.cerebroamigo.com.br/medico?src=checkup"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-purple-light underline-offset-4 hover:underline"
+              className="inline-flex min-h-[44px] items-center gap-1.5 text-sm font-medium text-purple-light underline-offset-4 hover:underline"
             >
               Sou psiquiatra <span aria-hidden>→</span>
             </a>

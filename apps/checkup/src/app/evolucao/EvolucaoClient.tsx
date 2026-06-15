@@ -47,9 +47,9 @@ function fmtDate(iso: string): string {
 // Gráfico de linha SVG, determinístico. Só plota os dados — sem interpretar.
 function EvolucaoChart({ points, max }: { points: Point[]; max: number }) {
   const W = 320;
-  const H = 160;
+  const H = 168;
   const padX = 28;
-  const padY = 20;
+  const padY = 24;
   const plotW = W - padX * 2;
   const plotH = H - padY * 2;
   const n = points.length;
@@ -66,10 +66,10 @@ function EvolucaoChart({ points, max }: { points: Point[]; max: number }) {
       {points.map((p, i) => (
         <g key={i}>
           <circle cx={x(i)} cy={y(p.score)} r="4.5" fill={BAND_COLOR[p.band] ?? "#9486C9"} />
-          <text x={x(i)} y={y(p.score) - 9} textAnchor="middle" className="fill-foreground" style={{ fontSize: 11, fontWeight: 600 }}>
+          <text x={x(i)} y={y(p.score) - 11} textAnchor="middle" className="fill-foreground" style={{ fontSize: 13, fontWeight: 600 }}>
             {p.score}
           </text>
-          <text x={x(i)} y={H - 4} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 9 }}>
+          <text x={x(i)} y={H - 6} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 11 }}>
             {fmtDate(p.at)}
           </text>
         </g>
