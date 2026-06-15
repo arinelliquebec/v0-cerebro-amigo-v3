@@ -19,7 +19,8 @@ public static class PacientesPsiqEndpoints
     {
         var g = app.MapGroup("/api/v1/pacientes")
             .WithTags("pacientes-psiquiatria")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva(); // ADR-055 Fase D: gate de assinatura (dashboard)
 
         // Lista pacientes do médico logado
         g.MapGet("/", async (AppDbContext db, ClaimsPrincipal user) =>

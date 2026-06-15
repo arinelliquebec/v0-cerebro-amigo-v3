@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -20,7 +21,8 @@ public static class EvolucaoEndpoints
     {
         var g = app.MapGroup("/api/v1/evolucao")
             .WithTags("evolucao")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva(); // ADR-055 Fase D: gate de assinatura (dashboard)
 
         // Panorama: stats + série mensal + distribuição de humor da semana + progresso factual.
         g.MapGet("/resumo", async (AppDbContext db, ClaimsPrincipal user) =>

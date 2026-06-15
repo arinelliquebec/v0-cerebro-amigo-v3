@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +29,8 @@ public static class ConsultasEndpoints
     {
         var g = app.MapGroup("/api/v1/consultas")
             .WithTags("consultas")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva(); // ADR-055 Fase D: gate de assinatura (dashboard)
 
         // Agenda no intervalo [de, ate). Default: hoje .. +7 dias.
         g.MapGet("/", async (
