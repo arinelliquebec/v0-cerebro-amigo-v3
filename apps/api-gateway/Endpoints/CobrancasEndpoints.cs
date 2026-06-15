@@ -174,6 +174,80 @@ public static class CobrancasEndpoints
             });
         }).WithTags("cobrancas").RequireAuthorization();
 
+        // ── Médico: self-checkout (ADR-055 Fase C). Escolhe plano → garante customer +
+        // cria subscription Asaas p/ a PRÓPRIA assinatura → devolve invoiceUrl. Reusa o
+        // motor do Fluxo A (ADR-034); aqui é o médico se cobrando, não o admin. NÃO é
+        // gateado pelo paywall (médico bloqueado precisa poder pagar). Valor vem do
+        // catálogo server-side — nunca do cliente.
+        app.MapPost("/api/v1/minha-assinatura/cobranca", async (
+            [FromBody] SelfCheckoutRequest req, AppDbContext db, AsaasClient asaas,
+            ClaimsPrincipal user, ILoggerFactory lf) =>
+        {
+            var log = lf.CreateLogger("Cobrancas.SelfCheckout");
+            if (!asaas.Configurado)
+                return Results.Json(new { error = "asaas_nao_configurado" }, statusCode: 503);
+
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            // Catálogo server-side (MONTHLY; cadência por plano = ADR-055 Fase 2).
+            var catalogo = new Dictionary<string, (string Plano, decimal Valor)>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["pro"]        = ("pro", 197.00m),
+                ["enterprise"] = ("enterprise", 397.00m),
+            };
+            if (req?.Plano is null || !catalogo.TryGetValue(req.Plano, out var p))
+                return Results.BadRequest(new { error = "plano_invalido", planos = catalogo.Keys });
+
+            var row = await db.Database.SqlQueryRaw<AssinaturaAsaasRow>(@"
+                SELECT a.id AS assinatura_id, a.valor_mensal, a.trial_ate,
+                       a.asaas_customer_id, a.asaas_subscription_id,
+                       m.id AS medico_id, m.nome AS medico_nome, m.cpf, m.wa_id AS telefone,
+                       u.email AS medico_email
+                FROM assinaturas a
+                JOIN medicos m ON m.id = a.medico_id
+                JOIN usuarios u ON u.id = m.usuario_id
+                WHERE a.medico_id = {0}", medicoId.Value).FirstOrDefaultAsync();
+            if (row is null) return Results.NotFound(new { error = "sem_assinatura" });
+            if (!string.IsNullOrWhiteSpace(row.AsaasSubscriptionId))
+                return Results.Conflict(new { error = "ja_ativa", subscriptionId = row.AsaasSubscriptionId });
+            if (string.IsNullOrWhiteSpace(row.Cpf))
+                return Results.BadRequest(new { error = "cpf_obrigatorio" });
+
+            // Plano + valor da escolha (catálogo). Server-side, não confia no cliente.
+            await db.Database.ExecuteRawAsync(
+                "UPDATE assinaturas SET plano = {1}, valor_mensal = {2}, atualizado_em = NOW() WHERE id = {0}",
+                row.AssinaturaId, p.Plano, p.Valor);
+
+            var customerId = row.AsaasCustomerId;
+            if (string.IsNullOrWhiteSpace(customerId))
+            {
+                var cust = await asaas.CriarCustomerAsync(
+                    row.MedicoId.ToString(), row.MedicoNome, row.Cpf, row.MedicoEmail, row.Telefone);
+                if (!cust.Sucesso)
+                {
+                    log.LogWarning("Self-checkout: customer Asaas falhou (medico {MedicoId}): {Erro}", medicoId, cust.Erro);
+                    return Results.Json(new { error = "asaas_customer_falhou", detalhe = "Não foi possível iniciar a cobrança agora. Confira seus dados e tente em instantes." }, statusCode: 502);
+                }
+                customerId = cust.CustomerId;
+                await db.Database.ExecuteRawAsync(
+                    "UPDATE assinaturas SET asaas_customer_id = {1}, atualizado_em = NOW() WHERE id = {0}", row.AssinaturaId, customerId!);
+            }
+
+            var hoje = DateOnly.FromDateTime(DateTime.UtcNow);
+            var desc = $"Assinatura Cérebro Amigo — {row.MedicoNome}";
+            var sub = await asaas.CriarAssinaturaAsync(customerId!, p.Valor, hoje, desc, row.AssinaturaId.ToString());
+            if (!sub.Sucesso)
+            {
+                log.LogWarning("Self-checkout: assinatura Asaas falhou (medico {MedicoId}): {Erro}", medicoId, sub.Erro);
+                return Results.Json(new { error = "asaas_assinatura_falhou", detalhe = "Não foi possível ativar a assinatura agora. Tente novamente em instantes." }, statusCode: 502);
+            }
+            await db.Database.ExecuteRawAsync(
+                "UPDATE assinaturas SET asaas_subscription_id = {1}, atualizado_em = NOW() WHERE id = {0}", row.AssinaturaId, sub.SubscriptionId!);
+
+            return Results.Ok(new { subscriptionId = sub.SubscriptionId, invoiceUrl = sub.InvoiceUrl });
+        }).WithTags("cobrancas").RequireAuthorization();
+
         // ── Portal do paciente: vê as próprias cobranças (Pix p/ pagar). ──
         app.MapGet("/api/v1/portal/paciente/cobrancas", async (AppDbContext db, ClaimsPrincipal user) =>
         {
@@ -277,6 +351,7 @@ public static class CobrancasEndpoints
 public record CriarCobrancaRequest(Guid PacienteId, decimal Valor, string? Descricao, Guid? ConsultaId, DateOnly? Vencimento);
 
 public record MinhaAssinatura(string Plano, decimal ValorMensal, string Moeda, string Status, DateTime? TrialAte, DateTime? PrazoPagamentoAte, string? AsaasSubscriptionId);
+public record SelfCheckoutRequest(string? Plano);
 public record PagamentoMedico(decimal Valor, string? Referencia, string? Metodo, DateTime? PagoEm);
 
 public record CobrancaItem(

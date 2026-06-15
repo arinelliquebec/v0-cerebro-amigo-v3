@@ -240,6 +240,30 @@ public sealed class AsaasClient
         }
     }
 
+    /// <summary>
+    /// Status atual da assinatura no Asaas (ACTIVE/EXPIRED/INACTIVE) — p/ reconciliação
+    /// contra o status local (ADR-055 Fase E: rede de segurança se um webhook se perder).
+    /// Null se a assinatura não existe no Asaas ou o Asaas está inalcançável.
+    /// </summary>
+    public async Task<string?> ObterStatusAssinaturaAsync(string subscriptionId, CancellationToken ct = default)
+    {
+        var cfg = ResolveConfig();
+        if (cfg is null) return null;
+        var (apiKey, baseUrl) = cfg.Value;
+        try
+        {
+            var resp = await _http.SendAsync(Req(HttpMethod.Get, baseUrl, apiKey, $"/subscriptions/{subscriptionId}"), ct);
+            if (!resp.IsSuccessStatusCode) return null;
+            using var doc = JsonDocument.Parse(await resp.Content.ReadAsStringAsync(ct));
+            return doc.RootElement.TryGetProperty("status", out var st) ? st.GetString() : null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Asaas: falha ao obter status da assinatura {Sub}", subscriptionId);
+            return null;
+        }
+    }
+
     /// <summary>Link da cobrança em aberto da assinatura (p/ o médico pagar na página "Minha assinatura").</summary>
     public async Task<string?> ObterLinkAtualAsync(string subscriptionId, CancellationToken ct = default)
     {

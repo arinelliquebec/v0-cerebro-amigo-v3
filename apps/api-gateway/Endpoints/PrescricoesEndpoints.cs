@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Http;
@@ -16,7 +17,8 @@ public static class PrescricoesEndpoints
     {
         var g = app.MapGroup("/api/v1/prescricoes")
             .WithTags("prescricoes")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva(); // ADR-055 Fase D: gate de assinatura (dashboard)
 
         // timestamptz exige Kind=Utc; o JSON entrega Unspecified.
         static DateTime? ToUtc(DateTime? dt) =>
