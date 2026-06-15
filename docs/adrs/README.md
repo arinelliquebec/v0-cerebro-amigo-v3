@@ -74,6 +74,7 @@ contexto regulatório, sem dependência da memória do autor.
 | [052](ADR-052-checkup-no-ec2-nao-vercel.md) | Check-up roda no EC2 (não na Vercel): quem conecta direto no RDS vive na VPC | Accepted | Arquitetura / Infra / Compliance |
 | [053](ADR-053-sizing-box-clinico-t3xlarge.md) | Vertical scaling do box clínico para t3.xlarge + recalibração de recursos | Accepted | Infra / Operação / Segurança clínica |
 | [054](ADR-054-cifragem-em-repouso-rds.md) | Cifragem em repouso do RDS clínico (migração para instância KMS-encrypted via snapshot+restore) | Accepted | Infra / Segurança clínica / LGPD |
+| [055](ADR-055-sem-trial-paywall-assinatura.md) | Sem trial — acesso por assinatura com prazo de pagamento (paywall) + cadência mensal/trimestral | Proposed | Produto / Negócio / Segurança clínica |
 
 ## Status possíveis
 
