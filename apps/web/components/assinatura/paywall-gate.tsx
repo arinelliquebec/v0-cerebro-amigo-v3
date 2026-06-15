@@ -6,6 +6,7 @@ import Link from "next/link"
 import { useMe } from "@/lib/use-me"
 import { Button } from "@/components/ui/button"
 import { ShieldAlert, Lock, Check, Loader2 } from "lucide-react"
+import { PagueViaPix } from "@/components/assinatura/pague-via-pix"
 
 /**
  * Paywall do dashboard (ADR-055, Fase D — UI). Reflete o gate do gateway:
@@ -95,6 +96,9 @@ function PaywallScreen({ motivo }: { motivo?: string }) {
             Emergências de pacientes (crises) continuam ativas e não dependem da assinatura.
           </p>
         </div>
+
+        {/* Modo bootstrap (sem Asaas): chave Pix p/ o médico pagar manualmente. */}
+        <PagueViaPix />
       </div>
     </div>
   )

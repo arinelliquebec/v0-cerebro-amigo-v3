@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, CreditCard, ExternalLink, CheckCircle2 } from "lucide-react"
+import { PagueViaPix, MANUAL_PIX_ATIVO } from "@/components/assinatura/pague-via-pix"
 
 interface Pagamento { valor: number; referencia: string | null; metodo: string | null; pagoEm: string | null }
 interface Assinatura {
@@ -122,7 +123,11 @@ export default function MinhaAssinaturaPage() {
               ) : a.cobrancaAtiva ? (
                 <p className="flex items-center gap-2 text-sm text-success"><CheckCircle2 className="h-4 w-4" /> Cobrança em dia — sem fatura em aberto.</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
+                  {/* Modo bootstrap (sem Asaas): Pix manual. Senão, self-checkout Asaas. */}
+                  <PagueViaPix valor={a.valorMensal} />
+                  {!MANUAL_PIX_ATIVO && (
+                  <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">Escolha um plano e ative sua assinatura:</p>
                   <div className="grid gap-2 sm:grid-cols-2">
                     {PLANOS.map((pl) => (
@@ -145,6 +150,8 @@ export default function MinhaAssinaturaPage() {
                     Ativar e pagar <ExternalLink className="h-3.5 w-3.5" />
                   </Button>
                   {erroCheckout && <p role="alert" className="text-xs text-coral">{erroCheckout}</p>}
+                  </div>
+                  )}
                 </div>
               )}
             </CardContent>
