@@ -155,7 +155,7 @@ export function OutrasTriagens({ current }: { current: string }) {
             href={t.href}
             className="glass-noir group flex items-center justify-between gap-3 rounded-2xl px-5 py-4 transition-all duration-300 hover:-translate-y-0.5 hover:[box-shadow:0_0_40px_-14px_var(--noir-glow-purple)]"
           >
-            <span>
+            <span className="min-w-0">
               <span className="block text-sm font-semibold text-foreground">
                 Teste de {t.titulo.toLowerCase()}
               </span>

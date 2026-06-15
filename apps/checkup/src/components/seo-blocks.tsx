@@ -43,7 +43,7 @@ export function InterpretationSection({ scale }: { scale: Scale }) {
             {scale.bands.map((b, i) => (
               <div
                 key={b.band}
-                className={`flex items-center justify-between gap-4 px-5 py-3 ${i < scale.bands.length - 1 ? "border-b border-border" : ""}`}
+                className={`flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-5 py-3 ${i < scale.bands.length - 1 ? "border-b border-border" : ""}`}
               >
                 <span className="font-mono text-sm text-purple-light">
                   {b.min}–{b.max}
@@ -96,7 +96,7 @@ export function FaqSection({ items }: { items: FaqItem[] }) {
       <div className="space-y-3">
         {items.map((f) => (
           <details key={f.q} className="glass-noir group rounded-2xl px-5 py-4">
-            <summary className="flex min-h-[28px] cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
+            <summary className="flex min-h-[44px] cursor-pointer list-none items-center justify-between gap-3 text-sm font-semibold text-foreground [&::-webkit-details-marker]:hidden">
               {f.q}
               <span
                 className="shrink-0 text-purple-light transition-transform group-open:rotate-45"

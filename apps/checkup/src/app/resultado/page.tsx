@@ -100,7 +100,7 @@ function ScoreGauge({ score, max, band }: { score: number; max: number; band: st
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="text-3xl font-bold leading-none text-foreground">{score}</span>
-        <span className="mt-1 text-[0.68rem] text-muted-foreground">de {max}</span>
+        <span className="mt-1 text-xs text-muted-foreground">de {max}</span>
       </div>
     </div>
   );
@@ -269,7 +269,7 @@ function ResultContent() {
                 {assistSub.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card/60 px-4 py-3"
+                    className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 rounded-xl border border-border bg-card/60 px-4 py-3"
                   >
                     <span className="text-sm font-medium capitalize text-foreground">
                       {s.short}
@@ -303,7 +303,7 @@ function ResultContent() {
             {label}
           </span>
         ) : (
-          <div className="flex items-center gap-6">
+          <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:gap-6 sm:text-left">
             <ScoreGauge score={score} max={max} band={band} />
             <div className="space-y-2">
               <span

@@ -201,7 +201,7 @@ export function QuizFlow({ scale }: Props) {
     <main className="mx-auto flex min-h-[72vh] w-full max-w-md flex-col px-4 py-8">
       {/* Progress bar */}
       <div className="mb-8">
-        <div className="mb-2 flex items-baseline justify-between text-xs text-muted-foreground">
+        <div className="mb-2 flex items-baseline justify-between gap-2 text-xs text-muted-foreground">
           <span>
             Pergunta <span className="font-semibold text-foreground">{step + 1}</span> de {totalItems}
           </span>
@@ -270,7 +270,7 @@ export function QuizFlow({ scale }: Props) {
         {/* Voltar / Próxima */}
         <div className="mt-auto flex gap-3 pt-8">
           {step > 0 && (
-            <button onClick={handleBack} className="btn-ghost-noir min-h-[52px]">
+            <button onClick={handleBack} className="btn-ghost-noir min-h-[52px] shrink-0">
               <ArrowLeft className="h-4 w-4" aria-hidden />
               Voltar
             </button>
@@ -279,7 +279,7 @@ export function QuizFlow({ scale }: Props) {
             onClick={handleNext}
             disabled={selected === null}
             className={cn(
-              "flex-1 text-lg",
+              "flex-1 min-w-0 text-lg",
               selected !== null
                 ? "btn-noir"
                 : "min-h-[52px] cursor-not-allowed rounded-[14px] bg-muted py-3.5 font-medium text-muted-foreground"
