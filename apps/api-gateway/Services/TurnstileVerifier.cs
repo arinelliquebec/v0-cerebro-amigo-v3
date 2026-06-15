@@ -39,7 +39,7 @@ public sealed class TurnstileVerifier
     }
 
     /// <summary>true = ativo (secret configurada); false = desligado (pula verificação).</summary>
-    public bool Enabled => !string.IsNullOrEmpty(_secret);
+    public bool Enabled => !string.IsNullOrWhiteSpace(_secret);
 
     /// <summary>
     /// Verifica o token do widget. Desligado → true (não bloqueia). Token vazio → false.
@@ -85,9 +85,15 @@ public sealed class TurnstileVerifier
 
             return body.Success;
         }
-        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException)
+        catch (Exception ex) when (
+            ex is HttpRequestException
+            or TaskCanceledException
+            or System.Text.Json.JsonException
+            or NotSupportedException)
         {
-            _logger.LogError(ex, "Turnstile inalcançável — fail-closed");
+            // Timeout/rede (HttpRequestException/TaskCanceledException) e resposta inesperada
+            // (JSON malformado / content-type errado) → fail-closed em vez de 500.
+            _logger.LogError(ex, "Turnstile inalcançável ou resposta inválida — fail-closed");
             return false;
         }
     }

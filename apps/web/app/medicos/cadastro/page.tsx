@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Logo } from "@/components/logo"
-import { Turnstile } from "@/components/turnstile"
+import { Turnstile, type TurnstileHandle } from "@/components/turnstile"
 import { CheckCircle2, AlertTriangle, Loader2 } from "lucide-react"
 
 const UFS = [
@@ -45,7 +45,13 @@ function CadastroForm() {
   // Captcha (ADR-055): só exigido quando há site key (senão, captcha desligado).
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileRef = useRef<TurnstileHandle>(null)
   const handleToken = useCallback((t: string | null) => setTurnstileToken(t), [])
+  // Token é single-use: após um submit que falhou, rearma o widget p/ permitir reenvio.
+  const resetCaptcha = useCallback(() => {
+    setTurnstileToken(null)
+    turnstileRef.current?.reset()
+  }, [])
 
   // doctor_signup_started: 1x ao abrir o form vindo do Check-up (atribuição).
   useEffect(() => {
@@ -96,9 +102,11 @@ function CadastroForm() {
       const code = r.status === 429 ? "rate_limited" : (data?.error ?? "erro_interno")
       setErro(ERRO_MSG[code] ?? data?.mensagem ?? ERRO_MSG.erro_interno)
       setEstado("erro")
+      resetCaptcha()
     } catch {
       setErro(ERRO_MSG.erro_interno)
       setEstado("erro")
+      resetCaptcha()
     }
   }
 
@@ -174,7 +182,7 @@ function CadastroForm() {
         </span>
       </label>
 
-      {siteKey && <Turnstile siteKey={siteKey} onToken={handleToken} />}
+      {siteKey && <Turnstile ref={turnstileRef} siteKey={siteKey} onToken={handleToken} />}
 
       <Button type="submit" className="w-full" disabled={estado === "enviando" || (!!siteKey && !turnstileToken)}>
         {estado === "enviando" && <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />}
