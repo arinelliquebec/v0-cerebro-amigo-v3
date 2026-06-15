@@ -33,7 +33,7 @@ avaliação.
 
 - **Onboarding (sem trial):** cria a assinatura em `status='pendente'` com
   **`prazo_pagamento_ate = NOW() + X dias`** (coluna nova; **não** reusar `trial_ate`,
-  cuja semântica é de trial). `X` curto (proposto **7 dias** — a confirmar). Vale para
+  cuja semântica é de trial). `X` = **5 dias** (config `ASSINATURA_PRAZO_PAGAMENTO_DIAS`, default 5). Vale para
   admin e self-signup. O campo `trial_ate` fica deprecado para linhas novas.
 - **Durante o prazo (`pendente`, dentro de `prazo_pagamento_ate`):** o médico tem
   acesso ao dashboard para configurar e começar, e vê um aviso persistente
@@ -47,13 +47,13 @@ avaliação.
 - **Cadência de cobrança por plano** (Asaas `cycle` deixa de ser fixo MONTHLY):
   - **Solo Pro → MENSAL.**
   - **Solo Consultoria / Clínica Consultoria → TRIMESTRAL** (casa com o mínimo de 3
-    meses). Valor do ciclo = 3× a mensalidade-âncora, salvo desconto (a confirmar):
-    Solo Consultoria ≈ R$ 4.470/trimestre; Clínica a partir de ≈ R$ 8.700/trimestre.
+    meses). Valor do ciclo = 3× a mensalidade com **10% de desconto**:
+    Solo Consultoria **R$ 4.023/trimestre**; Clínica a partir de **R$ 7.830/trimestre**.
 - **Como o médico paga (v1):** reusar a ativação Asaas do ADR-034 (admin "Ativar
   cobrança Asaas" → link enviado ao médico) **e/ou** expor um botão de pagamento na
   tela "ative sua assinatura" (self-checkout — link da subscription Asaas). Com prazo
-  curto + self-signup, o self-checkout é o ideal; v1 pode operar com o link
-  admin-emitido até o self-checkout estar pronto.
+  curto + self-signup, o **v1 já é self-checkout**: o médico paga sozinho na tela de
+  bloqueio (link da subscription Asaas gerado na hora).
 
 ### Invariante de segurança clínica (NÃO viole)
 
@@ -100,13 +100,25 @@ dados, se houver). Atualizar os enums e contadores que hoje falam "trial":
 - **Crise:** **inalterada** — orchestrator + notifier (ADR-041/022). O paywall não
   toca esse caminho.
 
-## Parâmetros a confirmar (antes de implementar)
+## Parâmetros (confirmados 2026-06-15)
 
-1. **`X` (dias de prazo de pagamento):** proposto **7**.
-2. **Valor trimestral dos planos Consultoria:** 3× a mensalidade (sem desconto) ou
-   com desconto por pagamento antecipado?
-3. **Self-checkout no v1?** (médico paga sozinho na tela de bloqueio) ou começamos
-   com o link Asaas emitido pelo admin?
+1. **`X` (dias de prazo de pagamento): 5** — config `ASSINATURA_PRAZO_PAGAMENTO_DIAS` (default 5).
+2. **Trimestral dos planos Consultoria: 3× a mensalidade com 10% de desconto** —
+   Solo Consultoria R$ 4.023/tri; Clínica a partir de R$ 7.830/tri.
+3. **Pagamento no v1: self-checkout** — o médico paga sozinho na tela de bloqueio.
+
+## Progresso
+
+- ✅ **Fase 1 (backend) — branch `claude/paywall-sem-trial`:** migration `0045`
+  (`assinaturas.prazo_pagamento_ate`); `MedicoOnboardingService` cria assinatura
+  `pendente` + prazo (`ASSINATURA_PRAZO_PAGAMENTO_DIAS`, default 5) em vez de trial
+  30d; `/medico/signup` passa `plano='pendente'`. **Sem enforcement ainda** (acesso
+  inalterado) — fundação. **Migrations NÃO aplicadas em prod.**
+- ⏳ Fase 2 (cadência): Asaas `cycle` mensal/trimestral + valor do ciclo (−10%).
+- ⏳ Fase 3 (self-checkout): catálogo de planos + criar subscription Asaas + tela
+  "ative sua assinatura" com escolha de plano.
+- ⏳ Fase 4 (gate): enforcement server-side + paywall, **com a invariante de crise**.
+- ⏳ Fase 5: enums/cockpit do admin (`trial`→`pendente`).
 
 ## Consequências / fases sugeridas
 

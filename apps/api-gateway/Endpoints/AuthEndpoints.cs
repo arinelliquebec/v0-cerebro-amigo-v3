@@ -151,7 +151,7 @@ public static class AuthEndpoints
 
             var r = await onboarding.OnboardAsync(new OnboardMedicoInput(
                 Nome: req.Nome, Email: req.Email, Crm: req.Crm, CrmUf: req.CrmUf, Cpf: null,
-                Plano: "trial", ValorMensal: 0m,
+                Plano: "pendente", ValorMensal: 0m,
                 SignupSource: fromCheckup ? "checkup" : "self",
                 CheckupRid: rid,
                 AllowCrmSoftFail: false,
