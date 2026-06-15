@@ -787,10 +787,11 @@ public static class AdminEndpoints
                 req.PagoEm ?? DateTime.UtcNow,
                 (object?)req.Notas ?? DBNull.Value);
 
-            // Ativa assinatura se estava em trial (primeiro pagamento)
+            // Ativa a assinatura no 1º pagamento: trial (legado) OU pendente (ADR-055,
+            // default dos signups). 'ativa'/'suspensa'/'cancelada' não são tocados aqui.
             await db.Database.ExecuteRawAsync(@"
                 UPDATE assinaturas SET status = 'ativa', atualizado_em = NOW()
-                WHERE id = {0} AND status = 'trial'", id);
+                WHERE id = {0} AND status IN ('trial','pendente')", id);
 
             return Results.Created($"/api/v1/admin/pagamentos/{pagId}", new { id = pagId });
         });

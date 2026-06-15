@@ -17,10 +17,28 @@
   `asaas_subscription_id` → devolve `invoiceUrl`.
 - Sandbox já configurado (key/token via SSM 2026-06-06).
 
-## Fase 0 — Conta Asaas produção (KYC) — **externo, Rafael**
+## Fase 0 — Conta Asaas produção (KYC) — **externo, Rafael (painel Asaas)**
 
-1. Painel Asaas → completar KYC/onboarding da conta de produção (dados da empresa/CNPJ, conta bancária).
-2. Pegar a **API key de produção** (Asaas → Integrações → Chave de API). É distinta da sandbox.
+KYC = aprovação cadastral da conta de **produção** (`app.asaas.com` — sandbox e prod são
+contas/keys **separadas**). Sem código; é painel + análise do compliance Asaas.
+
+1. **Conta de produção:** entrar em `app.asaas.com`. PJ = cadastrar com **CNPJ**.
+2. **Dados cadastrais:** CNPJ, atividade principal, endereço, faturamento estimado, **dados dos sócios**.
+3. **Documentos** (painel → "Minha conta" → **Situação cadastral e documentos**, ou link de onboarding):
+   - **PJ:** Contrato Social / Estatuto, cartão CNPJ, documento dos sócios (RG/CNH + CPF),
+     comprovante de endereço. O compliance pode solicitar mais.
+4. **Conta bancária** de recebimento — **mesma titularidade do CNPJ** (para saque).
+5. **Análise (compliance Asaas):** status fica `AWAITING_APPROVAL` → conta 100% aprovada quando
+   `general=APPROVED`. Se acharem dado comercial inconsistente → corrigir → nova análise.
+6. **Aprovado** → a conta recebe/saca dinheiro. Pegar a **API key de PRODUÇÃO** em
+   **Integrações → API** (distinta da sandbox).
+
+> A API key de prod pode aparecer antes da aprovação total, mas **só cobra/recebe dinheiro com
+> KYC aprovado** (`general=APPROVED`). Para cobrar médico de verdade = precisa aprovado.
+
+Referências (Asaas): [Situação cadastral e documentos](https://central.ajuda.asaas.com/hc/pt-br/sections/31406392824219-Situa%C3%A7%C3%A3o-cadastral-e-documentos) ·
+[Onboarding/envio de documentos](https://docs.asaas.com/docs/onboarding-e-envio-de-documentos-via-link) ·
+[Consultar situação cadastral (API)](https://docs.asaas.com/reference/consultar-situacao-cadastral-da-conta).
 
 ## Fase 1 — Envs no SSM + recriar containers — **Rafael (segredo)**
 
