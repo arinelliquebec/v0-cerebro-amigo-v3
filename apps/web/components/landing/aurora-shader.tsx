@@ -267,6 +267,19 @@ export function AuroraShader({
     }
     document.addEventListener("visibilitychange", onVisibility)
 
+    // bfcache: o botão "voltar" do browser restaura a página CONGELADA via
+    // `pageshow` (persisted=true) sem disparar visibilitychange — então o RAF
+    // (cancelado quando a página foi pro cache) não religa e a aurora fica parada.
+    // Religar o loop na restauração. `last=0` evita salto no relógio.
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (reduce || !e.persisted) return
+      if (onScreen && !document.hidden) {
+        last = 0
+        start()
+      }
+    }
+    window.addEventListener("pageshow", onPageShow)
+
     // Resiliência a context-loss.
     const onLost = (e: Event) => {
       e.preventDefault()
@@ -291,6 +304,7 @@ export function AuroraShader({
       ro.disconnect()
       io.disconnect()
       document.removeEventListener("visibilitychange", onVisibility)
+      window.removeEventListener("pageshow", onPageShow)
       cv.removeEventListener("webglcontextlost", onLost as EventListener)
       cv.removeEventListener("webglcontextrestored", onRestored as EventListener)
       if (buffer) gl.deleteBuffer(buffer)

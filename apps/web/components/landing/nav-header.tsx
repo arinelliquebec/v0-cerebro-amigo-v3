@@ -26,16 +26,13 @@ export async function NavHeader() {
             ))}
           </nav>
           <div className="flex items-center gap-2 sm:gap-3">
-            <Button variant="ghost" className="hidden sm:inline-flex px-4 text-muted-foreground hover:text-foreground hover:bg-noir-surface-raised/60 font-medium" asChild>
-              <Link href="/medicos/cadastro">Criar conta</Link>
-            </Button>
             <Button variant="ghost" className="px-3 sm:px-4 text-muted-foreground hover:text-foreground hover:bg-noir-surface-raised/60 font-medium" asChild>
               <Link href="/login">Entrar</Link>
             </Button>
             <Button variant="coral" className="px-3 sm:px-4 font-medium transition-all duration-300 hover:-translate-y-0.5" asChild>
-              <Link href="/dashboard">
-                <span className="sm:hidden">Demo</span>
-                <span className="hidden sm:inline">Ver demonstração</span>
+              <Link href="/medicos/cadastro">
+                <span className="sm:hidden">Criar</span>
+                <span className="hidden sm:inline">Criar conta</span>
                 <ArrowRight className="hidden sm:inline-block sm:ml-2 h-4 w-4" />
               </Link>
             </Button>

@@ -56,8 +56,8 @@ const planos = [
       "Editor de prompts",
       "Suporte prioritário",
     ],
-    cta: "Ver demonstração",
-    href: "/medico",
+    cta: "Criar conta",
+    href: "/medicos/cadastro",
   },
   {
     nome: "Clínica",
@@ -162,7 +162,7 @@ export default function PrecosPage() {
                 <Link href="/login">Entrar</Link>
               </Button>
               <Button variant="coral" className="gap-1.5" asChild>
-                <Link href="/medico">Ver demo <ArrowRight className="h-4 w-4" /></Link>
+                <Link href="/medico">Conhecer a plataforma <ArrowRight className="h-4 w-4" /></Link>
               </Button>
             </div>
           </div>
