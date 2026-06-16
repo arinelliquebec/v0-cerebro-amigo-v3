@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESv2Client, SendEmailCommand } from "@aws-sdk/client-sesv2";
+import { sendEmail } from "@/lib/email/resend";
 import { getSql } from "@/lib/db";
 import { bearerMatches } from "@/lib/tracking/auth";
 import { buildNudgeLinks, buildNudgeEmail } from "@/lib/tracking/nudge-email";
@@ -11,14 +11,13 @@ import { buildNudgeLinks, buildNudgeEmail } from "@/lib/tracking/nudge-email";
  * Acionado por um scheduler externo (EventBridge/cron na infra do checkup) via
  * POST + Bearer CHECKUP_CRON_TOKEN. Pega os reminders vencidos (não enviados, não
  * cancelados, série não apagada), decifra o e-mail SÓ in-memory (pgp_sym_decrypt) e
- * envia o template fixo por SES. Marca sent_at por linha (idempotente; falha não marca
- * → retenta no próximo run). Fail-soft: erro de envio não derruba o run inteiro.
+ * envia o template fixo por Resend (ADR-061). Marca sent_at por linha (idempotente;
+ * falha não marca → retenta no próximo run). Fail-soft: erro de envio não derruba o run.
  *
  * Inerte por design até: NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED=true + CHECKUP_CRON_TOKEN
- * + CHECKUP_ENCRYPTION_KEY + SES production-access (CK-4). Sem isso, não envia nada.
+ * + CHECKUP_ENCRYPTION_KEY + RESEND_API_KEY (domínio verificado no Resend). Sem isso, não envia.
  */
 
-const FROM = "Check-up Mental <noreply@cerebroamigo.com.br>";
 const BATCH = 100;
 
 export async function POST(req: NextRequest) {
@@ -69,29 +68,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ processed: 0, sent: 0, failed: 0 });
   }
 
-  const ses = new SESv2Client({ region: process.env.AWS_REGION ?? "sa-east-1" });
   let sent = 0;
   let failed = 0;
 
   for (const r of due) {
     try {
       const { subject, text } = buildNudgeEmail(buildNudgeLinks(siteUrl, r.series_token));
-      await ses.send(
-        new SendEmailCommand({
-          FromEmailAddress: FROM,
-          Destination: { ToAddresses: [r.email] },
-          Content: {
-            Simple: {
-              Subject: { Data: subject, Charset: "UTF-8" },
-              Body: { Text: { Data: text, Charset: "UTF-8" } },
-            },
-          },
-        }),
-      );
+      await sendEmail({ to: r.email, subject, text });
       await sql`UPDATE checkup.tracking_reminders SET sent_at = now() WHERE id = ${r.id}`;
       sent++;
     } catch (err: unknown) {
-      // SES fora de prod-access / erro pontual: não marca sent_at → retenta. Sem PII no log.
+      // Erro pontual de envio: não marca sent_at → retenta. Sem PII no log.
       failed++;
       const msg = err instanceof Error ? err.message : String(err);
       console.error(`Error: tracking/cron — envio falhou (reminder ${r.id}): ${msg}`);
