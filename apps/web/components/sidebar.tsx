@@ -50,7 +50,16 @@ function iniciais(nome?: string) {
 
 export function Sidebar() {
   const pathname = usePathname()
+  const router = useRouter()
   const [collapsed, setCollapsed] = useState(false)
+
+  async function handleLogout() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } finally {
+      router.push("/login")
+    }
+  }
   const me = useMe()
 
   return (
@@ -151,6 +160,8 @@ export function Sidebar() {
 
         {/* Logout */}
         <button
+          type="button"
+          onClick={handleLogout}
           className={cn(
             "group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium outline-none transition-all duration-200",
             "text-muted-foreground/70 hover:bg-destructive/10 hover:text-destructive",
