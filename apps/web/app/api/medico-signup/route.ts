@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
         email: body.email,
         crm: body.crm,
         crmUf: body.crmUf,
+        cpf: body.cpf ?? null,
         src: body.src ?? null,
         rid: body.rid ?? null,
         // Token do Cloudflare Turnstile (ADR-055). O gateway é quem valida; aqui

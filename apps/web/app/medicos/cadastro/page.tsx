@@ -22,6 +22,7 @@ const ERRO_MSG: Record<string, string> = {
   nome_divergente: "O nome informado não confere com o cadastro do seu CRM no CFM.",
   crm_indisponivel: "Não foi possível validar seu CRM agora. Tente novamente em instantes.",
   crm_validacao_nao_configurada: "Validação de CRM indisponível no momento. Tente mais tarde.",
+  cpf_invalido: "CPF inválido. Confira os números (ou deixe em branco e preencha depois).",
   rate_limited: "Muitas tentativas. Aguarde alguns minutos e tente de novo.",
   captcha_invalido: "Falha na verificação de segurança. Recarregue a página e tente de novo.",
   erro_interno: "Algo deu errado. Tente novamente.",
@@ -37,6 +38,7 @@ function CadastroForm() {
   const [email, setEmail] = useState("")
   const [crm, setCrm] = useState("")
   const [crmUf, setCrmUf] = useState("")
+  const [cpf, setCpf] = useState("")
   const [consent, setConsent] = useState(false)
   const [estado, setEstado] = useState<"idle" | "enviando" | "ok" | "erro">("idle")
   const [erro, setErro] = useState<string | null>(null)
@@ -89,6 +91,7 @@ function CadastroForm() {
           email: email.trim(),
           crm: crm.trim(),
           crmUf,
+          cpf: cpf.trim() || null,
           src: fromCheckup ? "checkup" : null,
           rid: fromCheckup ? rid : null,
           turnstileToken,
@@ -171,6 +174,13 @@ function CadastroForm() {
             {UFS.map((uf) => <option key={uf} value={uf}>{uf}</option>)}
           </select>
         </div>
+      </div>
+
+      <div className="space-y-1.5">
+        <Label htmlFor="cpf">CPF <span className="text-muted-foreground font-normal">(opcional — necessário para a cobrança)</span></Label>
+        <Input id="cpf" value={cpf} onChange={(e) => setCpf(e.target.value)}
+          inputMode="numeric" placeholder="Só números" autoComplete="off" />
+        <p className="text-xs text-muted-foreground">Pode deixar em branco e preencher depois no seu perfil.</p>
       </div>
 
       <label className="flex items-start gap-2 text-sm text-muted-foreground">

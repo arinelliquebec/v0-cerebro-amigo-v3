@@ -182,8 +182,18 @@ public static class AuthEndpoints
             var fromCheckup = src == "checkup";
             var rid = fromCheckup ? SanitizeRid(req.Rid) : null;
 
+            // CPF (opcional no signup; necessário p/ o self-checkout Asaas depois). Valida
+            // e normaliza aqui — se vazio, o médico preenche em /me/config antes de cobrar.
+            string? cpf = null;
+            if (!string.IsNullOrWhiteSpace(req.Cpf))
+            {
+                if (!ApiGateway.Services.Cpf.Valido(req.Cpf))
+                    return Results.Json(new { error = "cpf_invalido", mensagem = "CPF inválido. Confira os números." }, statusCode: 400);
+                cpf = ApiGateway.Services.Cpf.Normalizar(req.Cpf);
+            }
+
             var r = await onboarding.OnboardAsync(new OnboardMedicoInput(
-                Nome: req.Nome, Email: req.Email, Crm: req.Crm, CrmUf: req.CrmUf, Cpf: null,
+                Nome: req.Nome, Email: req.Email, Crm: req.Crm, CrmUf: req.CrmUf, Cpf: cpf,
                 Plano: "pendente", ValorMensal: 0m,
                 SignupSource: fromCheckup ? "checkup" : "self",
                 CheckupRid: rid,
@@ -234,7 +244,8 @@ public static class AuthEndpoints
 
 public record AtivarContaRequest(string Token, string Senha);
 public record MedicoSignupRequest(
-    string Nome, string Email, string Crm, string CrmUf, string? Src, string? Rid, string? TurnstileToken);
+    string Nome, string Email, string Crm, string CrmUf, string? Src, string? Rid, string? TurnstileToken,
+    string? Cpf = null);
 internal record TokenRow(string UsuarioId, DateTime ExpiraEm, DateTime? UsadoEm);
 
 public record MedicoMeDto(

@@ -1,4 +1,5 @@
 using ApiGateway.Data;
+using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -42,6 +43,15 @@ public static class ConfigEndpoints
             var horario = req.HorarioTrabalho?.GetRawText() ?? "";
             var prefs = req.NotifPrefs?.GetRawText() ?? "";
 
+            // CPF (opcional): valida dígitos verificadores e grava NORMALIZADO (só dígitos).
+            // O self-checkout passa o CPF cru pro Asaas, que rejeita formato com pontos/traço.
+            var cpfNorm = "";
+            if (!string.IsNullOrWhiteSpace(req.Cpf))
+            {
+                if (!Cpf.Valido(req.Cpf)) return Results.BadRequest(new { error = "cpf_invalido" });
+                cpfNorm = Cpf.Normalizar(req.Cpf);
+            }
+
             await db.Database.ExecuteSqlRawAsync(@"
                 UPDATE medicos SET
                     timezone         = COALESCE(NULLIF({1}, ''), timezone),
@@ -51,7 +61,7 @@ public static class ConfigEndpoints
                     cpf              = COALESCE(NULLIF({5}, ''), cpf)
                 WHERE id = {0}",
                 medicoId.Value, req.Timezone ?? "", horario, prefs,
-                req.CrmUf ?? "", req.Cpf ?? "");
+                req.CrmUf ?? "", cpfNorm);
 
             return Results.NoContent();
         });

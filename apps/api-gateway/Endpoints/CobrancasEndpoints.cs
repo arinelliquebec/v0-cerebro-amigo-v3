@@ -335,6 +335,14 @@ public static class CobrancasEndpoints
                         UPDATE assinaturas SET status = 'suspensa', atualizado_em = NOW()
                         WHERE asaas_subscription_id = {0} AND status <> 'cancelada'", subId);
                 }
+                else if (novoStatus == "cancelado" || novoStatus == "estornado")
+                {
+                    // Sem isto, médico cancela/estorna no Asaas e a assinatura segue 'ativa'
+                    // (fantasma): paywall liberado sem cobrança viva. Encerra o acesso.
+                    await db.Database.ExecuteRawAsync(@"
+                        UPDATE assinaturas SET status = 'cancelada', atualizado_em = NOW()
+                        WHERE asaas_subscription_id = {0} AND status <> 'cancelada'", subId);
+                }
             }
 
             return Results.Ok(new { ok = true });

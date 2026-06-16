@@ -772,26 +772,43 @@ public static class AdminEndpoints
         g.MapPost("/assinaturas/{id:guid}/pagamento", async (
             Guid id, [FromBody] RegistrarPagamentoRequest req, AppDbContext db) =>
         {
-            var existe = await db.Database.ExistsAsync(
-                "SELECT 1 FROM assinaturas WHERE id = {0}", id);
-            if (!existe) return Results.NotFound();
+            var plano = await db.Database.ExecuteScalarAsync<string?>(
+                "SELECT plano FROM assinaturas WHERE id = {0}", id);
+            if (plano is null) return Results.NotFound();
 
+            // O pagamento ATIVA a assinatura; se o plano ainda for 'pendente'/'trial', o
+            // médico ficaria 'ativa' mas sem plano real → o FeatureGate (ADR-059) bloqueia
+            // TODA a camada de IA do pagante. Exige um plano real ANTES de ativar (o admin
+            // define o plano via PATCH /assinaturas/{id} primeiro). Evita "pagou e sem IA".
+            var planosReais = new[] { "starter", "pro", "master", "enterprise" };
+            if (!planosReais.Contains(plano))
+                return Results.BadRequest(new
+                {
+                    error = "plano_nao_definido",
+                    detalhe = "Defina o plano (Essencial/Pro/Master) na assinatura antes de registrar o pagamento — senão o médico ativa sem as features do plano.",
+                });
+
+            // INSERT do pagamento + ativação ATÔMICOS numa ÚNICA instrução (CTE
+            // data-modifying): se fossem 2 comandos e o UPDATE falhasse, o pagamento
+            // ficaria registrado com a assinatura ainda 'pendente' (lockout do médico que
+            // pagou). Uma instrução só = tudo-ou-nada pelo Postgres. (O helper
+            // ExecuteRawAsync não enlista cmd.Transaction, então BeginTransaction não serve.)
+            // Ativa no 1º pagamento: trial (legado) OU pendente (ADR-055, default dos
+            // signups). 'ativa'/'suspensa'/'cancelada' não são tocados.
             var pagId = Guid.NewGuid();
             await db.Database.ExecuteRawAsync(@"
-                INSERT INTO pagamentos_manuais
-                    (id, assinatura_id, valor, moeda, referencia, status, metodo, pago_em, notas)
-                VALUES ({0}, {1}, {2}, {3}, {4}, 'confirmado', {5}, {6}, {7})",
+                WITH ins AS (
+                    INSERT INTO pagamentos_manuais
+                        (id, assinatura_id, valor, moeda, referencia, status, metodo, pago_em, notas)
+                    VALUES ({0}, {1}, {2}, {3}, {4}, 'confirmado', {5}, {6}, {7})
+                )
+                UPDATE assinaturas SET status = 'ativa', atualizado_em = NOW()
+                WHERE id = {1} AND status IN ('trial','pendente')",
                 pagId, id, req.Valor, req.Moeda ?? "BRL",
                 (object?)req.Referencia ?? DBNull.Value,
                 (object?)req.Metodo ?? DBNull.Value,
                 req.PagoEm ?? DateTime.UtcNow,
                 (object?)req.Notas ?? DBNull.Value);
-
-            // Ativa a assinatura no 1º pagamento: trial (legado) OU pendente (ADR-055,
-            // default dos signups). 'ativa'/'suspensa'/'cancelada' não são tocados aqui.
-            await db.Database.ExecuteRawAsync(@"
-                UPDATE assinaturas SET status = 'ativa', atualizado_em = NOW()
-                WHERE id = {0} AND status IN ('trial','pendente')", id);
 
             return Results.Created($"/api/v1/admin/pagamentos/{pagId}", new { id = pagId });
         });
