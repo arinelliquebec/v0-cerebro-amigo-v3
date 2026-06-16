@@ -50,8 +50,9 @@ public static class InteracoesCoberturaEndpoints
             foreach (var p in presc)
             {
                 var norm = Norm(p.Medicamento);
-                if (norm.Length == 0) continue;
-                var bate = dic.Any(d =>
+                // Texto que não normaliza (só diacríticos/lixo) nunca casa no dicionário
+                // → conta como não-reconhecido (mantém Reconhecidos + NaoReconhecidos == DistintosTotal).
+                var bate = norm.Length > 0 && dic.Any(d =>
                 {
                     var sins = (d.Sinonimos ?? "").Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
                     return sins.Any(s => norm.Contains(s)) || (d.Generico.Length > 0 && norm.Contains(d.Generico));

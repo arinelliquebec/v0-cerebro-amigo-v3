@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Pill, Loader2, RefreshCw, Download, ShieldAlert } from "lucide-react"
 import { ErroCarregar } from "@/components/admin/erro-carregar"
@@ -26,19 +26,25 @@ export default function CoberturaA5Page() {
   const [loading, setLoading] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [ativasApenas, setAtivasApenas] = useState(false)
+  // Guarda de sequência: descarta resposta obsoleta (toggle rápido do checkbox)
+  // que chegue fora de ordem e sobrescreva o recorte vigente.
+  const reqIdRef = useRef(0)
 
   const carregar = useCallback(async (apenasAtivas: boolean) => {
+    const myId = ++reqIdRef.current
     setLoading(true); setErro(null)
     try {
       const qs = apenasAtivas ? "?ativasApenas=true" : ""
       const r = await fetch(`/api/admin/interacoes-cobertura${qs}`)
+      if (myId !== reqIdRef.current) return // resposta obsoleta
       if (r.status === 401) { window.location.href = "/login"; return }
       if (!r.ok) { setErro("Não foi possível carregar a cobertura do A5."); return }
       setData(await r.json())
     } catch {
+      if (myId !== reqIdRef.current) return
       setErro("Erro de conexão ao carregar a cobertura do A5.")
     } finally {
-      setLoading(false)
+      if (myId === reqIdRef.current) setLoading(false)
     }
   }, [])
 
