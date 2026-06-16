@@ -75,9 +75,12 @@ export default function MinhaAssinaturaPage() {
         body: JSON.stringify({ plano: planoSel }),
       })
       const d = await r.json().catch(() => null)
-      if (r.ok && d?.invoiceUrl) {
-        window.open(d.invoiceUrl, "_blank", "noreferrer")
-        setA((prev) => (prev ? { ...prev, invoiceUrl: d.invoiceUrl, cobrancaAtiva: true } : prev))
+      if (r.ok && d?.subscriptionId) {
+        // Assinatura criada. Em geral vem invoiceUrl; em casos raros o link demora
+        // (a 1ª fatura ainda não existe no Asaas) — marca ativa e orienta a atualizar.
+        setA((prev) => (prev ? { ...prev, invoiceUrl: d.invoiceUrl ?? prev.invoiceUrl, cobrancaAtiva: true } : prev))
+        if (d.invoiceUrl) window.open(d.invoiceUrl, "_blank", "noreferrer")
+        else setErroCheckout("Assinatura criada. O link de pagamento aparece em instantes — atualize a página.")
       } else if (d?.error === "cpf_obrigatorio") {
         setErroCheckout("Preencha seu CPF no perfil antes de ativar a cobrança.")
       } else if (d?.error === "asaas_nao_configurado") {

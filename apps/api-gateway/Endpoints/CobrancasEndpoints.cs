@@ -203,13 +203,16 @@ public static class CobrancasEndpoints
                 SELECT a.id AS assinatura_id, a.valor_mensal, a.trial_ate,
                        a.asaas_customer_id, a.asaas_subscription_id,
                        m.id AS medico_id, m.nome AS medico_nome, m.cpf, m.wa_id AS telefone,
-                       u.email AS medico_email, a.plano
+                       u.email AS medico_email, a.plano, a.status
                 FROM assinaturas a
                 JOIN medicos m ON m.id = a.medico_id
                 JOIN usuarios u ON u.id = m.usuario_id
                 WHERE a.medico_id = {0}", medicoId.Value).FirstOrDefaultAsync();
             if (row is null) return Results.NotFound(new { error = "sem_assinatura" });
-            if (!string.IsNullOrWhiteSpace(row.AsaasSubscriptionId))
+            // Já tem subscription OU já está ativa (ex.: ativada manualmente pelo admin)
+            // → não cria 2ª cobrança recorrente. Self-checkout é p/ quem ainda não paga.
+            if (!string.IsNullOrWhiteSpace(row.AsaasSubscriptionId)
+                || string.Equals(row.Status, "ativa", StringComparison.OrdinalIgnoreCase))
                 return Results.Conflict(new { error = "ja_ativa", subscriptionId = row.AsaasSubscriptionId });
             if (string.IsNullOrWhiteSpace(row.Cpf))
                 return Results.BadRequest(new { error = "cpf_obrigatorio" });

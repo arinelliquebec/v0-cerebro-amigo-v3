@@ -1060,7 +1060,7 @@ public record AssinaturaAsaasRow(
     Guid AssinaturaId, decimal ValorMensal, DateTime? TrialAte,
     string? AsaasCustomerId, string? AsaasSubscriptionId,
     Guid MedicoId, string MedicoNome, string? Cpf, string? Telefone, string MedicoEmail,
-    string? Plano = null);
+    string? Plano = null, string? Status = null);
 
 // ── Cockpit de receita ──
 public record MrrPlanoRow(string Plano, int Quantidade, decimal Valor);
