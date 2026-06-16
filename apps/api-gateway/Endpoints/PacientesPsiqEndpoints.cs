@@ -181,7 +181,7 @@ public static class PacientesPsiqEndpoints
             var ultimo = resultados.Count > 0 ? resultados[0] : null;
 
             return Results.Ok(new { ultimo });
-        });
+        }).RequireFeature(FeatureKeys.BriefingIa); // ADR-059: briefing IA (todos os planos pagos; bloqueia plano nulo/legado)
 
         // Resumo pré-consulta — POST dispara geração on-demand via agents-py
         g.MapPost("/{id:guid}/resumo-pre-consulta", async (
@@ -246,7 +246,7 @@ public static class PacientesPsiqEndpoints
             }
 
             return Results.Ok(new { resumo });
-        });
+        }).RequireFeature(FeatureKeys.BriefingIa); // ADR-059: briefing IA (todos os planos pagos; bloqueia plano nulo/legado)
 
         // ================================================================
         // CRIAR PACIENTE (médico cadastra novo paciente)

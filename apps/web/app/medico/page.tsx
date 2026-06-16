@@ -15,7 +15,7 @@ import { CheckupQrBanner } from "@/components/landing/checkup-qr-banner"
 export const metadata = {
   title: "Para Psiquiatras",
   description:
-    "Briefing pré-consulta com IA, diário por voz do paciente, protocolo de crise integrado e acompanhamento automático entre consultas. 14 dias grátis.",
+    "Briefing pré-consulta com IA, diário por voz do paciente, protocolo de crise integrado e acompanhamento automático entre consultas. Planos mensais a partir de R$ 397.",
   openGraph: {
     title: "Cérebro Amigo — Para Psiquiatras",
     description: "Briefing pré-consulta com IA. Paciente registra. Você chega preparado.",

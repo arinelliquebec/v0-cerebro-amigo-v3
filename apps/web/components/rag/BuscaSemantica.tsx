@@ -6,6 +6,9 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Search, Loader2, Quote, Info } from "lucide-react"
+import { useMe } from "@/lib/use-me"
+import { FEATURE, temFeature, readFeatureGate } from "@/lib/feature-gate"
+import { UpsellFeature } from "@/components/assinatura/upsell-feature"
 
 // Busca semântica (RAG, ADR-028) no histórico do paciente. Doctor-facing,
 // retrieval-only: lista trechos CITADOS do que foi relatado, com fonte e
@@ -30,10 +33,14 @@ const FONTE_LABEL: Record<string, string> = {
 }
 
 export function BuscaSemantica({ pacienteId }: { pacienteId: string }) {
+  const me = useMe()
   const [query, setQuery] = useState("")
   const [trechos, setTrechos] = useState<Trecho[] | null>(null)
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  // Feature gate (ADR-059): RAG = Pro+. Trava proativa (me.features) + reativa (402).
+  const [bloqueado, setBloqueado] = useState(false)
+  const semRag = (me?.features != null && !temFeature(me.features, FEATURE.rag)) || bloqueado
 
   const buscar = async () => {
     const q = query.trim()
@@ -46,6 +53,7 @@ export function BuscaSemantica({ pacienteId }: { pacienteId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q, incluirKb: true }),
       })
+      if (await readFeatureGate(res)) { setBloqueado(true); setTrechos(null); return }
       if (!res.ok) {
         setErro(res.status === 503 ? "Busca indisponível no momento." : "Não foi possível buscar.")
         setTrechos(null)
@@ -60,6 +68,8 @@ export function BuscaSemantica({ pacienteId }: { pacienteId: string }) {
       setLoading(false)
     }
   }
+
+  if (semRag) return <UpsellFeature feature={FEATURE.rag} />
 
   return (
     <div className="space-y-4">

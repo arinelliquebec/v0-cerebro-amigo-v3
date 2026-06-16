@@ -39,7 +39,7 @@ public sealed class MedicoOnboardingService
         if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(nome) || string.IsNullOrEmpty(crm))
             return OnboardMedicoResult.Fail("campos_obrigatorios", 400, "nome, email e CRM são obrigatórios");
 
-        var plano = (input.Plano ?? "trial").ToLowerInvariant();
+        var plano = (input.Plano ?? "pendente").ToLowerInvariant();
         if (!PlanosValidos.Contains(plano))
             return OnboardMedicoResult.Fail("plano_invalido", 400);
 

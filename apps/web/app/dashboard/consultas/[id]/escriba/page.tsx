@@ -13,6 +13,9 @@ import { Button } from "@/components/ui/button"
 import {
   Loader2, ShieldAlert, FileText, Check, ChevronDown, ChevronUp, Sparkles, ArrowLeft,
 } from "lucide-react"
+import { useMe } from "@/lib/use-me"
+import { FEATURE, temFeature, readFeatureGate } from "@/lib/feature-gate"
+import { UpsellFeature } from "@/components/assinatura/upsell-feature"
 
 interface Rascunho {
   resumo_factual?: string
@@ -35,6 +38,9 @@ const arr = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean)
 export default function EscribaRevisaoPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
+  const me = useMe()
+  // Feature gate (ADR-059): escriba = só Master. Trava proativa (me.features) + reativa (402).
+  const semEscriba = me?.features != null && !temFeature(me.features, FEATURE.escriba)
 
   const [data, setData] = useState<EscribaData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -55,6 +61,7 @@ export default function EscribaRevisaoPage() {
   useEffect(() => {
     fetch(`/api/consultas/${id}/escriba`)
       .then(async (r) => {
+        if (await readFeatureGate(r)) { setErro("bloqueado"); return null }
         if (r.status === 404) { setErro("sem_rascunho"); return null }
         if (!r.ok) { setErro("erro"); return null }
         return r.json()
@@ -151,6 +158,8 @@ export default function EscribaRevisaoPage() {
 
       {loading ? (
         <div className="flex justify-center py-20 text-muted-foreground"><Loader2 className="h-6 w-6 animate-spin" /></div>
+      ) : erro === "bloqueado" || semEscriba ? (
+        <UpsellFeature feature={FEATURE.escriba} />
       ) : erro === "sem_rascunho" ? (
         <Card><CardContent className="py-12 text-center space-y-3">
           <p className="text-sm text-muted-foreground">Nenhum rascunho ainda. Grave a teleconsulta (com consentimento do paciente) para gerar a nota.</p>

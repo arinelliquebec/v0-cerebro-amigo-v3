@@ -190,20 +190,20 @@ public static class CobrancasEndpoints
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
 
-            // Catálogo server-side (MONTHLY; cadência por plano = ADR-055 Fase 2).
-            var catalogo = new Dictionary<string, (string Plano, decimal Valor)>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["pro"]        = ("pro", 197.00m),
-                ["enterprise"] = ("enterprise", 397.00m),
-            };
-            if (req?.Plano is null || !catalogo.TryGetValue(req.Plano, out var p))
-                return Results.BadRequest(new { error = "plano_invalido", planos = catalogo.Keys });
+            // Catálogo server-side (PlanCatalog, ADR-059). Self-checkout dos 2 planos
+            // self-serve (Essencial + Pro). Clínica (futura, multi-médico) não é
+            // self-checkout → "fale com a equipe".
+            var plano = PlanCatalog.TryGet(req?.Plano);
+            if (plano is null)
+                return Results.BadRequest(new { error = "plano_invalido", planos = PlanCatalog.CodigosSelfCheckout });
+            if (!plano.SelfCheckout)
+                return Results.BadRequest(new { error = "plano_indisponivel_self_checkout" });
 
             var row = await db.Database.SqlQueryRaw<AssinaturaAsaasRow>(@"
                 SELECT a.id AS assinatura_id, a.valor_mensal, a.trial_ate,
                        a.asaas_customer_id, a.asaas_subscription_id,
                        m.id AS medico_id, m.nome AS medico_nome, m.cpf, m.wa_id AS telefone,
-                       u.email AS medico_email
+                       u.email AS medico_email, a.plano
                 FROM assinaturas a
                 JOIN medicos m ON m.id = a.medico_id
                 JOIN usuarios u ON u.id = m.usuario_id
@@ -215,9 +215,11 @@ public static class CobrancasEndpoints
                 return Results.BadRequest(new { error = "cpf_obrigatorio" });
 
             // Plano + valor da escolha (catálogo). Server-side, não confia no cliente.
+            // valor_mensal = mensalidade-equivalente (MRR coerente); o valor do ciclo
+            // (igual à mensalidade no Inicial MONTHLY) vai pro Asaas abaixo.
             await db.Database.ExecuteRawAsync(
                 "UPDATE assinaturas SET plano = {1}, valor_mensal = {2}, atualizado_em = NOW() WHERE id = {0}",
-                row.AssinaturaId, p.Plano, p.Valor);
+                row.AssinaturaId, plano.Codigo, plano.ValorMensalEquivalente);
 
             var customerId = row.AsaasCustomerId;
             if (string.IsNullOrWhiteSpace(customerId))
@@ -236,7 +238,7 @@ public static class CobrancasEndpoints
 
             var hoje = DateOnly.FromDateTime(DateTime.UtcNow);
             var desc = $"Assinatura Cérebro Amigo — {row.MedicoNome}";
-            var sub = await asaas.CriarAssinaturaAsync(customerId!, p.Valor, hoje, desc, row.AssinaturaId.ToString());
+            var sub = await asaas.CriarAssinaturaAsync(customerId!, plano.ValorCiclo, hoje, desc, row.AssinaturaId.ToString(), plano.Cycle);
             if (!sub.Sucesso)
             {
                 log.LogWarning("Self-checkout: assinatura Asaas falhou (medico {MedicoId}): {Erro}", medicoId, sub.Erro);

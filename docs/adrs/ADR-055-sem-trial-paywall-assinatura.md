@@ -119,7 +119,13 @@ dados, se houver). Atualizar os enums e contadores que hoje falam "trial":
 - ✅ **Fase D (gate + UI) — PR #59:** enforcement ligado. Ver "Decisão de implementação do gate".
 - ⏳ Fase C (self-checkout): botão "Pagar agora" na tela de bloqueio (reusa `invoiceUrl`
   de `ObterLinkAtualAsync`, já existe). Depende de Asaas prod.
-- ⏳ Fase 2 (cadência): Asaas `cycle` mensal/trimestral + valor do ciclo (−10%).
+- ✅ **Fase 2 (cadência + pricing) — ADR-059:** Asaas `cycle` por plano (MONTHLY/QUARTERLY)
+  via `AsaasClient.CriarAssinaturaAsync(..., cycle)`. Catálogo final em `PlanCatalog`
+  (códigos físicos reusados): **Inicial/Solo Pro `pro`** R$497/mês (MONTHLY, self-checkout) ·
+  **Solo Consultoria `starter`** R$4.023/tri (QUARTERLY) · **Clínica Consultoria `enterprise`**
+  a partir de R$7.830/tri (QUARTERLY). Grátis removido do `/precos`. Consultoria = venda
+  assistida (admin "Ativar cobrança"); só o Inicial tem self-checkout público. `valor_mensal`
+  guarda a mensalidade-equivalente (MRR coerente). Detalhe em ADR-059.
 - ⏳ Fase E (admin/cockpit): `trial`→`pendente` + widget inadimplência + job de
   reconciliação status×Asaas (rede contra webhook perdido).
 

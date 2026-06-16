@@ -184,7 +184,7 @@ public sealed class AsaasClient
     /// </summary>
     public async Task<AsaasAssinaturaResult> CriarAssinaturaAsync(
         string customerId, decimal valor, DateOnly proximoVencimento, string descricao,
-        string externalReference, CancellationToken ct = default)
+        string externalReference, string cycle = "MONTHLY", CancellationToken ct = default)
     {
         var cfg = ResolveConfig();
         if (cfg is null) return AsaasAssinaturaResult.Falha("ASAAS_API_KEY não configurada no gateway");
@@ -197,7 +197,7 @@ public sealed class AsaasClient
                 billingType = "UNDEFINED",
                 value = valor,
                 nextDueDate = proximoVencimento.ToString("yyyy-MM-dd"),
-                cycle = "MONTHLY",
+                cycle, // MONTHLY (Inicial) | QUARTERLY (Consultoria — contrato 3 meses), ADR-055 Fase 2
                 description = descricao,
                 externalReference,
             };
