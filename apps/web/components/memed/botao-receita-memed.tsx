@@ -50,15 +50,48 @@ function carregarSdk(scriptUrl: string, token: string): Promise<void> {
 export function BotaoReceitaMemed({
   pacienteId,
   pacienteNome,
+  onReceitaRegistrada,
 }: {
   pacienteId: string
   pacienteNome?: string | null
+  // Chamado quando o espelho da receita é registrado com sucesso (alimenta a
+  // fila de confirmação de horários/validade no prontuário).
+  onReceitaRegistrada?: () => void
 }) {
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
+  const [aviso, setAviso] = useState<string | null>(null)
+
+  // Espelho da receita → BFF. Com retry: a captura via evento do SDK é o único
+  // gatilho, então a falha não pode ser silenciosa. Se mesmo assim falhar, o
+  // médico é avisado (a receita legal já está no MEMED; só o lembrete fica de fora).
+  const espelhar = useCallback(
+    async (memedPrescricaoId: string, medicamentos: Array<{ nome: string; posologia: string | null }>) => {
+      for (let tentativa = 1; tentativa <= 3; tentativa++) {
+        try {
+          const r = await fetch("/api/memed/receitas", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ pacienteId, memedPrescricaoId, medicamentos }),
+          })
+          if (r.ok) {
+            setAviso("Receita emitida. Confirme os horários e a validade na fila abaixo para ligar lembrete e renovação.")
+            onReceitaRegistrada?.()
+            return
+          }
+        } catch (e) {
+          console.error(`[BotaoReceitaMemed] espelho tentativa ${tentativa} falhou:`, e)
+        }
+        if (tentativa < 3) await new Promise((res) => setTimeout(res, 500 * tentativa))
+      }
+      setErro("A receita foi emitida no MEMED, mas falhou ao registrar aqui — o lembrete não foi criado. Recadastre a prescrição manualmente no prontuário.")
+    },
+    [pacienteId, onReceitaRegistrada],
+  )
 
   const abrir = useCallback(async () => {
     setErro(null)
+    setAviso(null)
     setCarregando(true)
     try {
       // 1. token do prescritor
@@ -102,11 +135,7 @@ export function BotaoReceitaMemed({
           nome: m?.nome ?? m?.medicamento ?? m?.descricao ?? "",
           posologia: m?.posologia ?? m?.descricao ?? null,
         }))
-        fetch("/api/memed/receitas", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ pacienteId, memedPrescricaoId, medicamentos }),
-        }).catch(() => {})
+        void espelhar(memedPrescricaoId, medicamentos)
       })
 
       // 4. abre o módulo
@@ -132,7 +161,7 @@ export function BotaoReceitaMemed({
     } finally {
       setCarregando(false)
     }
-  }, [pacienteId, pacienteNome])
+  }, [pacienteId, pacienteNome, espelhar])
 
   return (
     <div className="space-y-2">
@@ -144,6 +173,9 @@ export function BotaoReceitaMemed({
         <p className="flex items-start gap-1.5 text-sm text-destructive">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {erro}
         </p>
+      )}
+      {aviso && !erro && (
+        <p className="text-sm text-muted-foreground">{aviso}</p>
       )}
     </div>
   )
