@@ -55,13 +55,13 @@ export async function HeroSection() {
               <div className="flex flex-col gap-3">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <Button variant="coral" size="lg" className="text-base px-8 py-6 rounded-xl transition-all duration-300 hover:-translate-y-0.5" asChild>
-                    <Link href="/dashboard">
-                      Ver demonstração gratuita
+                    <Link href="/medicos/cadastro">
+                      Criar conta
                       <ArrowRight className="ml-2 h-5 w-5" />
                     </Link>
                   </Button>
                   <Button variant="glass" size="lg" className="text-base px-8 py-6 rounded-xl transition-all duration-200" asChild>
-                    <Link href="/medicos/cadastro">Criar conta</Link>
+                    <Link href="/precos">Ver preços</Link>
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
