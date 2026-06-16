@@ -105,7 +105,7 @@ export default function SobrePage() {
                 <Link href="/login">Entrar</Link>
               </Button>
               <Button variant="coral" className="gap-1.5" asChild>
-                <Link href="/medico">Ver demo <ArrowRight className="h-4 w-4" /></Link>
+                <Link href="/medico">Conhecer a plataforma <ArrowRight className="h-4 w-4" /></Link>
               </Button>
             </div>
           </div>
@@ -225,7 +225,7 @@ export default function SobrePage() {
             </p>
             <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
               <Button variant="coral" size="lg" className="gap-2 px-8 py-6 text-base" asChild>
-                <Link href="/medico">Ver demonstração <ArrowRight className="h-5 w-5" /></Link>
+                <Link href="/medico">Conhecer a plataforma <ArrowRight className="h-5 w-5" /></Link>
               </Button>
               <Button variant="glass" size="lg" className="px-8 py-6 text-base" asChild>
                 <Link href="/precos">Ver preços</Link>
