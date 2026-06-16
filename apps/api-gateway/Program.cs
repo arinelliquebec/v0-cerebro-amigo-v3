@@ -319,6 +319,7 @@ PacientesPsiqEndpoints.Map(app);
 PrescricoesEndpoints.Map(app);
 MemedEndpoints.Map(app);
 MedicamentosEndpoints.Map(app);
+MedicacoesEmUsoEndpoints.Map(app);
 NotificacoesEndpoints.Map(app);
 PacienteAuthEndpoints.Map(app);
 PortalPacienteEndpoints.Map(app);

@@ -44,7 +44,15 @@ public static class InteracoesEndpoints
                     FROM prescricoes pr
                     JOIN pacientes p ON p.cliente_id = pr.paciente_id
                     WHERE pr.ativa = TRUE AND pr.paciente_id = {0}
-                      AND p.medico_responsavel_id = {1}",
+                      AND p.medico_responsavel_id = {1}
+                    UNION ALL
+                    -- Medicações EM USO (reconciliação, ADR-062): o que o paciente toma
+                    -- por fora também entra na checagem — fecha o buraco de remédio externo.
+                    SELECT mu.medicamento AS ""Value""
+                    FROM medicacoes_em_uso mu
+                    JOIN pacientes p2 ON p2.cliente_id = mu.paciente_id
+                    WHERE mu.ativa = TRUE AND mu.paciente_id = {0}
+                      AND p2.medico_responsavel_id = {1}",
                     pid, medicoId.Value).ToListAsync();
                 brutos.AddRange(ativos);
             }

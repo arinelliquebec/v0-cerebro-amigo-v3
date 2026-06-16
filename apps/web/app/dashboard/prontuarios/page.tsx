@@ -6,6 +6,7 @@ import { CondutaEditor } from "@/components/conduta/conduta-editor"
 import { BotaoReceitaMemed } from "@/components/memed/botao-receita-memed"
 import { ReceitasMemedAConfirmar } from "@/components/memed/receitas-a-confirmar"
 import { VerificadorInteracoes } from "@/components/memed/verificador-interacoes"
+import { MedicacoesEmUso } from "@/components/prontuario/medicacoes-em-uso"
 import { EvolucaoEscalasPanel } from "@/components/escalas/EvolucaoEscalasPanel"
 import { ExamesPanel } from "@/components/exames/ExamesPanel"
 import { BuscaSemantica } from "@/components/rag/BuscaSemantica"
@@ -306,6 +307,12 @@ export default function ProntuariosPage() {
                     Prescrições
                   </TabsTrigger>
                   <TabsTrigger
+                    value="medicacoes"
+                    className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                  >
+                    Medicações em uso
+                  </TabsTrigger>
+                  <TabsTrigger
                     value="escalas"
                     className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
                   >
@@ -469,6 +476,10 @@ export default function ProntuariosPage() {
                       ))}
                     </div>
                   )}
+                </TabsContent>
+
+                <TabsContent value="medicacoes" className="space-y-3">
+                  <MedicacoesEmUso pacienteId={selected.id} />
                 </TabsContent>
 
                 <TabsContent value="escalas">
