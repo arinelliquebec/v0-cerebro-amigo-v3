@@ -28,16 +28,27 @@ const nextConfig = {
     ],
   },
 
-  /* Redirects de SEO: o segmento /medicos não tem page.tsx no nível pai
-     (só /medicos/cadastro existe) → 404 sinalizado pelo Google Search Console.
-     A landing real do médico é /medico (singular). 308 permanente leva o link
-     morto à página certa e tira o 404 do índice. O `source` casa só o caminho
-     exato; /medicos/cadastro (rota real) não é afetado. */
+  /* Redirects de SEO (404 sinalizados pelo Google Search Console em
+     cerebroamigo.com.br). `source` casa só o caminho exato.
+
+     1. /medicos: o segmento não tem page.tsx no nível pai (só /medicos/cadastro
+        existe) → 404. A landing real do médico é /medico (singular). 308 leva o
+        link morto à página certa; /medicos/cadastro (rota real) não é afetado.
+
+     2. /checkup: o Check-up vive no subdomínio próprio, não em path no domínio
+        principal — palpite comum de quem digita pelo nome do produto. 308 manda
+        ao subdomínio em vez de 404 (destino externo, basePath:false). */
   async redirects() {
     return [
       {
         source: "/medicos",
         destination: "/medico",
+        permanent: true,
+      },
+      {
+        source: "/checkup",
+        destination: "https://checkup.cerebroamigo.com.br",
+        basePath: false,
         permanent: true,
       },
     ]
