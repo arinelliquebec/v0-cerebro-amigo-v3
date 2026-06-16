@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Logo } from "@/components/logo"
-import { LayoutDashboard, Users, CreditCard, TrendingUp, LogOut, Stethoscope, Settings, ShieldCheck, FileText, Activity, LineChart, ShieldAlert, Eye, Scale, Magnet } from "lucide-react"
+import { LayoutDashboard, Users, CreditCard, TrendingUp, LogOut, Stethoscope, Settings, ShieldCheck, FileText, Activity, LineChart, ShieldAlert, Eye, Scale, Magnet, Pill } from "lucide-react"
 import { logoutAction } from "@/app/admin/actions"
 
 const nav = [
@@ -17,6 +17,7 @@ const nav = [
   { href: "/admin/lgpd", label: "Direitos do titular", icon: Scale },
   { href: "/admin/custos", label: "Custos de IA", icon: TrendingUp },
   { href: "/admin/agentes", label: "Agentes", icon: Activity },
+  { href: "/admin/interacoes", label: "Cobertura A5", icon: Pill },
   { href: "/admin/prompts", label: "Prompts", icon: FileText },
   { href: "/admin/usuarios", label: "Usuários", icon: Users },
 ]
