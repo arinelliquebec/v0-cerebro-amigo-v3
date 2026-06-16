@@ -329,6 +329,7 @@ EscalasEndpoints.Map(app);
 ExamesEndpoints.Map(app);
 RenovacoesEndpoints.Map(app);
 InteracoesEndpoints.Map(app);
+InteracoesCoberturaEndpoints.Map(app);
 CobrancasEndpoints.Map(app);
 BlindagemEndpoints.Map(app);
 RoiEndpoints.Map(app);
