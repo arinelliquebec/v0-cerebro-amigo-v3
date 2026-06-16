@@ -46,7 +46,16 @@ export default function MensagensPage() {
   useEffect(() => {
     fetch("/api/mensagens")
       .then((r) => (r.ok ? r.json() : []))
-      .then((rows) => setInbox(Array.isArray(rows) ? rows : []))
+      .then((rows) => {
+        const lista = Array.isArray(rows) ? rows : []
+        setInbox(lista)
+        // Deep-link ?paciente=<id> → abre a conversa dele (se houver).
+        const alvo = typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("paciente")
+          : null
+        const c = alvo ? lista.find((x: ConversaInbox) => x.pacienteId === alvo) : null
+        if (c) abrir(c)
+      })
       .catch(() => setInbox([]))
       .finally(() => setCarregandoInbox(false))
   }, [])

@@ -114,7 +114,11 @@ export default function ProntuariosPage() {
       })
       .then((data: Paciente[]) => {
         setPacientes(data)
-        if (data.length > 0) setSelected(data[0])
+        // Deep-link ?paciente=<id> (lista de pacientes / fila de atenção) → seleciona aquele.
+        const alvo = typeof window !== "undefined"
+          ? new URLSearchParams(window.location.search).get("paciente")
+          : null
+        setSelected((alvo ? data.find((p) => p.id === alvo) : null) ?? data[0] ?? null)
       })
       .catch(() => setErroLista(true))
       .finally(() => setLoadingList(false))

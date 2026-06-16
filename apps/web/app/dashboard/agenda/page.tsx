@@ -75,6 +75,12 @@ export default function AgendaPage() {
   const [loading, setLoading] = useState(true)
   const [acao, setAcao] = useState<string | null>(null)
   const [erroAcao, setErroAcao] = useState<string | null>(null)
+  // Deep-link da lista de pacientes (?paciente=<id>) → pré-abre Nova consulta com o paciente.
+  const [pacienteInicial] = useState<string | undefined>(() =>
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("paciente") ?? undefined
+      : undefined,
+  )
 
   const carregar = useCallback(async (v: Vista, a: Date) => {
     setLoading(true)
@@ -177,7 +183,7 @@ export default function AgendaPage() {
               <ToggleGroupItem value="semana" className="text-xs">Semana</ToggleGroupItem>
               <ToggleGroupItem value="mes" className="text-xs">Mês</ToggleGroupItem>
             </ToggleGroup>
-            <NovaConsultaDialog diaInicial={ymd(anchor)} onCriada={() => carregar(vista, anchor)} />
+            <NovaConsultaDialog diaInicial={ymd(anchor)} onCriada={() => carregar(vista, anchor)} pacienteInicial={pacienteInicial} />
           </div>
         </div>
 

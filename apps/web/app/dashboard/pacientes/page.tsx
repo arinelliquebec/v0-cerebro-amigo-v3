@@ -20,6 +20,7 @@ import {
   Printer,
 } from "lucide-react"
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { ImportarDialog } from "@/components/pacientes/importar-dialog"
 import { NovoPacienteDialog } from "@/components/pacientes/novo-paciente-dialog"
 import { baixarModelo, exportarPacientes } from "@/lib/pacientes-xlsx"
@@ -38,9 +39,15 @@ function initials(nome: string) {
 }
 
 export default function PacientesPage() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Ações da linha do paciente → deep-link com ?paciente=<id> (as páginas-alvo leem).
+  const irPront = (id: string) => router.push(`/dashboard/prontuarios?paciente=${id}`)
+  const irConversa = (id: string) => router.push(`/dashboard/mensagens?paciente=${id}`)
+  const irAgenda = (id: string) => router.push(`/dashboard/agenda?paciente=${id}`)
 
   const recarregar = () => {
     setLoading(true)
@@ -157,6 +164,7 @@ export default function PacientesPage() {
                 {filteredPatients.map((paciente) => (
                   <div
                     key={paciente.id}
+                    onClick={() => irPront(paciente.id)}
                     className="flex items-center gap-4 p-4 hover:bg-muted/50 transition-colors cursor-pointer group"
                   >
                     <Avatar className="h-12 w-12 border-2 border-primary/20">
@@ -194,16 +202,24 @@ export default function PacientesPage() {
                     )}
 
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity print:hidden">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                      <Button variant="ghost" size="icon" title="Agendar consulta" aria-label="Agendar consulta"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={(e) => { e.stopPropagation(); irAgenda(paciente.id) }}>
                         <Calendar className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                      <Button variant="ghost" size="icon" title="Conversa" aria-label="Conversa"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={(e) => { e.stopPropagation(); irConversa(paciente.id) }}>
                         <MessageSquare className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-primary">
+                      <Button variant="ghost" size="icon" title="Prontuário" aria-label="Prontuário"
+                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                        onClick={(e) => { e.stopPropagation(); irPront(paciente.id) }}>
                         <FileText className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                      <Button variant="ghost" size="icon" title="Abrir prontuário" aria-label="Abrir prontuário"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                        onClick={(e) => { e.stopPropagation(); irPront(paciente.id) }}>
                         <ChevronRight className="h-4 w-4" />
                       </Button>
                     </div>

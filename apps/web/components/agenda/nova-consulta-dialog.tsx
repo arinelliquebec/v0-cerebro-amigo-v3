@@ -35,16 +35,23 @@ function horaLocal(iso: string) {
 export function NovaConsultaDialog({
   diaInicial,
   onCriada,
+  pacienteInicial,
 }: {
   diaInicial: string // YYYY-MM-DD
   onCriada: () => void
+  pacienteInicial?: string // deep-link da lista de pacientes (?paciente=<id>): pré-abre + pré-seleciona
 }) {
   const [aberto, setAberto] = useState(false)
   const [enviando, setEnviando] = useState(false)
   const [erro, setErro] = useState<string | null>(null)
   const [pacientes, setPacientes] = useState<PacienteOpcao[]>([])
 
-  const [pacienteId, setPacienteId] = useState("")
+  const [pacienteId, setPacienteId] = useState(pacienteInicial ?? "")
+
+  // Deep-link: chega com ?paciente=<id> → abre o diálogo já com o paciente selecionado.
+  useEffect(() => {
+    if (pacienteInicial) { setPacienteId(pacienteInicial); setAberto(true) }
+  }, [pacienteInicial])
   const [data, setData] = useState(diaInicial)
   const [modalidade, setModalidade] = useState("presencial")
 
