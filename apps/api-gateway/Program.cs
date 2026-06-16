@@ -350,7 +350,6 @@ MensagensEndpoints.Map(app);
 PromptsEndpoints.Map(app);
 AdminEndpoints.Map(app);
 SeedEndpoint.Map(app);
-SeedDemoEndpoint.Map(app);
 
 app.Run();
 

@@ -2,19 +2,15 @@
 
 // Primeiros passos (item 2 do top-3): onboarding guiado que mata a objeção
 // "vou ter trabalho pra começar". Aparece só quando o médico ainda não tem
-// pacientes. Reusa convite (NovoPaciente) + importação (CSV/XLSX) e oferece
-// "carregar dados de demonstração" (1 clique) pra apresentação ao vivo.
+// pacientes. Reusa convite (NovoPaciente) + importação (CSV/XLSX).
 
 import { useEffect, useState, type ElementType } from "react"
 import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Rocket, UserPlus, Upload, Sparkles, Settings, Loader2, ArrowRight } from "lucide-react"
+import { Rocket, UserPlus, Upload, Settings, ArrowRight } from "lucide-react"
 
 export function PrimeirosPassos() {
   const [pacientes, setPacientes] = useState<number | null>(null)
-  const [seeding, setSeeding] = useState(false)
-  const [erro, setErro] = useState<string | null>(null)
 
   useEffect(() => {
     fetch("/api/roi/resumo")
@@ -22,19 +18,6 @@ export function PrimeirosPassos() {
       .then((d) => setPacientes(d ? d.pacientesAtivos : 0))
       .catch(() => setPacientes(0))
   }, [])
-
-  async function carregarDemo() {
-    setSeeding(true)
-    setErro(null)
-    try {
-      const r = await fetch("/api/seed/demo", { method: "POST" })
-      if (!r.ok) throw new Error()
-      window.location.reload()
-    } catch {
-      setErro("Não foi possível carregar a demonstração. Tente novamente.")
-      setSeeding(false)
-    }
-  }
 
   // Já onboardado (ou ainda carregando a contagem) → não mostra.
   if (pacientes === null || pacientes > 0) return null
@@ -69,24 +52,6 @@ export function PrimeirosPassos() {
             href="/dashboard/configuracoes"
           />
         </div>
-
-        {/* Ação de demonstração — destaque para apresentação ao vivo */}
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-coral/30 bg-coral/5 p-4">
-          <div className="flex items-center gap-3">
-            <Sparkles className="h-5 w-5 flex-shrink-0 text-coral" />
-            <div>
-              <p className="text-sm font-medium text-foreground">Carregar dados de demonstração</p>
-              <p className="text-xs text-muted-foreground">
-                3 pacientes de exemplo com histórico, adesão e alertas. Ideal para conhecer o sistema.
-              </p>
-            </div>
-          </div>
-          <Button variant="coral" className="gap-2" onClick={carregarDemo} disabled={seeding}>
-            {seeding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {seeding ? "Carregando…" : "Carregar demonstração"}
-          </Button>
-        </div>
-        {erro && <p className="mt-2 text-xs text-coral">{erro}</p>}
       </CardContent>
     </Card>
   )
