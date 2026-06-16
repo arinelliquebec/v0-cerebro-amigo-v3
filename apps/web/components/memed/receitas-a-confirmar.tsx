@@ -3,8 +3,12 @@
 import { useCallback, useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
-import { FileClock, Plus, X, Loader2, AlertTriangle, Check } from "lucide-react"
+import {
+  FileClock, Plus, X, Loader2, AlertTriangle, Check,
+  ShieldAlert, ShieldCheck, ShieldQuestion,
+} from "lucide-react"
 
 interface Rascunho {
   id: string
@@ -12,6 +16,22 @@ interface Rascunho {
   doseDescricao: string
   receitaTipo: string | null
   criadaEm: string
+}
+
+interface InteracaoAlerta {
+  tipo: string // "interacao" | "duplicidade"
+  severidade: string // "grave" | "moderada"
+  medicamentoA: string
+  medicamentoB: string
+  mecanismo: string
+  recomendacao: string | null
+  fonte: string | null
+}
+
+interface ChecagemResp {
+  alertas: InteracaoAlerta[]
+  disclaimer: string
+  catalogoVersao: string | null
 }
 
 /**
@@ -75,6 +95,54 @@ export function ReceitasMemedAConfirmar({
     [onConfirmado],
   )
 
+  // 2ª barreira A5 (ADR-032 + ADR-057): roda a checagem de interações ANTES de
+  // ativar — um fármaco novo do MEMED entra aqui. Rascunhos são ativa=false, então
+  // o checar (que pareia com os ATIVOS do paciente) não os vê; mando todos os
+  // medicamentos dos rascunhos juntos para também cruzar interação ENTRE os
+  // fármacos da mesma receita. Informa; não bloqueia (a decisão é do médico).
+  const [chec, setChec] = useState<ChecagemResp | null>(null)
+  const [checLoading, setChecLoading] = useState(false)
+  // Distingue "checagem FALHOU" de "rodou e não achou nada" — nunca colapsar:
+  // uma 2ª barreira que falhou não pode parecer "sem interações".
+  const [checErro, setChecErro] = useState(false)
+
+  const checarInteracoes = useCallback(async (medicamentos: string[]) => {
+    if (medicamentos.length === 0) {
+      setChec(null)
+      return
+    }
+    setChecLoading(true)
+    setChecErro(false)
+    try {
+      const r = await fetch("/api/prescricoes/checar-interacoes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pacienteId, medicamentos }),
+      })
+      const d = await r.json().catch(() => null)
+      if (r.ok && d) {
+        setChec(d)
+      } else {
+        setChec(null)
+        setChecErro(true)
+      }
+    } catch {
+      setChec(null)
+      setChecErro(true)
+    } finally {
+      setChecLoading(false)
+    }
+  }, [pacienteId])
+
+  // Re-checa sempre que a lista de rascunhos muda (chave = medicamentos).
+  const medsKey = itens.map((i) => i.medicamento).join("|")
+  useEffect(() => {
+    if (itens.length > 0) void checarInteracoes(itens.map((i) => i.medicamento))
+    else setChec(null)
+    // medsKey resume a lista; checarInteracoes só depende de pacienteId.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [medsKey, checarInteracoes])
+
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
@@ -109,15 +177,109 @@ export function ReceitasMemedAConfirmar({
           entrar na fila de renovação. Sem confirmar, a receita não gera lembrete
           nem renovação.
         </p>
+
+        <BlocoInteracoes resp={chec} loading={checLoading} erro={checErro} />
+
         {itens.map((item) => (
-          <LinhaRascunho key={item.id} item={item} onResolvido={() => aoResolver(item.id)} />
+          <LinhaRascunho
+            key={item.id}
+            item={item}
+            temGrave={(chec?.alertas ?? []).some((a) => a.severidade === "grave")}
+            onResolvido={() => aoResolver(item.id)}
+          />
         ))}
       </CardContent>
     </Card>
   )
 }
 
-function LinhaRascunho({ item, onResolvido }: { item: Rascunho; onResolvido: () => void }) {
+// 2ª barreira de interações no momento de confirmar (A5, ADR-032 + ADR-057).
+// Mesma linguagem visual do VerificadorInteracoes. Informa, não bloqueia.
+function BlocoInteracoes({
+  resp,
+  loading,
+  erro,
+}: {
+  resp: ChecagemResp | null
+  loading: boolean
+  erro: boolean
+}) {
+  const alertas = resp?.alertas ?? []
+  const temGrave = alertas.some((a) => a.severidade === "grave")
+
+  return (
+    <div className="rounded-lg border border-border/70 bg-background/60 p-3">
+      <div className="mb-2 flex items-center gap-2">
+        {erro ? (
+          <ShieldQuestion className="h-4 w-4 text-amber-600" />
+        ) : alertas.length > 0 ? (
+          <ShieldAlert className={`h-4 w-4 ${temGrave ? "text-coral" : "text-amber-600"}`} />
+        ) : (
+          <ShieldCheck className="h-4 w-4 text-primary" />
+        )}
+        <h5 className="text-sm font-semibold text-foreground">Interações (2ª barreira)</h5>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-3 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+        </div>
+      ) : erro ? (
+        // Falhou ≠ sem interação: nunca tratar como "limpo".
+        <p className="text-sm text-amber-700">
+          Não foi possível verificar interações agora — a 2ª barreira não foi concluída.{" "}
+          <span className="font-medium text-foreground">Não trate como &quot;sem interações&quot;</span>;
+          confira no MEMED/bula antes de ativar.
+        </p>
+      ) : alertas.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nenhuma interação conhecida na base local.</p>
+      ) : (
+        <ul className="space-y-2">
+          {alertas.map((a, i) => {
+            const grave = a.severidade === "grave"
+            return (
+              <li
+                key={i}
+                className={`rounded-lg border-l-2 p-2.5 text-sm ${grave ? "border-coral bg-coral/5" : "border-amber-500 bg-amber-500/5"}`}
+              >
+                <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                  <Badge variant={grave ? "destructive" : "secondary"} className="text-[0.65rem] uppercase">
+                    {a.severidade}
+                  </Badge>
+                  <Badge variant="outline" className="text-[0.65rem]">
+                    {a.tipo === "duplicidade" ? "duplicidade" : "interação"}
+                  </Badge>
+                  <span className="font-medium text-foreground">
+                    {a.medicamentoA} × {a.medicamentoB}
+                  </span>
+                </div>
+                <p className="text-muted-foreground">{a.mecanismo}</p>
+                {a.recomendacao && <p className="mt-0.5 text-foreground/80">{a.recomendacao}</p>}
+                {a.fonte && <p className="mt-0.5 text-[0.7rem] text-muted-foreground">Fonte: {a.fonte}</p>}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {resp?.disclaimer && (
+        <p className="mt-2 border-t border-border/60 pt-2 text-[0.7rem] leading-snug text-muted-foreground">
+          {resp.disclaimer}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function LinhaRascunho({
+  item,
+  temGrave,
+  onResolvido,
+}: {
+  item: Rascunho
+  temGrave: boolean
+  onResolvido: () => void
+}) {
   const [horarios, setHorarios] = useState<string[]>(["08:00"])
   const [validade, setValidade] = useState("")
   const [inicio, setInicio] = useState("")
@@ -248,6 +410,11 @@ function LinhaRascunho({ item, onResolvido }: { item: Rascunho; onResolvido: () 
         {!podeAtivar && (
           <span className="text-xs text-muted-foreground">
             Informe ao menos um horário ou a validade.
+          </span>
+        )}
+        {podeAtivar && temGrave && (
+          <span className="flex items-center gap-1 text-xs text-coral">
+            <ShieldAlert className="h-3.5 w-3.5 shrink-0" /> Há alerta grave acima — confirme se intencional.
           </span>
         )}
       </div>
