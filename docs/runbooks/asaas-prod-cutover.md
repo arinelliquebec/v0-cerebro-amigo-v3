@@ -62,9 +62,37 @@ aws ssm put-parameter --region sa-east-1 --type SecureString --overwrite \
 
 - **URL:** `https://api.cerebroamigo.com.br/api/v1/asaas/webhook` (pública via Caddy/ALB)
 - **Token de autenticação** (header `asaas-access-token`): **igual** ao `ASAAS_WEBHOOK_TOKEN` da Fase 1
-- **Eventos:** `PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`, `PAYMENT_OVERDUE`
-  (opcional p/ Fluxo B futuro: `PAYMENT_REFUNDED`, `PAYMENT_DELETED`)
+- **Eventos:** `PAYMENT_RECEIVED`, `PAYMENT_CONFIRMED`, `PAYMENT_OVERDUE`,
+  `PAYMENT_REFUNDED`, `PAYMENT_DELETED`. Os 2 últimos agora **encerram a assinatura do
+  médico (Fluxo A → `status='cancelada'`)** — fix do launch-QA (PR #70); antes eram só
+  Fluxo B. Limitação conhecida: `SUBSCRIPTION_DELETED` (payload sem `payment`) NÃO é
+  capturado; cancelamento administrativo via `PATCH /admin/assinaturas/{id}` já chama
+  `CancelarAssinaturaAsync` no Asaas, então o caso comum está coberto.
 - Versão da fila: síncrona/sequencial (padrão). Confirme o "enviar" e teste o envio do painel.
+
+## Fase 2.5 — Limpar estado de SANDBOX (antes de cobrar em prod)
+
+O sandbox deixa `asaas_subscription_id` / `asaas_customer_id` (e às vezes `status='ativa'`/
+`'trial'`) nas `assinaturas` — **falso-ativos**: apontam p/ objetos do sandbox que **não
+existem na prod**. Estrago: (1) paywall falso-libera; (2) `cobranca-asaas` retorna **409
+`ja_ativa`** (guard em `AdminEndpoints` quando `asaas_subscription_id` preenchido) → "erro
+com a Asaas" sem logar; (3) se só o `customer_id` é stale, a subscription falha (customer
+não existe na prod). Limpar SÓ as linhas com id de sandbox (Pix-manual sem id não é tocado;
+nenhum id de prod existe ainda):
+
+```sql
+-- conferir antes
+SELECT status, count(*), count(asaas_subscription_id) com_sub, count(asaas_customer_id) com_cust
+FROM assinaturas GROUP BY status;
+-- resetar
+UPDATE assinaturas
+SET asaas_subscription_id = NULL, asaas_customer_id = NULL,
+    status = 'pendente', prazo_pagamento_ate = NOW() + INTERVAL '5 days', atualizado_em = NOW()
+WHERE asaas_subscription_id IS NOT NULL OR asaas_customer_id IS NOT NULL;
+```
+
+NÃO apagar `pagamentos_manuais` (registro de teste, inofensivo; deletar é mais arriscado).
+Rodar via `docker exec <container-py> python` (asyncpg) ou SSM — não há psql no box.
 
 ## Fase 3 — Tornar 1 médico cobrável + ativar cobrança
 
@@ -94,6 +122,11 @@ Enviar o `invoiceUrl` ao médico (ou ele vê em "Minha assinatura" / Fase C do A
 
 ## Gotchas
 
+- **Key Asaas começa com `$` (`$aact_…`) → no `.env` do box (carregado via `env_file` do
+  compose) DOBRAR o cifrão: `ASAAS_API_KEY=$$aact_…`.** Senão o docker-compose interpola
+  `$aact_…` como variável (inexistente) e **zera a key** → `AsaasClient.Configurado=false`
+  → "sem API KEY" / 503. Confirmar no container: `docker compose exec api-gateway sh -lc
+  'echo len=${#ASAAS_API_KEY}'` (len=0 = comeu o `$`). Vale p/ qualquer `$` no valor.
 - `ASAAS_ENV=prod` é o que troca a base URL. Esquecer = key prod no sandbox → 401.
 - Webhook **fail-closed**: sem `ASAAS_WEBHOOK_TOKEN` no gateway → 503 (Asaas reenfileira). O token do
   header no painel **tem** que bater com o env.
