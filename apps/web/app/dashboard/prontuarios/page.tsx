@@ -4,6 +4,7 @@ import { Header } from "@/components/header"
 import { BannerCrise } from "@/components/crise/banner-crise"
 import { CondutaEditor } from "@/components/conduta/conduta-editor"
 import { BotaoReceitaMemed } from "@/components/memed/botao-receita-memed"
+import { ReceitasMemedAConfirmar } from "@/components/memed/receitas-a-confirmar"
 import { VerificadorInteracoes } from "@/components/memed/verificador-interacoes"
 import { EvolucaoEscalasPanel } from "@/components/escalas/EvolucaoEscalasPanel"
 import { ExamesPanel } from "@/components/exames/ExamesPanel"
@@ -101,6 +102,8 @@ export default function ProntuariosPage() {
   const [erroLista, setErroLista] = useState(false)
   const [erroTimeline, setErroTimeline] = useState(false)
   const [erroPrescricoes, setErroPrescricoes] = useState(false)
+  // Sobe a cada receita MEMED espelhada → refaz a fila de confirmação.
+  const [confirmacaoSignal, setConfirmacaoSignal] = useState(0)
 
   useEffect(() => {
     setErroLista(false)
@@ -392,7 +395,16 @@ export default function ProntuariosPage() {
 
                 {/* Prescrições */}
                 <TabsContent value="prescricoes" className="space-y-3">
-                  <BotaoReceitaMemed pacienteId={selected.id} pacienteNome={selected.nome} />
+                  <BotaoReceitaMemed
+                    pacienteId={selected.id}
+                    pacienteNome={selected.nome}
+                    onReceitaRegistrada={() => setConfirmacaoSignal((s) => s + 1)}
+                  />
+                  <ReceitasMemedAConfirmar
+                    pacienteId={selected.id}
+                    refreshSignal={confirmacaoSignal}
+                    onConfirmado={() => fetchPrescricoes(selected.id)}
+                  />
                   <VerificadorInteracoes pacienteId={selected.id} />
                   {loadingPrescricoes ? (
                     <div className="flex justify-center py-10">

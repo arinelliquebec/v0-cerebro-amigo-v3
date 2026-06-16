@@ -31,6 +31,8 @@ public static class PrescricoesEndpoints
             if (medicoId is null) return Results.Forbid();
 
             // Tenant: o paciente tem de ser do médico logado (JOIN pacientes).
+            // Rascunhos MEMED (precisa_confirmar) ficam fora desta lista — vivem na
+            // fila de confirmação (GET .../a-confirmar) até o médico ativá-los.
             var rows = await db.Database.SqlQueryRaw<PrescricaoDto>(@"
                 SELECT pr.id, pr.paciente_id, pr.medicamento, pr.dose_descricao,
                        pr.horarios, pr.inicio_em, pr.fim_em,
@@ -39,8 +41,92 @@ public static class PrescricoesEndpoints
                 FROM prescricoes pr
                 JOIN pacientes p ON p.cliente_id = pr.paciente_id
                 WHERE pr.paciente_id = {0} AND p.medico_responsavel_id = {1}
+                  AND pr.precisa_confirmar = FALSE
                 ORDER BY pr.ativa DESC, pr.criada_em DESC", pacienteId, medicoId.Value).ToListAsync();
             return Results.Ok(rows);
+        });
+
+        // ---- fila de confirmação: rascunhos MEMED do paciente (Tier 1, ADR-056) ----
+        g.MapGet("/paciente/{pacienteId:guid}/a-confirmar", async (Guid pacienteId, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = await ResolveMedicoId(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            // Tenant: só rascunhos de paciente do médico logado (JOIN pacientes).
+            var rows = await db.Database.SqlQueryRaw<ReceitaAConfirmarDto>(@"
+                SELECT pr.id, pr.paciente_id, pr.medicamento, pr.dose_descricao,
+                       pr.receita_tipo, pr.criada_em
+                FROM prescricoes pr
+                JOIN pacientes p ON p.cliente_id = pr.paciente_id
+                WHERE pr.paciente_id = {0} AND p.medico_responsavel_id = {1}
+                  AND pr.precisa_confirmar = TRUE
+                ORDER BY pr.criada_em DESC", pacienteId, medicoId.Value).ToListAsync();
+            return Results.Ok(rows);
+        });
+
+        // ---- confirmar rascunho MEMED: médico seta horários + validade e ativa ----
+        // Só aqui a receita MEMED entra nos jobs de lembrete (horarios) e renovação
+        // (receita_validade). Clinical-safety #4: a decisão de horário/validade é do médico.
+        g.MapPost("/{id:guid}/confirmar", async (Guid id, [FromBody] ConfirmarReceitaMemedRequest req, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = await ResolveMedicoId(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            TimeOnly[] horariosArray;
+            try { horariosArray = (req.Horarios ?? new()).Select(h => TimeOnly.Parse(h)).ToArray(); }
+            catch { return Results.BadRequest(new { error = "horarios_invalidos" }); }
+
+            // Tenant: resolve o rascunho já ancorado no médico logado (JOIN pacientes).
+            var pacienteId = await db.Database.ExecuteScalarAsync<Guid?>(@"
+                SELECT pr.paciente_id FROM prescricoes pr
+                JOIN pacientes p ON p.cliente_id = pr.paciente_id
+                WHERE pr.id = {0} AND p.medico_responsavel_id = {1}
+                  AND pr.precisa_confirmar = TRUE", id, medicoId.Value);
+            if (pacienteId is null) return Results.NotFound();
+
+            var medicamento = await db.Database.ExecuteScalarAsync<string?>(
+                "SELECT medicamento FROM prescricoes WHERE id = {0}", id);
+
+            // Ativa o rascunho com os dados estruturados que o médico informou.
+            var linhas = await db.Database.ExecuteRawAsync(@"
+                UPDATE prescricoes pr SET
+                  horarios = {1}, inicio_em = {2}, fim_em = {3},
+                  receita_validade = {4},
+                  dose_descricao = COALESCE({5}, pr.dose_descricao),
+                  ativa = TRUE, precisa_confirmar = FALSE
+                FROM pacientes p
+                WHERE pr.id = {0} AND pr.precisa_confirmar = TRUE
+                  AND p.cliente_id = pr.paciente_id AND p.medico_responsavel_id = {6}",
+                id, horariosArray,
+                ToUtc(req.InicioEm) ?? DateTime.UtcNow.Date,
+                (object?)ToUtc(req.FimEm) ?? DBNull.Value,
+                (object?)ToUtc(req.ReceitaValidade) ?? DBNull.Value,
+                (object?)req.DoseDescricao ?? DBNull.Value,
+                medicoId.Value);
+            if (linhas == 0) return Results.NotFound();
+
+            await GravarEvento(db, pacienteId.Value, medicoId, id,
+                "adicao", medicamento ?? "(medicamento)", null, "Receita MEMED confirmada");
+
+            return Results.NoContent();
+        });
+
+        // ---- descartar rascunho MEMED: sai da fila sem virar prescrição ativa ----
+        g.MapPost("/{id:guid}/descartar", async (Guid id, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = await ResolveMedicoId(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            // Tenant: só descarta rascunho de paciente do médico logado.
+            var linhas = await db.Database.ExecuteRawAsync(@"
+                UPDATE prescricoes pr SET precisa_confirmar = FALSE, ativa = FALSE
+                FROM pacientes p
+                WHERE pr.id = {0} AND pr.precisa_confirmar = TRUE
+                  AND p.cliente_id = pr.paciente_id AND p.medico_responsavel_id = {1}",
+                id, medicoId.Value);
+            if (linhas == 0) return Results.NotFound();
+
+            return Results.NoContent();
         });
 
         // ---- histórico/timeline de eventos do paciente ----
@@ -250,6 +336,19 @@ public record EditarPrescricaoRequest(
     string? Motivo = null);
 
 public record DesativarPrescricaoRequest(string? Motivo);
+
+// Confirmação de rascunho MEMED: o médico informa os dados estruturados que o
+// espelho não tinha (horários p/ lembrete, validade p/ renovação). ADR-056.
+public record ConfirmarReceitaMemedRequest(
+    List<string>? Horarios,
+    DateTime? ReceitaValidade,
+    DateTime? InicioEm,
+    DateTime? FimEm,
+    string? DoseDescricao);
+
+public record ReceitaAConfirmarDto(
+    Guid Id, Guid PacienteId, string Medicamento, string DoseDescricao,
+    string? ReceitaTipo, DateTime CriadaEm);
 
 public record PrescricaoDto(
     Guid Id, Guid PacienteId, string Medicamento, string DoseDescricao,

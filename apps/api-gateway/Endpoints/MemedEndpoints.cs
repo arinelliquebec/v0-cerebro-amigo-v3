@@ -89,8 +89,12 @@ public static class MemedEndpoints
             return row is null ? Results.NotFound() : Results.Ok(row);
         });
 
-        // Espelho: receita emitida no MEMED → registra + clona meds em prescricoes
-        // (para o motor de lembretes). Idempotente por memed_prescricao_id.
+        // Espelho: receita emitida no MEMED → registra + clona meds em prescricoes.
+        // O espelho conhece só nome + posologia (texto livre), não horários nem
+        // validade — então entra como RASCUNHO (ativa=FALSE, precisa_confirmar=TRUE)
+        // e fica fora dos jobs de lembrete/renovação até o médico confirmar no
+        // prontuário (clinical-safety #4: médico no loop; a IA não infere posologia).
+        // Idempotente por memed_prescricao_id.
         g.MapPost("/receitas", async (
             [FromBody] MemedReceitaRequest req, AppDbContext db, ClaimsPrincipal user) =>
         {
@@ -116,9 +120,11 @@ public static class MemedEndpoints
             foreach (var m in req.Medicamentos ?? [])
             {
                 if (string.IsNullOrWhiteSpace(m.Nome)) continue;
+                // Rascunho: ativa=FALSE + precisa_confirmar=TRUE. Sem horarios/validade,
+                // fica fora dos jobs (ambos filtram ativa=TRUE) até o médico confirmar.
                 await db.Database.ExecuteSqlRawAsync(@"
-                    INSERT INTO prescricoes (paciente_id, medico_id, medicamento, dose_descricao, receita_tipo)
-                    VALUES ({0}, {1}, {2}, {3}, 'memed')",
+                    INSERT INTO prescricoes (paciente_id, medico_id, medicamento, dose_descricao, receita_tipo, ativa, precisa_confirmar)
+                    VALUES ({0}, {1}, {2}, {3}, 'memed', FALSE, TRUE)",
                     req.PacienteId, medicoId.Value, m.Nome, m.Posologia ?? "conforme receita");
                 espelhadas++;
             }
