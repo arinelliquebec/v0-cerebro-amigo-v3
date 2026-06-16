@@ -51,7 +51,7 @@ function PacientesContent() {
   const [loading, setLoading] = useState(true)
 
   // Ações da linha do paciente → deep-link com ?paciente=<id> (as páginas-alvo leem).
-  const irPront = (id: string) => router.push(`/dashboard/prontuarios?paciente=${id}`)
+  const irPront = (id: string) => router.push(`/dashboard/prontuarios/${id}`)
   const irConversa = (id: string) => router.push(`/dashboard/mensagens?paciente=${id}`)
   const irAgenda = (id: string) => router.push(`/dashboard/agenda?paciente=${id}`)
 
