@@ -14,7 +14,12 @@ from __future__ import annotations
 import importlib
 import time
 
+import asyncpg
+import structlog
+
 from app.core.db import acquire
+
+logger = structlog.get_logger(__name__)
 
 # Cache in-memory: chave → (conteúdo, timestamp)
 _cache: dict[str, tuple[str, float]] = {}
@@ -53,18 +58,36 @@ def _set_cached(agente: str, nome: str, conteudo: str) -> None:
 
 
 async def _fetch_from_db(agente: str, nome: str) -> str | None:
-    """Busca o prompt ativo do banco. Retorna None se não houver."""
-    async with acquire() as conn:
-        row = await conn.fetchrow(
-            """
-            SELECT conteudo FROM prompts
-            WHERE agente = $1 AND nome = $2 AND ativo = TRUE
-            LIMIT 1
-            """,
-            agente,
-            nome,
-        )
+    """Busca o prompt ativo do banco. Retorna None se não houver — seja por
+    não existir linha ativa, seja porque a tabela ``prompts`` ainda não foi
+    criada (migration 0009 não aplicada). Nos dois casos o builtin assume,
+    como promete o docstring do módulo. A ausência de schema é logada
+    (observável, nunca silenciosa) para não mascarar uma migration faltante.
+    """
+    try:
+        async with acquire() as conn:
+            row = await conn.fetchrow(
+                """
+                SELECT conteudo FROM prompts
+                WHERE agente = $1 AND nome = $2 AND ativo = TRUE
+                LIMIT 1
+                """,
+                agente,
+                nome,
+            )
         return row["conteudo"] if row else None
+    except (
+        asyncpg.exceptions.UndefinedTableError,
+        asyncpg.exceptions.UndefinedColumnError,
+    ) as exc:
+        logger.warning(
+            "prompt_loader.schema_missing",
+            agente=agente,
+            nome=nome,
+            error=str(exc),
+            hint="tabela 'prompts' ausente (migration 0009) — usando builtin",
+        )
+        return None
 
 
 def _builtin(agente: str, nome: str) -> str | None:
