@@ -28,6 +28,16 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "Cérebro Amigo", url: "https://cerebroamigo.com.br" }],
   robots: { index: true, follow: true },
+  // Favicon do Cérebro Amigo, mesmo do site principal (cerebroamigo.com.br).
+  icons: {
+    icon: [
+      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-48.png", sizes: "48x48", type: "image/png" },
+    ],
+    shortcut: "/favicon-32.png",
+    apple: "/apple-icon.png",
+  },
   openGraph: {
     type: "website",
     locale: "pt_BR",
