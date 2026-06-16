@@ -19,8 +19,8 @@ import {
   FileDown,
   Printer,
 } from "lucide-react"
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { ImportarDialog } from "@/components/pacientes/importar-dialog"
 import { NovoPacienteDialog } from "@/components/pacientes/novo-paciente-dialog"
 import { baixarModelo, exportarPacientes } from "@/lib/pacientes-xlsx"
@@ -38,9 +38,15 @@ function initials(nome: string) {
   return nome.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase()
 }
 
-export default function PacientesPage() {
+function PacientesContent() {
   const router = useRouter()
-  const [searchQuery, setSearchQuery] = useState("")
+  // Busca vem do header fixo (?q=<termo>) e re-sincroniza a cada navegação.
+  const searchParams = useSearchParams()
+  const qParam = searchParams.get("q") ?? ""
+  const [searchQuery, setSearchQuery] = useState(qParam)
+  useEffect(() => {
+    setSearchQuery(qParam)
+  }, [qParam])
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -231,5 +237,15 @@ export default function PacientesPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function PacientesPage() {
+  return (
+    <Suspense
+      fallback={<div className="p-8 text-center text-muted-foreground text-sm">Carregando...</div>}
+    >
+      <PacientesContent />
+    </Suspense>
   )
 }
