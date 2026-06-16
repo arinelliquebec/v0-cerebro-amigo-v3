@@ -20,6 +20,10 @@ export interface Me {
   diasRestantes?: number | null
   motivo?: string
   prazoPagamentoAte?: string | null
+  // Plano + features de IA liberadas (ADR-059). `features` espelha PlanCatalog.FeaturesDe;
+  // a UI usa p/ travar afordância de IA (mostrar upsell) antes mesmo de chamar o backend.
+  plano?: string | null
+  features?: string[]
 }
 
 // Cache de módulo: evita refetch quando vários componentes (sidebar + header)

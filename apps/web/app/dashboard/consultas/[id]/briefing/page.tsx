@@ -19,6 +19,9 @@ import {
   Video,
   Link2,
 } from "lucide-react"
+import { useMe } from "@/lib/use-me"
+import { FEATURE, temFeature, readFeatureGate } from "@/lib/feature-gate"
+import { UpsellFeature } from "@/components/assinatura/upsell-feature"
 
 interface Consulta {
   id: string
@@ -87,6 +90,11 @@ function Sparkline({ values }: { values: number[] }) {
 
 export default function BriefingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const me = useMe()
+  // Feature gate (ADR-059): briefing IA está em todos os planos pagos; só plano nulo/
+  // legado é bloqueado. Trava proativa (me.features) + reativa (402 ao gerar).
+  const [briefingBloqueado, setBriefingBloqueado] = useState(false)
+  const semBriefing = (me?.features != null && !temFeature(me.features, FEATURE.briefingIa)) || briefingBloqueado
   const [consulta, setConsulta] = useState<Consulta | null>(null)
   const [humor, setHumor] = useState<PontoHumor[]>([])
   const [adesao, setAdesao] = useState<Adesao[]>([])
@@ -136,6 +144,7 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
     setErroResumo(null)
     try {
       const r = await fetch(`/api/pacientes/${consulta.pacienteId}/resumo-pre-consulta`, { method: "POST" })
+      if (await readFeatureGate(r)) { setBriefingBloqueado(true); return }
       if (!r.ok) {
         setErroResumo("Não foi possível gerar a síntese pré-consulta agora. Tente novamente em instantes.")
         return
@@ -332,12 +341,16 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
               <Zap className="h-4 w-4 text-primary" />
               <p className="text-sm font-semibold text-primary">Síntese pré-consulta</p>
             </div>
-            <Button size="sm" variant="outline" onClick={gerarResumo} disabled={gerando} className="gap-1.5 text-xs">
-              {gerando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-              {resumo ? "Atualizar" : "Gerar"}
-            </Button>
+            {!semBriefing && (
+              <Button size="sm" variant="outline" onClick={gerarResumo} disabled={gerando} className="gap-1.5 text-xs">
+                {gerando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {resumo ? "Atualizar" : "Gerar"}
+              </Button>
+            )}
           </div>
-          {resumo ? (
+          {semBriefing ? (
+            <UpsellFeature feature={FEATURE.briefingIa} variant="inline" />
+          ) : resumo ? (
             <>
               {resumo.titulo && <p className="mb-1 text-sm font-medium text-foreground">{resumo.titulo}</p>}
               <p className="whitespace-pre-line text-sm leading-relaxed text-foreground">{resumo.conteudo}</p>

@@ -8,8 +8,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     const data = await gateway.get(`/api/v1/pacientes/${id}/resumo-pre-consulta`)
     return NextResponse.json(data)
   } catch (err) {
-    if (err instanceof GatewayError && (err.status === 401 || err.status === 403))
-      return NextResponse.json({ error: "não autorizado" }, { status: 401 })
+    if (err instanceof GatewayError) {
+      // 402 = feature_requer_pro (ADR-059): briefing IA. Repassa p/ a UI abrir upsell.
+      if (err.status === 402) return NextResponse.json(err.body, { status: 402 })
+      if (err.status === 401 || err.status === 403)
+        return NextResponse.json({ error: "não autorizado" }, { status: 401 })
+    }
     return NextResponse.json({ error: "erro interno" }, { status: 500 })
   }
 }

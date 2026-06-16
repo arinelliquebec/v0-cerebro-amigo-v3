@@ -1,4 +1,6 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
+using ApiGateway.Services;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
 using System.Security.Claims;
@@ -34,7 +36,7 @@ public static class RagEndpoints
             if (doMedico != true) return Results.Forbid();
 
             return await ProxyBuscar(httpFactory, cfg, medicoId.Value, req, id);
-        });
+        }).RequireFeature(FeatureKeys.Rag); // ADR-059: RAG/busca semântica = camada IA (Pro)
 
         // Busca só na base de conhecimento do médico (sem paciente).
         app.MapPost("/api/v1/rag/buscar", async (
@@ -44,7 +46,7 @@ public static class RagEndpoints
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
             return await ProxyBuscar(httpFactory, cfg, medicoId.Value, req, null);
-        });
+        }).RequireFeature(FeatureKeys.Rag); // ADR-059: RAG/busca semântica = camada IA (Pro)
     }
 
     private static async Task<IResult> ProxyBuscar(

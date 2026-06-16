@@ -86,7 +86,8 @@ public static class AuthEndpoints
             var row = await db.Database.SqlQueryRaw<MedicoMeDto>(@"
                 SELECT m.id AS medico_id, m.nome, m.crm, m.especialidade,
                        u.id AS usuario_id, u.email, u.role,
-                       a.status AS assinatura_status, a.prazo_pagamento_ate, a.trial_ate
+                       a.status AS assinatura_status, a.prazo_pagamento_ate, a.trial_ate,
+                       a.plano
                 FROM medicos m
                 JOIN usuarios u ON u.id = m.usuario_id
                 LEFT JOIN assinaturas a ON a.medico_id = m.id
@@ -110,6 +111,9 @@ public static class AuthEndpoints
                 liberado = sit.Liberado, bloqueado = !sit.Liberado, emPrazo = sit.EmPrazo,
                 diasRestantes = sit.DiasRestantes, motivo = sit.Motivo,
                 prazoPagamentoAte = row.PrazoPagamentoAte,
+                // ADR-059: plano + features liberadas (camada IA = Pro) p/ a UI gatear/upsell.
+                plano = row.Plano,
+                features = PlanCatalog.FeaturesDe(row.Plano),
             });
         })
         .RequireAuthorization()
@@ -236,4 +240,5 @@ internal record TokenRow(string UsuarioId, DateTime ExpiraEm, DateTime? UsadoEm)
 public record MedicoMeDto(
     Guid MedicoId, string Nome, string Crm, string? Especialidade,
     Guid UsuarioId, string Email, string Role,
-    string? AssinaturaStatus, DateTime? PrazoPagamentoAte, DateTime? TrialAte);
+    string? AssinaturaStatus, DateTime? PrazoPagamentoAte, DateTime? TrialAte,
+    string? Plano = null);

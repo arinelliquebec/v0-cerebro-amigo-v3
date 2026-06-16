@@ -190,14 +190,14 @@ public static class CobrancasEndpoints
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
 
-            // Catálogo server-side (PlanCatalog, ADR-059). Self-checkout público só
-            // do plano Inicial (mensal); os planos de Consultoria são contrato de 3
-            // meses (trimestral) com venda assistida → o admin ativa a cobrança.
+            // Catálogo server-side (PlanCatalog, ADR-059). Self-checkout dos 2 planos
+            // self-serve (Essencial + Pro). Clínica (futura, multi-médico) não é
+            // self-checkout → "fale com a equipe".
             var plano = PlanCatalog.TryGet(req?.Plano);
             if (plano is null)
                 return Results.BadRequest(new { error = "plano_invalido", planos = PlanCatalog.CodigosSelfCheckout });
             if (!plano.SelfCheckout)
-                return Results.BadRequest(new { error = "plano_consultoria_fale_com_equipe" });
+                return Results.BadRequest(new { error = "plano_indisponivel_self_checkout" });
 
             var row = await db.Database.SqlQueryRaw<AssinaturaAsaasRow>(@"
                 SELECT a.id AS assinatura_id, a.valor_mensal, a.trial_ate,

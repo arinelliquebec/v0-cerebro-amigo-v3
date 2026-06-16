@@ -54,7 +54,7 @@ const pagamentoSchema = z.object({
 })
 
 const editarAssinaturaSchema = z.object({
-  plano: z.enum(["pendente", "trial", "starter", "pro", "enterprise"]),
+  plano: z.enum(["pendente", "trial", "starter", "pro", "master", "enterprise"]),
   valor: z.string().min(1, "Valor é obrigatório").refine((v) => {
     return parseBrl(v) >= 0
   }, "Valor inválido"),
@@ -72,7 +72,7 @@ const novaAssinaturaSchema = z.object({
     if (!v) return true
     return cpfValido(v)
   }, "CPF inválido").optional().or(z.literal("")),
-  plano: z.enum(["pendente", "trial", "starter", "pro", "enterprise"]),
+  plano: z.enum(["pendente", "trial", "starter", "pro", "master", "enterprise"]),
   valor: z.string().min(1, "Valor é obrigatório").refine((v) => {
     const num = parseBrl(v)
     return num > 0
@@ -108,15 +108,17 @@ const PLANO_COR: Record<string, string> = {
   trial: "bg-warning/15 text-warning border-warning/30",
   starter: "bg-muted/50 text-muted-foreground border-border",
   pro: "bg-primary/15 text-primary border-primary/30",
+  master: "bg-accent/15 text-accent border-accent/30",
   enterprise: "bg-accent/15 text-accent border-accent/30",
 }
-// Códigos físicos → rótulos do pricing atual (ADR-059). `trial` = legado.
+// Códigos físicos → rótulos do pricing atual (ADR-059). `trial`/`enterprise` = legado.
 const PLANO_LABEL: Record<string, string> = {
   pendente: "Pendente (sem plano)",
   trial: "Trial (legado)",
-  pro: "Inicial (Solo Pro)",
-  starter: "Solo Consultoria",
-  enterprise: "Clínica Consultoria",
+  starter: "Essencial (R$ 397)",
+  pro: "Pro (R$ 597)",
+  master: "Master (R$ 997)",
+  enterprise: "Clínica (legado)",
 }
 const planoLabel = (p?: string | null) => (p ? (PLANO_LABEL[p] ?? p) : "—")
 const STATUS_COR: Record<string, string> = {
@@ -295,7 +297,7 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
               <Select value={plano} onValueChange={(v) => setValue("plano", v as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {["pendente", "trial", "starter", "pro", "enterprise"].map((p) => (
+                  {["pendente", "trial", "starter", "pro", "master", "enterprise"].map((p) => (
                     <SelectItem key={p} value={p}>{planoLabel(p)}</SelectItem>
                   ))}
                 </SelectContent>
@@ -528,7 +530,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
               <Label>Plano</Label>
               <Select value={planoValue} onValueChange={(v) => setValue("plano", v as any)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>{["pendente","trial","starter","pro","enterprise"].map((p) => <SelectItem key={p} value={p}>{planoLabel(p)}</SelectItem>)}</SelectContent>
+                <SelectContent>{["pendente","trial","starter","pro","master","enterprise"].map((p) => <SelectItem key={p} value={p}>{planoLabel(p)}</SelectItem>)}</SelectContent>
               </Select>
               {errors.plano && <p className="text-xs text-destructive">{errors.plano.message}</p>}
             </div>

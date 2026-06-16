@@ -13,77 +13,82 @@ import {
 export const metadata = {
   title: "Preços",
   description:
-    "Planos para psiquiatras. Inicial mensal, sem fidelidade; planos Consultoria com contrato de 3 meses e features sob medida.",
+    "Planos mensais para psiquiatras: Essencial, Pro e Master. Sem fidelidade, sem teste grátis — a operação clínica completa em todos; a camada de IA cresce do Essencial ao Master.",
   openGraph: {
     title: "Preços — Cérebro Amigo",
-    description: "Inicial mensal; planos Consultoria com contrato de 3 meses + features sob medida.",
+    description: "Três planos mensais (Essencial, Pro, Master). Sem fidelidade. A IA escala com o seu consultório.",
   },
   alternates: { canonical: "https://www.cerebroamigo.com.br/precos" },
 }
 
+// 3 planos mensais self-checkout (ADR-059). Operação clínica completa em TODOS; o que
+// escala por preço é a camada de IA doctor-facing (briefing → insights+RAG → escriba).
 const planos = [
   {
-    nome: "Inicial",
-    preco: "R$ 497",
+    nome: "Essencial",
+    preco: "R$ 397",
+    sub: "/mês · 1 médico",
+    destaque: false,
+    desc: "A operação clínica completa entre consultas, já com o briefing pré-consulta feito por IA.",
+    cor: "border-noir-line bg-noir-surface",
+    features: [
+      "Pacientes ilimitados",
+      "Diário por voz + check-ins automáticos",
+      "Briefing pré-consulta com IA",
+      "Evolução clínica em gráficos (PHQ-9/GAD-7)",
+      "Teleconsulta por vídeo",
+      "Protocolo de crise + editor de prompts",
+    ],
+    cta: "Assinar",
+    href: "/medicos/cadastro",
+  },
+  {
+    nome: "Pro",
+    preco: "R$ 597",
     sub: "/mês · 1 médico",
     destaque: true,
-    desc: "Para o psiquiatra que quer acompanhar seus pacientes entre consultas, com a IA fazendo o trabalho pesado.",
+    desc: "Para quem quer a IA fazendo o trabalho pesado: agentes analíticos e busca no prontuário.",
     cor: "border-primary/40 bg-primary/5 glow-purple-lg",
-    badge: "Comece por aqui",
+    badge: "Mais escolhido",
     features: [
-      "Até 60 pacientes",
-      "Diário por voz + check-ins automáticos",
-      "Briefing pré-consulta",
-      "Agentes analíticos de IA",
-      "Evolução clínica em gráficos",
-      "Protocolo de crise + editor de prompts",
+      "Tudo do Essencial",
+      "Insights dos 5 agentes analíticos",
+      "Busca semântica no prontuário (RAG)",
       "Suporte prioritário",
     ],
     cta: "Assinar",
     href: "/medicos/cadastro",
   },
   {
-    nome: "Solo Consultoria",
-    preco: "R$ 4.023",
-    sub: "/trimestre · 1 médico",
+    nome: "Master",
+    preco: "R$ 997",
+    sub: "/mês · 1 médico",
     destaque: false,
-    desc: "Tudo do Inicial + consultoria personalizada: novas features sob medida para o seu consultório.",
+    desc: "Toda a camada de IA, incluindo o escriba que transcreve a consulta e rascunha a evolução.",
     cor: "border-noir-line bg-noir-surface",
     features: [
-      "Tudo do Inicial",
-      "Contrato de 3 meses",
-      "Consultoria personalizada",
-      "Features sob medida (roadmap próprio)",
+      "Tudo do Pro",
+      "Escriba — transcrição + rascunho factual da evolução",
+      "Recursos de IA avançados em primeira mão",
       "Onboarding dedicado",
-      "Suporte direto",
     ],
-    cta: "Falar com a equipe",
-    href: "/sobre#contato",
-  },
-  {
-    nome: "Clínica Consultoria",
-    preco: "A partir de R$ 7.830",
-    sub: "/trimestre · vários médicos",
-    destaque: false,
-    desc: "Para clínicas que querem escalar o acompanhamento com features e consultoria dedicadas.",
-    cor: "border-noir-line bg-noir-surface",
-    features: [
-      "Pacientes ilimitados",
-      "Tudo do Solo Consultoria",
-      "Múltiplos médicos + painel da clínica",
-      "Relatórios agregados",
-      "Consultoria + features sob medida",
-      "Onboarding e suporte dedicados",
-    ],
-    cta: "Falar com a equipe",
-    href: "/sobre#contato",
+    cta: "Assinar",
+    href: "/medicos/cadastro",
   },
 ]
 
 const faqs = [
   {
     q: "Como funciona a cobrança?",
-    a: "O plano Inicial é mensal e você assina online. Os planos Consultoria têm contrato de 3 meses (cobrança trimestral) e são fechados junto com a nossa equipe.",
+    a: "Todos os planos são mensais e você assina online (cartão ou Pix). Sem fidelidade: cancela quando quiser e o acesso fica ativo até o fim do ciclo já pago.",
+  },
+  {
+    q: "Qual a diferença entre Essencial, Pro e Master?",
+    a: "Os três entregam a operação clínica completa — registros, escalas (PHQ-9/GAD-7), agenda, teleconsulta, evolução — e os mesmos guardrails de crise e LGPD. O que muda é a camada de IA: o Essencial já inclui o briefing pré-consulta com IA; o Pro adiciona os insights dos agentes analíticos e a busca semântica no prontuário; o Master inclui também o escriba, que transcreve a consulta e rascunha a evolução.",
+  },
+  {
+    q: "Posso mudar de plano depois?",
+    a: "Sim. Você sobe ou desce de plano quando quiser, direto na sua conta — a mudança vale a partir do próximo ciclo.",
   },
   {
     q: "Quanto tempo leva para configurar?",
@@ -91,7 +96,7 @@ const faqs = [
   },
   {
     q: "E se eu quiser cancelar?",
-    a: "O plano Inicial é mensal, sem fidelidade — você cancela quando quiser e o acesso fica ativo até o fim do ciclo pago. Os planos Consultoria têm contrato de 3 meses; concluído o período, você renova ou encerra. As condições constam no contrato.",
+    a: "Todos os planos são mensais, sem fidelidade — você cancela quando quiser e o acesso fica ativo até o fim do ciclo pago.",
   },
   {
     q: "Os dados dos meus pacientes são seguros?",
@@ -103,11 +108,7 @@ const faqs = [
   },
   {
     q: "Posso usar numa clínica com vários médicos?",
-    a: "Sim. Os planos Consultoria atendem clínicas com vários médicos, com painel da clínica e relatórios agregados. Fale com a equipe para desenhar o plano certo para o seu time.",
-  },
-  {
-    q: "O que é a consultoria personalizada?",
-    a: "Nos planos Consultoria, a gente constrói features sob medida para o seu consultório ou clínica — você participa do roadmap. A plataforma e os guardrails clínicos (protocolo de crise, LGPD) permanecem os mesmos; o que muda são as funcionalidades dedicadas a você.",
+    a: "Os planos atuais são para um médico. Para clínicas e redes com vários médicos, fale com a equipe — desenhamos o plano certo para o seu time.",
   },
 ]
 
@@ -183,8 +184,8 @@ export default function PrecosPage() {
               <span className="italic text-accent [text-shadow:0_0_40px_var(--noir-glow-coral)]">sem surpresas</span>.
             </h1>
             <p className="mx-auto mt-5 max-w-lg text-lg leading-relaxed text-muted-foreground">
-              Plano Inicial mensal, sem fidelidade. Planos Consultoria com
-              contrato de 3 meses e features sob medida.
+              Três planos mensais, sem fidelidade. A operação clínica completa em
+              todos — a camada de IA cresce do Essencial ao Master.
             </p>
           </Reveal>
         </div>
@@ -258,7 +259,7 @@ export default function PrecosPage() {
               {[
                 { icon: ShieldCheck, label: "LGPD", sub: "Dados de saúde mental protegidos" },
                 { icon: Lock, label: "AWS Brasil", sub: "Dados armazenados no Brasil (sa-east-1)" },
-                { icon: Zap, label: "Contrato claro", sub: "Inicial mensal sem fidelidade; Consultoria com 3 meses" },
+                { icon: Zap, label: "Contrato claro", sub: "Mensal, sem fidelidade — cancele quando quiser" },
                 { icon: Brain, label: "Protocolo fixo", sub: "Crise com texto pré-aprovado, nunca gerado por IA" },
               ].map((t) => (
                 <div key={t.label} className="flex flex-col items-center gap-2">
@@ -295,7 +296,7 @@ export default function PrecosPage() {
             <h2 className="font-serif text-4xl font-medium leading-tight text-balance">
               Pronto para começar?
             </h2>
-            <p className="mx-auto mt-3 text-muted-foreground">Assine o plano Inicial em minutos.</p>
+            <p className="mx-auto mt-3 text-muted-foreground">Escolha seu plano e comece em minutos.</p>
             <div className="mt-7 flex flex-col justify-center gap-3 sm:flex-row">
               <Button variant="coral" size="lg" className="gap-2 px-8 py-6 text-base" asChild>
                 <Link href="/medicos/cadastro">Criar conta <ArrowRight className="h-5 w-5" /></Link>

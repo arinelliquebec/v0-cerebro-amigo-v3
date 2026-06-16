@@ -35,9 +35,9 @@ export const softwareSchema = {
   offers: {
     "@type": "Offer",
     priceCurrency: "BRL",
-    price: "0",
+    price: "397.00",
     priceValidUntil: "2026-12-31",
-    description: "Teste grátis por 14 dias, sem cartão de crédito.",
+    description: "Planos mensais a partir de R$ 397, sem fidelidade.",
   },
   description:
     "Plataforma de psiquiatria para acompanhamento entre consultas: briefing pré-consulta com IA, diário por voz e protocolo de crise integrado.",

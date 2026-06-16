@@ -1,5 +1,6 @@
 using ApiGateway.Auth;
 using ApiGateway.Data;
+using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -19,7 +20,8 @@ public static class InsightsEndpoints
         var g = app.MapGroup("/api/v1/insights")
             .WithTags("insights")
             .RequireAuthorization()
-            .RequireAssinaturaAtiva(); // ADR-055 Fase D: gate de assinatura (dashboard)
+            .RequireAssinaturaAtiva()  // ADR-055 Fase D: gate de assinatura (dashboard)
+            .RequireFeature(FeatureKeys.IaInsights); // ADR-059: insights dos agentes = camada IA (Pro)
 
         // Lista insights pendentes (não vistos, não descartados, ainda válidos)
         g.MapGet("/pendentes", async (AppDbContext db, ClaimsPrincipal user) =>
