@@ -49,14 +49,16 @@ async function request<T>(
 
 /**
  * Mapeia um erro do gateway para uma resposta JSON do BFF.
- * Repassa status e corpo de erros de domínio (400/403/404/409/422) e
+ * Repassa status e corpo de erros de domínio (400/402/403/404/409/422) e
  * normaliza 401/403 de auth. Para erros de conexão, devolve 502.
+ * 402 = gate de assinatura/feature (ADR-055/059): o corpo (`feature_requer_pro`)
+ * precisa chegar intacto pra UI abrir o upsell — por isso passa direto.
  */
 export function gatewayErrorResponse(err: unknown): Response {
   if (err instanceof GatewayError) {
     if (err.status === 401)
       return NextResponse.json({ error: "sessao_expirada" }, { status: 401 })
-    if ([400, 403, 404, 409, 422].includes(err.status))
+    if ([400, 402, 403, 404, 409, 422].includes(err.status))
       return NextResponse.json(err.body ?? { error: "erro" }, { status: err.status })
   }
   return NextResponse.json({ error: "erro_conexao" }, { status: 502 })

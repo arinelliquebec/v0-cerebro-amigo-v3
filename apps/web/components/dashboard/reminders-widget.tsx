@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { CheckCircle2, Clock, AlertCircle, Loader2, Check, X } from "lucide-react"
 import { tempoRelativo } from "@/lib/tempo"
+import { readFeatureGate } from "@/lib/feature-gate"
+import { UpsellFeature } from "@/components/assinatura/upsell-feature"
 
 interface Insight {
   id: string
@@ -30,13 +32,22 @@ export function RemindersWidget() {
   const [insights, setInsights] = useState<Insight[]>([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState<string | null>(null)
+  // Feature gate (ADR-059): insights = Pro+. 402 `feature_requer_pro` → mostra upsell.
+  const [bloqueado, setBloqueado] = useState<string | null>(null)
 
   useEffect(() => {
+    let vivo = true
     fetch("/api/insights")
-      .then((r) => (r.ok ? r.json() : []))
-      .then((rows) => setInsights(Array.isArray(rows) ? rows : []))
-      .catch(() => setInsights([]))
-      .finally(() => setLoading(false))
+      .then(async (r) => {
+        const gate = await readFeatureGate(r)
+        if (!vivo) return
+        if (gate) { setBloqueado(gate.feature); return }
+        const rows = r.ok ? await r.json() : []
+        setInsights(Array.isArray(rows) ? rows : [])
+      })
+      .catch(() => { if (vivo) setInsights([]) })
+      .finally(() => { if (vivo) setLoading(false) })
+    return () => { vivo = false }
   }, [])
 
   // Marca visto / descarta. Otimista: remove da lista; se falhar, mantém.
@@ -67,6 +78,10 @@ export function RemindersWidget() {
         {loading ? (
           <div className="flex justify-center py-8 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : bloqueado ? (
+          <div className="px-2 py-2">
+            <UpsellFeature feature={bloqueado} variant="inline" />
           </div>
         ) : insights.length === 0 ? (
           <p className="px-3 py-8 text-center text-xs text-muted-foreground">

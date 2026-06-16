@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -71,7 +72,7 @@ public static class EscribaEndpoints
                 consentido = info.EscribaConsentidoEm is not null,
                 status = info.EscribaStatus,
             });
-        }).WithTags("escriba-medico").RequireAuthorization();
+        }).WithTags("escriba-medico").RequireAuthorization().RequireFeature(FeatureKeys.Escriba);
 
         // ─── Médico: upload do áudio → agents-py → grava cifrado ──────────────
         app.MapPost("/api/v1/consultas/{id:guid}/escriba", async (
@@ -142,7 +143,7 @@ public static class EscribaEndpoints
                 rascunho = ParseJson(rascunhoJson),
                 mencaoRisco,
             });
-        }).WithTags("escriba-medico").RequireAuthorization();
+        }).WithTags("escriba-medico").RequireAuthorization().RequireFeature(FeatureKeys.Escriba);
 
         // ─── Médico: leitura do rascunho mais recente (decifrado) ─────────────
         app.MapGet("/api/v1/consultas/{id:guid}/escriba", async (
@@ -167,7 +168,7 @@ public static class EscribaEndpoints
                 mencaoRisco = row.MencaoRisco,
                 status = row.Status,
             });
-        }).WithTags("escriba-medico").RequireAuthorization();
+        }).WithTags("escriba-medico").RequireAuthorization().RequireFeature(FeatureKeys.Escriba);
 
         // ─── Médico: edita o rascunho (médico no loop) — só enquanto 'rascunho' ─
         app.MapPatch("/api/v1/consultas/{id:guid}/escriba", async (
@@ -183,7 +184,7 @@ public static class EscribaEndpoints
                 WHERE consulta_id = {0} AND medico_id = {1} AND status = 'rascunho'",
                 id, medicoId.Value, crypto.Encrypt(rascunho.GetRawText()) ?? "");
             return afetadas == 0 ? Results.Conflict(new { erro = "sem_rascunho_editavel" }) : Results.NoContent();
-        }).WithTags("escriba-medico").RequireAuthorization();
+        }).WithTags("escriba-medico").RequireAuthorization().RequireFeature(FeatureKeys.Escriba);
 
         // ─── Médico: aprova → evolução append-only + fecha o rascunho ─────────
         app.MapPost("/api/v1/consultas/{id:guid}/escriba/aprovar", async (
@@ -218,7 +219,7 @@ public static class EscribaEndpoints
                 "UPDATE consultas SET escriba_status = 'aprovado' WHERE id = {0}", id);
 
             return Results.Ok(new { id = evoId });
-        }).WithTags("escriba-medico").RequireAuthorization();
+        }).WithTags("escriba-medico").RequireAuthorization().RequireFeature(FeatureKeys.Escriba);
     }
 
     // ─── Helpers ───────────────────────────────────────────────────────────

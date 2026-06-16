@@ -677,7 +677,7 @@ public static class AdminEndpoints
         g.MapPost("/assinaturas", async (
             [FromBody] CriarAssinaturaRequest req, AppDbContext db) =>
         {
-            var planos = new[] { "pendente", "trial", "starter", "pro", "enterprise" };
+            var planos = new[] { "pendente", "trial", "starter", "pro", "master", "enterprise" };
             var statuses = new[] { "pendente", "trial", "ativa", "suspensa", "cancelada" };
             if (!planos.Contains(req.Plano)) return Results.BadRequest(new { error = "plano invalido" });
             if (!statuses.Contains(req.Status)) return Results.BadRequest(new { error = "status invalido" });
@@ -703,7 +703,7 @@ public static class AdminEndpoints
             // O gateway é a fronteira de confiança: valida os enums também aqui (o
             // front valida via Zod, mas chamada direta/bug não pode gravar um
             // plano/status fora do conjunto e corromper o cálculo de MRR).
-            var planos = new[] { "pendente", "trial", "starter", "pro", "enterprise" };
+            var planos = new[] { "pendente", "trial", "starter", "pro", "master", "enterprise" };
             var statuses = new[] { "pendente", "trial", "ativa", "suspensa", "cancelada" };
             if (req.Plano is not null && !planos.Contains(req.Plano)) return Results.BadRequest(new { error = "plano invalido" });
             if (req.Status is not null && !statuses.Contains(req.Status)) return Results.BadRequest(new { error = "status invalido" });
@@ -849,9 +849,10 @@ public static class AdminEndpoints
             var proximo = row.TrialAte is { } t && DateOnly.FromDateTime(t) > hoje
                 ? DateOnly.FromDateTime(t) : hoje;
             var desc = $"Assinatura Cérebro Amigo — {row.MedicoNome}";
-            // Cadência + valor do CICLO pelo catálogo (Consultoria = QUARTERLY, cobra o
-            // valor do trimestre, não a mensalidade-equivalente). Fallback legado:
-            // MONTHLY com o valor_mensal armazenado (planos fora do catálogo).
+            // Cadência + valor do CICLO pelo catálogo (ADR-059: Essencial/Pro/Master são
+            // mensais → ValorCiclo == mensalidade). Fallback legado: MONTHLY com o
+            // valor_mensal armazenado (planos fora do catálogo). O arg `cycle` segue
+            // existindo p/ reativar cadência trimestral no futuro sem mudar a assinatura.
             var planoCat = PlanCatalog.TryGet(row.Plano);
             var valorCobranca = planoCat?.ValorCiclo ?? row.ValorMensal;
             var cycle = planoCat?.Cycle ?? "MONTHLY";

@@ -24,6 +24,8 @@ export async function POST(
     return NextResponse.json(data)
   } catch (err) {
     if (err instanceof GatewayError) {
+      // 402 = feature_requer_pro (ADR-059): RAG é Pro+. Repassa p/ a UI abrir upsell.
+      if (err.status === 402) return NextResponse.json(err.body, { status: 402 })
       if (err.status === 401 || err.status === 403)
         return NextResponse.json({ error: "não autorizado" }, { status: 401 })
       if (err.status === 503)

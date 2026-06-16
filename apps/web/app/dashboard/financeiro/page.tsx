@@ -55,10 +55,12 @@ export default function MinhaAssinaturaPage() {
   const [criando, setCriando] = useState(false)
   const [erroCheckout, setErroCheckout] = useState<string | null>(null)
 
-  // Só o plano Inicial é self-checkout (mensal). Os planos Consultoria são contrato
-  // de 3 meses com venda assistida — ativados pela equipe (ADR-059).
+  // 3 planos self-checkout mensais (ADR-059), fatiados pela camada de IA. Os valores
+  // são só exibição — o gateway (PlanCatalog) é a fonte da verdade do preço cobrado.
   const PLANOS = [
-    { key: "pro", nome: "Inicial", valor: 497, desc: "Plano mensal · acompanhamento entre consultas" },
+    { key: "starter", nome: "Essencial", valor: 397, desc: "Núcleo clínico + briefing pré-consulta com IA" },
+    { key: "pro", nome: "Pro", valor: 597, desc: "+ Insights dos agentes + busca semântica (RAG)" },
+    { key: "master", nome: "Master", valor: 997, desc: "Tudo da IA + escriba (transcrição + rascunho)" },
   ]
 
   // Self-checkout (ADR-055 Fase C): cria a cobrança da própria assinatura e abre o
@@ -131,7 +133,7 @@ export default function MinhaAssinaturaPage() {
                   {!MANUAL_PIX_ATIVO && (
                   <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">Escolha um plano e ative sua assinatura:</p>
-                  <div className="grid gap-2 sm:grid-cols-2">
+                  <div className="grid gap-2 sm:grid-cols-3">
                     {PLANOS.map((pl) => (
                       <button
                         key={pl.key}
@@ -153,7 +155,7 @@ export default function MinhaAssinaturaPage() {
                   </Button>
                   {erroCheckout && <p role="alert" className="text-xs text-coral">{erroCheckout}</p>}
                   <p className="text-xs text-muted-foreground">
-                    Planos Consultoria (contrato de 3 meses, features sob medida):{" "}
+                    Clínicas e redes com vários médicos:{" "}
                     <a href="/sobre#contato" className="underline underline-offset-2 hover:text-foreground">fale com a equipe</a>.
                   </p>
                   </div>
