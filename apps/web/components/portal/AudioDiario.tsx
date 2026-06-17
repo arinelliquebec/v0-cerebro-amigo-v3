@@ -28,8 +28,17 @@ export interface AudioDiarioProps {
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
-const DURACAO_MAX_S = 30
-const MIME_PREFERIDO = "audio/webm;codecs=opus"
+const DURACAO_MAX_S = 60
+
+// Ordem de preferência: opus/webm (Chrome/FF), ogg/opus, mp4/aac (Safari).
+// Detecção feita em runtime (dentro de iniciar) — MediaRecorder não existe no SSR.
+const MIMES_CANDIDATOS = [
+  "audio/webm;codecs=opus",
+  "audio/webm",
+  "audio/ogg;codecs=opus",
+  "audio/mp4;codecs=aac",
+  "audio/mp4",
+]
 
 // ─── Componente principal ────────────────────────────────────────────────────
 
@@ -94,9 +103,10 @@ export function AudioDiario({ onTranscricao, onCancelar, className }: AudioDiari
       return
     }
 
-    const mimeType = MediaRecorder.isTypeSupported(MIME_PREFERIDO)
-      ? MIME_PREFERIDO
-      : "audio/mp4"
+    const mimeType =
+      MIMES_CANDIDATOS.find(m => {
+        try { return MediaRecorder.isTypeSupported(m) } catch { return false }
+      }) ?? ""
 
     const recorder = new MediaRecorder(stream, { mimeType })
     recorderRef.current = recorder
@@ -143,7 +153,7 @@ export function AudioDiario({ onTranscricao, onCancelar, className }: AudioDiari
   // ─── Enviar para BFF → gateway → agents-py ───────────────────────────────
 
   const enviar = async (blob: Blob, mimeType: string) => {
-    const ext = mimeType.includes("webm") ? "webm" : "mp4"
+    const ext = mimeType.includes("webm") ? "webm" : mimeType.includes("ogg") ? "ogg" : "mp4"
     const form = new FormData()
     form.append("audio", blob, `gravacao.${ext}`)
 
@@ -186,7 +196,7 @@ export function AudioDiario({ onTranscricao, onCancelar, className }: AudioDiari
     <div className={cn("flex flex-col items-center gap-4 py-6", className)}>
       {/* Indicador visual central */}
       <div className="relative flex items-center justify-center">
-        {/* Anel de progresso (30s) */}
+        {/* Anel de progresso */}
         {fase === "gravando" && (
           <svg className="absolute -inset-3 w-[88px] h-[88px] -rotate-90" viewBox="0 0 88 88">
             <circle cx="44" cy="44" r="40" fill="none" stroke="currentColor"
