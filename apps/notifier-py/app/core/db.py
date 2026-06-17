@@ -28,10 +28,10 @@ async def init_pool() -> asyncpg.Pool:
         dsn=dsn,
         ssl=ssl_ctx,
         min_size=2,
-        max_size=10,
+        max_size=6,  # ADR-043 item D: orçamento de conexões (RDS max_connections=181)
         command_timeout=30,
     )
-    logger.info("db.pool.ready", min_size=2, max_size=10, ssl_verify_full=ssl_ctx is not None)
+    logger.info("db.pool.ready", min_size=2, max_size=6, ssl_verify_full=ssl_ctx is not None)
     return _pool
 
 

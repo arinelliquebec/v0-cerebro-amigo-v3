@@ -70,6 +70,13 @@ observabilidade fraca:
   `DatabaseConnections` real.
 - **Recomendação:** orçar os pools **agora** (de graça); **RDS Proxy antes do checkup
   viralizar**, junto do Multi-AZ.
+- **✅ FEITO 2026-06-17 (orçamento de pools):** caps explícitos somando **~100 no pior caso**
+  (box×1 + checkup×6 no ASG) vs **178 úteis** (181−3 `superuser_reserved`): gateway Npgsql
+  **40** (era default 100; override env `DB_MAX_POOL_SIZE`), orchestrator asyncpg **12** +
+  checkpointer LangGraph **6**, agents **6**, notifier **6**, checkup **5**/instância (×6=30).
+  Cabe até **box×2** (item B): 140+30=170 < 178 — o cap do gateway é o que habilita o scale-out
+  horizontal sob o teto. Vale no **próximo deploy** (rebuild das imagens). Performance Insights +
+  RDS Proxy seguem pendentes p/ a fase de viralização.
 
 ### E. Alarme de backup parado (T1-6)
 - **O quê:** Lambda diária (EventBridge) mede a idade do snapshot automático mais recente

@@ -144,7 +144,7 @@ async def get_compiled_app() -> Callable[..., Awaitable]:
 
     _pool = AsyncConnectionPool(
         conninfo=checkpoint_dsn(),
-        max_size=10,
+        max_size=6,  # ADR-043 item D: orçamento de conexões (checkpointer LangGraph)
         open=False,
         kwargs={"autocommit": True, "prepare_threshold": 0},
     )

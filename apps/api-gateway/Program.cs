@@ -59,6 +59,20 @@ var postgresConn =
 // Dev/CI (localhost, Testcontainers) passam intactos.
 postgresConn = RdsCa.UpgradeToVerifyFull(postgresConn);
 
+// Orçamento de conexões (ADR-043 item D): pós right-size do RDS para db.t4g.small,
+// max_connections caiu para 181. A soma dos pools de TODOS os serviços (gateway +
+// 3 Python + checkup×ASG) deve ficar < ~178. Gateway capado em 40 (Npgsql default era
+// 100) — cabe até 2 instâncias do box sob o teto. Override por env DB_MAX_POOL_SIZE.
+{
+    var maxPool = int.TryParse(builder.Configuration["DB_MAX_POOL_SIZE"], out var mp) && mp > 0
+        ? mp
+        : 40;
+    postgresConn = new Npgsql.NpgsqlConnectionStringBuilder(postgresConn)
+    {
+        MaxPoolSize = maxPool,
+    }.ConnectionString;
+}
+
 {
     var bootLogger = LoggerFactory.Create(b => b.AddConsole())
         .CreateLogger("Bootstrap");
