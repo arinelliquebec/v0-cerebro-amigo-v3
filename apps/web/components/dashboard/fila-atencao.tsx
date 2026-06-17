@@ -24,15 +24,17 @@ interface FilaItem {
   quando: string
 }
 
+// `secao` aponta a página unitária do prontuário p/ deep-link direto
+// (só vale quando rota === /dashboard/prontuarios).
 const TIPO_CFG: Record<
   string,
-  { icon: typeof ShieldAlert; rota: string; label: string }
+  { icon: typeof ShieldAlert; rota: string; label: string; secao?: string }
 > = {
-  crise: { icon: ShieldAlert, rota: "/dashboard/prontuarios", label: "Crise" },
+  crise: { icon: ShieldAlert, rota: "/dashboard/prontuarios", label: "Crise", secao: "timeline" },
   escalacao: { icon: MessageSquare, rota: "/dashboard/mensagens", label: "Escalação" },
-  insight: { icon: AlertCircle, rota: "/dashboard/prontuarios", label: "Alerta" },
+  insight: { icon: AlertCircle, rota: "/dashboard/prontuarios", label: "Alerta", secao: "timeline" },
   checkin_perdido: { icon: BellOff, rota: "/dashboard/checkins", label: "Check-in" },
-  nao_adesao: { icon: Pill, rota: "/dashboard/prontuarios", label: "Adesão" },
+  nao_adesao: { icon: Pill, rota: "/dashboard/prontuarios", label: "Adesão", secao: "prescricoes" },
 }
 
 const SEV_CFG: Record<string, { dot: string; chip: string }> = {
@@ -84,10 +86,14 @@ export function FilaAtencao() {
               const cfg = TIPO_CFG[it.tipo] ?? TIPO_CFG.insight
               const sev = SEV_CFG[it.severidade] ?? SEV_CFG.info
               const Icon = cfg.icon
+              const href =
+                cfg.rota === "/dashboard/prontuarios"
+                  ? `/dashboard/prontuarios/${it.pacienteId}/${cfg.secao ?? "timeline"}`
+                  : `${cfg.rota}?paciente=${it.pacienteId}`
               return (
                 <Link
                   key={`${it.tipo}-${it.pacienteId}-${i}`}
-                  href={`${cfg.rota}?paciente=${it.pacienteId}`}
+                  href={href}
                   className="flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-secondary"
                 >
                   <span className={`h-2 w-2 shrink-0 rounded-full ${sev.dot}`} />

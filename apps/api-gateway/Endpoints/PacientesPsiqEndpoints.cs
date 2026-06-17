@@ -58,6 +58,46 @@ public static class PacientesPsiqEndpoints
             return Results.Ok(rows);
         });
 
+        // Um paciente do médico logado (cabeçalho do prontuário). Mesma projeção
+        // da lista, escopada a um cliente_id. Filtro explícito de tenant
+        // (medico_responsavel_id) + RLS por baixo (ADR-042); 404 se não for do
+        // médico — não vaza existência de paciente alheio.
+        g.MapGet("/{id:guid}", async (Guid id, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            var sql = @"
+                WITH numerados AS (
+                    SELECT cliente_id,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY medico_responsavel_id
+                               ORDER BY criado_em ASC, cliente_id
+                           ) AS numero
+                    FROM pacientes
+                    WHERE medico_responsavel_id = {0}
+                )
+                SELECT n.numero, c.id, c.wa_id, c.nome, c.email,
+                       p.cpf, p.data_nascimento, p.consentimento_lgpd_em,
+                       (SELECT COUNT(*) FROM prescricoes pr WHERE pr.paciente_id = c.id AND pr.ativa) AS prescricoes_ativas,
+                       (SELECT MAX(m.criada_em) FROM mensagens m
+                        JOIN conversas conv ON conv.id = m.conversa_id
+                        WHERE conv.cliente_id = c.id) AS ultima_msg
+                FROM clientes c
+                JOIN pacientes p ON p.cliente_id = c.id
+                JOIN numerados n ON n.cliente_id = c.id
+                WHERE p.medico_responsavel_id = {0} AND c.id = {1}";
+
+            var paciente = await db.Database
+                .SqlQueryRaw<PacienteListItem>(sql, medicoId, id)
+                .FirstOrDefaultAsync();
+            if (paciente is null) return Results.NotFound();
+
+            // Trilha de acesso (LGPD art.37): só registra na leitura concedida.
+            await db.Database.RegistrarAcessoProntuarioAsync(medicoId.Value, id, "prontuario");
+            return Results.Ok(paciente);
+        });
+
         // Timeline unificada do paciente
         g.MapGet("/{id:guid}/timeline", async (
             Guid id, AppDbContext db, ClaimsPrincipal user,

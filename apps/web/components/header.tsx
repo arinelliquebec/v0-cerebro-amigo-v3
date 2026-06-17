@@ -2,6 +2,7 @@
 
 import { Bell, Search, Plus } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { NovoPacienteDialog } from "@/components/pacientes/novo-paciente-dialog"
@@ -15,6 +16,13 @@ interface HeaderProps {
 export function Header({ title, subtitle }: HeaderProps) {
   const router = useRouter()
   const me = useMe()
+  const [busca, setBusca] = useState("")
+
+  function buscarPacientes(e: React.FormEvent) {
+    e.preventDefault()
+    const q = busca.trim()
+    router.push(q ? `/dashboard/pacientes?q=${encodeURIComponent(q)}` : "/dashboard/pacientes")
+  }
   const today = new Date().toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: 'numeric',
@@ -36,14 +44,17 @@ export function Header({ title, subtitle }: HeaderProps) {
 
         <div className="flex items-center gap-3">
           {/* Search */}
-          <div className="relative hidden md:block">
+          <form onSubmit={buscarPacientes} className="relative hidden md:block">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/50" />
             <Input
               type="search"
               placeholder="Buscar pacientes..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              aria-label="Buscar pacientes"
               className="w-64 rounded-full border-border/50 bg-muted/30 pl-10 text-sm transition-all duration-200 focus-visible:w-72 focus-visible:bg-card focus-visible:ring-2 focus-visible:ring-primary/30 focus-visible:border-primary/30"
             />
-          </div>
+          </form>
 
           {/* Quick Add — abre o mesmo dialog que funciona em /dashboard/pacientes */}
           <NovoPacienteDialog
