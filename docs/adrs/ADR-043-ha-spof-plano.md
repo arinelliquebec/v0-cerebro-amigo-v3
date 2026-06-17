@@ -57,8 +57,8 @@ observabilidade fraca:
 
 ### D. Conexões sob escala-out — RDS Proxy
 - **Problema:** `db.t4g.small` (após o right-size de 2026-06-17; 2 GB RAM) tem `max_connections`
-  de só **~170–225** — **metade** do teto do antigo `db.t4g.medium` (~340–450), porque o limite é a
-  RAM. O resize barateia a conta mas **aperta** este teto: orçar pools (e o RDS Proxy) passa a importar
+  de só **181** (medido via `SHOW max_connections`; −3 `superuser_reserved` → ~178 úteis) — ~**metade**
+  do antigo `db.t4g.medium` (~340–450 estimado), porque o limite é a RAM. O resize barateia a conta mas **aperta** este teto: orçar pools (e o RDS Proxy) passa a importar
   mais cedo. Conforme o checkup escala out (ASG, cada instância com pool) somado aos pools do box
   clínico (Npgsql do gateway, default 100; orchestrator psycopg3 10 + asyncpg 20; agents
   10), o teto real sob carga vira **conexões**, não CPU.
