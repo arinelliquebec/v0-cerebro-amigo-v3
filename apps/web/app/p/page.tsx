@@ -120,6 +120,11 @@ export default async function PortalHome() {
             às {horaCurta(data.proxConsulta.iniciaEm)}
           </p>
           <p className="text-xs text-muted-foreground capitalize">{data.proxConsulta.modalidade}</p>
+          {data.proxConsulta.status === "agendada" && (
+            <span className="mt-2 inline-block rounded-full bg-warning/15 px-2.5 py-0.5 text-xs font-medium text-warning">
+              Aguardando confirmação
+            </span>
+          )}
         </section>
       )}
 

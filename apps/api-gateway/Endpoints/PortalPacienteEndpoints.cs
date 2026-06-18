@@ -54,7 +54,7 @@ public static class PortalPacienteEndpoints
             var proxConsulta = await db.Database.SqlQueryRaw<ProximaConsulta>(@"
                 SELECT inicia_em, modalidade, status
                 FROM consultas
-                WHERE paciente_id = {0} AND inicia_em > NOW() AND status = 'confirmada'
+                WHERE paciente_id = {0} AND inicia_em > NOW() AND status IN ('agendada','confirmada')
                 ORDER BY inicia_em LIMIT 1", pid.Value).FirstOrDefaultAsync();
 
             // Último humor registrado
