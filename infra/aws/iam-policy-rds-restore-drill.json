@@ -12,7 +12,7 @@
       "Effect": "Allow",
       "Action": ["rds:RestoreDBInstanceToPointInTime", "rds:AddTagsToResource"],
       "Resource": [
-        "arn:aws:rds:sa-east-1:004177894935:db:cerebro-postgres",
+        "arn:aws:rds:sa-east-1:004177894935:db:cerebro-postgres-enc",
         "arn:aws:rds:sa-east-1:004177894935:db:cerebro-postgres-restore-drill",
         "arn:aws:rds:sa-east-1:004177894935:subgrp:*",
         "arn:aws:rds:sa-east-1:004177894935:og:*",
