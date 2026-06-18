@@ -76,12 +76,17 @@ export default function MensagensPage() {
   )
 
   return (
-    <div className="min-h-screen">
+    // h-screen + flex-col em vez de min-h-screen + grid de altura fixa (100vh-4rem):
+    // o número mágico (4rem) não batia com o Header (72px) e quebrava quando o banner
+    // do PaywallGate (read-only/prazo, sticky) empurrava o conteúdo, expondo o fundo
+    // claro do <body> (tema noir vive no wrapper, não no body). bg-background garante
+    // que qualquer área pinte o token escuro. Scrolls internos (inbox/thread) preservados.
+    <div className="flex h-screen flex-col overflow-hidden bg-background">
       <Header title="Mensagens" />
 
       <EscalacaoInbox />
 
-      <div className="grid h-[calc(100vh-4rem)] grid-cols-1 md:grid-cols-[320px_1fr]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[320px_1fr]">
         {/* Inbox */}
         <aside className="flex flex-col border-r border-border/60">
           <div className="border-b border-border/60 p-3">
