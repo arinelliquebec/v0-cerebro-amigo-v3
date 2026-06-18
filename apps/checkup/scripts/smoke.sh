@@ -15,60 +15,120 @@ has() { curl -s --max-time 25 "$1" | grep -q "$2"; }
 
 echo "Smoke checkup @ $BASE"
 
-[ "$(code "$BASE/api/health")" = 200 ] && ok "health" || bad "health"
-[ "$(code "$BASE/")" = 200 ] && ok "home" || bad "home"
+if [ "$(code "$BASE/api/health")" = 200 ]; then
+  ok "health"
+else
+  bad "health"
+fi
+
+if [ "$(code "$BASE/")" = 200 ]; then
+  ok "home"
+else
+  bad "home"
+fi
 
 for p in depressao ansiedade tdah-adulto bipolaridade borderline alcool tabagismo drogas; do
-  [ "$(code "$BASE/$p")" = 200 ] && ok "landing /$p" || bad "landing /$p"
+  if [ "$(code "$BASE/$p")" = 200 ]; then
+    ok "landing /$p"
+  else
+    bad "landing /$p"
+  fi
 done
 
 # /crise renderiza CVV no HTML cru (SSR — não pode depender de JS)
-{ [ "$(code "$BASE/crise")" = 200 ] && has "$BASE/crise" "tel:188"; } \
-  && ok "/crise SSR (CVV no HTML)" || bad "/crise SSR"
+if [ "$(code "$BASE/crise")" = 200 ] && has "$BASE/crise" "tel:188"; then
+  ok "/crise SSR (CVV no HTML)"
+else
+  bad "/crise SSR"
+fi
 
 for s in phq9 gad7 asrs18 audit mdq fagerstrom msi_bpd assist; do
-  { [ "$(code "$BASE/teste/$s")" = 200 ] && has "$BASE/teste/$s" "Começar triagem"; } \
-    && ok "/teste/$s quiz" || bad "/teste/$s quiz"
+  if [ "$(code "$BASE/teste/$s")" = 200 ] && has "$BASE/teste/$s" "Começar triagem"; then
+    ok "/teste/$s quiz"
+  else
+    bad "/teste/$s quiz"
+  fi
 done
 
 # eventos (sem DB → {ok:true}, não bloqueia)
 ev=$(curl -s --max-time 25 -X POST "$BASE/api/events" -H "Content-Type: application/json" \
   -d "{\"event\":\"test_started\",\"sessionId\":\"$UUID\",\"scaleId\":\"phq9\"}")
-echo "$ev" | grep -q '"ok":true' && ok "events ok" || bad "events ($ev)"
+if echo "$ev" | grep -q '"ok":true'; then
+  ok "events ok"
+else
+  bad "events ($ev)"
+fi
 
-# evento keyed por rid (lado médico, migration 0042 / ADR-046) — sem sessionId → aceita
 evr=$(curl -s --max-time 25 -X POST "$BASE/api/events" -H "Content-Type: application/json" \
   -d '{"event":"qr_scanned","rid":"smoke123"}')
-echo "$evr" | grep -q '"ok":true' && ok "events por rid (0042)" || bad "events por rid ($evr)"
+if echo "$evr" | grep -q '"ok":true'; then
+  ok "events por rid (0042)"
+else
+  bad "events por rid ($evr)"
+fi
 
 # funnel-metrics protegido: sem token configurado → 503 (fail-closed); com token mas sem
 # header Authorization → 401. Ambos = não expõe métricas em superfície pública (ADR-050).
 fmc=$(code "$BASE/api/funnel-metrics")
-{ [ "$fmc" = 503 ] || [ "$fmc" = 401 ]; } && ok "funnel-metrics protegido ($fmc)" || bad "funnel-metrics protegido ($fmc)"
+if [ "$fmc" = 503 ] || [ "$fmc" = 401 ]; then
+  ok "funnel-metrics protegido ($fmc)"
+else
+  bad "funnel-metrics protegido ($fmc)"
+fi
 
 # acompanhamento longitudinal (ADR-050 Parte 2): DARK por padrão (flag off no CI) — o
 # opt-in e o cron de envio respondem 404; a purga de retenção exige cron-token → 503.
-[ "$(codepost "$BASE/api/tracking")" = 404 ] && ok "tracking opt-in dark (404)" || bad "tracking opt-in dark"
-[ "$(codepost "$BASE/api/tracking/cron")" = 404 ] && ok "tracking cron dark (404)" || bad "tracking cron dark"
-[ "$(codepost "$BASE/api/tracking/retention")" = 503 ] && ok "tracking retention sem token (503)" || bad "tracking retention sem token"
+if [ "$(codepost "$BASE/api/tracking")" = 404 ]; then
+  ok "tracking opt-in dark (404)"
+else
+  bad "tracking opt-in dark"
+fi
+
+if [ "$(codepost "$BASE/api/tracking/cron")" = 404 ]; then
+  ok "tracking cron dark (404)"
+else
+  bad "tracking cron dark"
+fi
+
+if [ "$(codepost "$BASE/api/tracking/retention")" = 503 ]; then
+  ok "tracking retention sem token (503)"
+else
+  bad "tracking retention sem token"
+fi
+
 # páginas utilitárias por token (links de e-mail) renderizam (noindex)
-[ "$(code "$BASE/evolucao")" = 200 ] && ok "/evolucao render" || bad "/evolucao render"
-[ "$(code "$BASE/descadastrar")" = 200 ] && ok "/descadastrar render" || bad "/descadastrar render"
+if [ "$(code "$BASE/evolucao")" = 200 ]; then
+  ok "/evolucao render"
+else
+  bad "/evolucao render"
+fi
+
+if [ "$(code "$BASE/descadastrar")" = 200 ]; then
+  ok "/descadastrar render"
+else
+  bad "/descadastrar render"
+fi
 
 # devolutiva (sem Anthropic → fallback estático)
 dev=$(curl -s -w "\n%{http_code}" --max-time 35 -X POST "$BASE/api/devolutiva" \
   -H "Content-Type: application/json" \
   -d '{"scaleId":"phq9","totalScore":12,"band":"moderate","bandLabel":"sintomas moderados"}')
-{ [ "$(echo "$dev" | tail -1)" = 200 ] && echo "$dev" | grep -q acolhimento; } \
-  && ok "devolutiva (fallback)" || bad "devolutiva"
+if [ "$(echo "$dev" | tail -1)" = 200 ] && echo "$dev" | grep -q acolhimento; then
+  ok "devolutiva (fallback)"
+else
+  bad "devolutiva"
+fi
 
 # PDF — o check que pegou o 500 do react-pdf bundlado pelo Turbopack
 for s in phq9 gad7 asrs18 audit mdq fagerstrom msi_bpd assist; do
   tmp=$(mktemp)
   c=$(curl -s -o "$tmp" -w "%{http_code}" --max-time 35 \
     "$BASE/api/pdf?scale=$s&score=12&band=informative&label=x&crisis=false&rid=ab")
-  { [ "$c" = 200 ] && [ "$(head -c4 "$tmp")" = "%PDF" ]; } \
-    && ok "PDF /$s (%PDF)" || bad "PDF /$s (http=$c)"
+  if [ "$c" = 200 ] && [ "$(head -c4 "$tmp")" = "%PDF" ]; then
+    ok "PDF /$s (%PDF)"
+  else
+    bad "PDF /$s (http=$c)"
+  fi
   rm -f "$tmp"
 done
 
