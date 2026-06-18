@@ -18,7 +18,8 @@ public static class PrescricoesEndpoints
         var g = app.MapGroup("/api/v1/prescricoes")
             .WithTags("prescricoes")
             .RequireAuthorization()
-            .RequireAssinaturaAtiva(); // ADR-055 Fase D: gate de assinatura (dashboard)
+            .RequireAssinaturaAtiva()  // ADR-055 Fase D: gate de assinatura (dashboard)
+            .RequireWriteAccess();     // ADR-065: trial read-only bloqueia escrita (exceto pacientes)
 
         // timestamptz exige Kind=Utc; o JSON entrega Unspecified.
         static DateTime? ToUtc(DateTime? dt) =>

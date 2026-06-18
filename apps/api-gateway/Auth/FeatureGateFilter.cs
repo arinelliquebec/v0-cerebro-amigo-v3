@@ -63,12 +63,17 @@ public sealed class FeatureGateFilter(string featureKey) : IEndpointFilter
     }
 }
 
+/// <summary>Marcador de metadata (ADR-059): este endpoint/grupo é gateado por feature de IA.
+/// Em trial (plano nulo) o FeatureGate já bloqueia tudo → conta como protegido na cobertura (R2).</summary>
+public sealed class FeatureGated { }
+
 public static class FeatureGateExtensions
 {
     /// <summary>Exige que o plano do médico inclua a feature (ADR-059). Grupo de endpoints.</summary>
     public static RouteGroupBuilder RequireFeature(this RouteGroupBuilder group, string featureKey)
     {
         group.AddEndpointFilter(new FeatureGateFilter(featureKey));
+        group.WithMetadata(new FeatureGated());
         return group;
     }
 
@@ -76,6 +81,7 @@ public static class FeatureGateExtensions
     public static RouteHandlerBuilder RequireFeature(this RouteHandlerBuilder builder, string featureKey)
     {
         builder.AddEndpointFilter(new FeatureGateFilter(featureKey));
+        builder.WithMetadata(new FeatureGated());
         return builder;
     }
 }

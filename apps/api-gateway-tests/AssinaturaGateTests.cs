@@ -98,4 +98,69 @@ public sealed class AssinaturaGateTests
         Assert.True(s.Liberado);
         Assert.Equal("ativa", s.Motivo);
     }
+
+    // ── ADR-065: trial read-only (sobrecarga com plano) ──────────────────────────
+
+    [Fact]
+    public void TrialReadOnly_PendenteEmPrazo_SemPlano()
+    {
+        // Médico recém-cadastrado: pendente, em prazo, plano ainda 'pendente'.
+        var s = AssinaturaGate.Avaliar("pendente", Now.AddDays(5), null, Now, "pendente");
+        Assert.True(s.Liberado);   // leitura liberada
+        Assert.True(s.TrialReadOnly);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("pendente")]
+    public void TrialReadOnly_PlanoNaoPago_EhReadOnly(string? plano)
+    {
+        var s = AssinaturaGate.Avaliar("pendente", Now.AddDays(5), null, Now, plano);
+        Assert.True(s.TrialReadOnly);
+    }
+
+    [Theory]
+    [InlineData("starter")]
+    [InlineData("pro")]
+    [InlineData("master")]
+    [InlineData("enterprise")] // alias legado também conta como pago
+    public void TrialReadOnly_PlanoPago_NaoEhReadOnly(string plano)
+    {
+        // Pagou um plano (mesmo na janela pendente do Asaas) → escrita liberada.
+        var s = AssinaturaGate.Avaliar("pendente", Now.AddDays(5), null, Now, plano);
+        Assert.False(s.TrialReadOnly);
+    }
+
+    [Fact]
+    public void TrialReadOnly_Ativa_NaoEhReadOnly()
+    {
+        var s = AssinaturaGate.Avaliar("ativa", null, null, Now, "pro");
+        Assert.False(s.TrialReadOnly);
+    }
+
+    [Fact]
+    public void TrialReadOnly_PendenteVencido_NaoEhReadOnly()
+    {
+        // Vencido: o AssinaturaGate bloqueia tudo (não-liberado) → não é trial read-only.
+        var s = AssinaturaGate.Avaliar("pendente", Now.AddDays(-1), null, Now, "pendente");
+        Assert.False(s.Liberado);
+        Assert.False(s.TrialReadOnly);
+    }
+
+    [Fact]
+    public void TrialReadOnly_PendenteSemPrazo_SemPlano_EhReadOnly()
+    {
+        var s = AssinaturaGate.Avaliar("pendente", null, null, Now, "pendente");
+        Assert.True(s.Liberado);
+        Assert.True(s.TrialReadOnly);
+    }
+
+    [Fact]
+    public void Avaliar_SemPlano_NaoMarcaReadOnly_PorDefault()
+    {
+        // A sobrecarga antiga (sem plano) nunca marca TrialReadOnly (compat).
+        var s = AssinaturaGate.Avaliar("pendente", Now.AddDays(5), null, Now);
+        Assert.False(s.TrialReadOnly);
+    }
 }

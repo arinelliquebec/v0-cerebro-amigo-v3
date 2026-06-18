@@ -316,6 +316,11 @@ public static class PacientesPsiqEndpoints
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
 
+            // ADR-065: cap de pacientes no trial de aquisição (lock-in por base, sem virar
+            // produto grátis). Fora do trial não limita.
+            var capErro = await TrialCapPacientesAsync(db, user, medicoId.Value, cfg);
+            if (capErro is not null) return capErro;
+
             var modoSenhaProvisoria = !string.IsNullOrWhiteSpace(req.SenhaInicial);
             if (modoSenhaProvisoria && req.SenhaInicial!.Length < 6)
                 return Results.BadRequest(new { error = "senha provisória precisa ter pelo menos 6 caracteres" });
@@ -468,6 +473,15 @@ public static class PacientesPsiqEndpoints
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
 
+            // ADR-065: importação em lote fura o cap do trial → bloqueada enquanto read-only.
+            // Volta a funcionar quando o médico assina um plano.
+            if (await EmTrialReadOnlyAsync(db, user))
+                return Results.Json(new
+                {
+                    error = "trial_limite_pacientes",
+                    checkoutUrl = "/dashboard/financeiro",
+                }, statusCode: StatusCodes.Status403Forbidden);
+
             var itens = req.Pacientes ?? new List<ImportarLinha>();
             var resultados = new List<ImportarResultadoLinha>(itens.Count);
             int criados = 0, pulados = 0, erros = 0;
@@ -615,6 +629,46 @@ public static class PacientesPsiqEndpoints
 
         return await db.Database.ExecuteScalarAsync<Guid?>(
             "SELECT id FROM medicos WHERE usuario_id = {0}", userId);
+    }
+
+    /// <summary>
+    /// ADR-065: limita cadastro de pacientes durante o trial read-only. Fora do trial
+    /// (plano pago / vencido / sem assinatura) não limita. Fail-open em erro de infra —
+    /// nunca bloquear cadastro por falha técnica.
+    /// </summary>
+    private static async Task<IResult?> TrialCapPacientesAsync(
+        AppDbContext db, ClaimsPrincipal user, Guid medicoId, IConfiguration cfg)
+    {
+        if (!await EmTrialReadOnlyAsync(db, user)) return null;
+
+        var limite = int.TryParse(cfg["TRIAL_MAX_PACIENTES"], out var l) && l > 0 ? l : 5;
+        long atual;
+        try
+        {
+            atual = await db.Database.ExecuteScalarAsync<long>(
+                "SELECT COUNT(*) FROM pacientes WHERE medico_responsavel_id = {0}", medicoId);
+        }
+        catch { return null; } // fail-open: nunca bloquear cadastro por erro de infra
+        if (atual < limite) return null;
+
+        return Results.Json(new
+        {
+            error = "trial_limite_pacientes",
+            limite,
+            checkoutUrl = "/dashboard/financeiro",
+        }, statusCode: StatusCodes.Status403Forbidden);
+    }
+
+    private static async Task<bool> EmTrialReadOnlyAsync(AppDbContext db, ClaimsPrincipal user)
+    {
+        var sub = user.FindFirst("sub")?.Value;
+        if (!Guid.TryParse(sub, out var usuarioId)) return false; // fail-open
+        try
+        {
+            var sit = await TrialReadOnlyQuery.SituacaoPorUsuarioAsync(db, usuarioId);
+            return sit?.TrialReadOnly == true;
+        }
+        catch { return false; } // fail-open
     }
 
     private static async Task<bool> PacienteEhDoMedico(

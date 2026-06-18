@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +25,10 @@ public static class CondutasEndpoints
 
     public static void Map(WebApplication app)
     {
-        var g = app.MapGroup("/api/v1").WithTags("condutas").RequireAuthorization();
+        var g = app.MapGroup("/api/v1").WithTags("condutas")
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva()  // ADR-065: estava SEM gate (escrevia até vencido) — fecha o buraco
+            .RequireWriteAccess();     // ADR-065: trial read-only bloqueia escrita de conduta
 
         // Condutas ativas de um paciente.
         g.MapGet("/pacientes/{pacienteId:guid}/condutas", async (

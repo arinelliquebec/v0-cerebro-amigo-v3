@@ -70,6 +70,10 @@ public sealed class AssinaturaGateFilter : IEndpointFilter
 
 internal sealed record AssinaturaGateRow(string? Status, DateTime? PrazoPagamentoAte, DateTime? TrialAte);
 
+/// <summary>Marcador de metadata (ADR-055): este grupo tem o gate de assinatura.
+/// Introspectável via EndpointDataSource pelo teste de cobertura de write-access (R2).</summary>
+public sealed class AssinaturaGated { }
+
 public static class AssinaturaGateExtensions
 {
     /// <summary>
@@ -79,6 +83,7 @@ public static class AssinaturaGateExtensions
     public static RouteGroupBuilder RequireAssinaturaAtiva(this RouteGroupBuilder group)
     {
         group.AddEndpointFilter<AssinaturaGateFilter>();
+        group.WithMetadata(new AssinaturaGated());
         return group;
     }
 }

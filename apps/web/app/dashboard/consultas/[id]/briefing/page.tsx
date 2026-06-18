@@ -22,6 +22,7 @@ import {
 import { useMe } from "@/lib/use-me"
 import { FEATURE, temFeature, readFeatureGate } from "@/lib/feature-gate"
 import { UpsellFeature } from "@/components/assinatura/upsell-feature"
+import { useFeatureUpsell } from "@/components/assinatura/feature-upsell"
 
 interface Consulta {
   id: string
@@ -91,6 +92,7 @@ function Sparkline({ values }: { values: number[] }) {
 export default function BriefingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const me = useMe()
+  const { showUpsell } = useFeatureUpsell()
   // Feature gate (ADR-059): briefing IA está em todos os planos pagos; só plano nulo/
   // legado é bloqueado. Trava proativa (me.features) + reativa (402 ao gerar).
   const [briefingBloqueado, setBriefingBloqueado] = useState(false)
@@ -144,7 +146,8 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
     setErroResumo(null)
     try {
       const r = await fetch(`/api/pacientes/${consulta.pacienteId}/resumo-pre-consulta`, { method: "POST" })
-      if (await readFeatureGate(r)) { setBriefingBloqueado(true); return }
+      const gate = await readFeatureGate(r)
+      if (gate) { setBriefingBloqueado(true); showUpsell(gate.feature); return }
       if (!r.ok) {
         setErroResumo("Não foi possível gerar a síntese pré-consulta agora. Tente novamente em instantes.")
         return

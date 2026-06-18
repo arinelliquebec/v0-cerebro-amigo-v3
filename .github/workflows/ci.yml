@@ -140,6 +140,11 @@ jobs:
           set -euo pipefail
           # 0036 referencia o dono de prod (cerebroadmin) — mesmo skip do
           # TenantIsolationFixture; o CI roda como superuser do container.
+          # Migrations recentes (0050/0051) fazem GRANT a cerebro_gateway/cerebro_workers,
+          # roles criados em prod pela 0036 (pulada). Cria stubs idempotentes p/ os GRANTs
+          # não estourarem (|| true tolera re-execução); o CI conecta como superuser.
+          psql "$DSN_PSQL" -c "CREATE ROLE cerebro_gateway NOLOGIN" 2>/dev/null || true
+          psql "$DSN_PSQL" -c "CREATE ROLE cerebro_workers NOLOGIN" 2>/dev/null || true
           for f in infra/migrations/0*.sql; do
             case "$f" in *least_privilege_roles*) continue ;; esac
             psql "$DSN_PSQL" -v ON_ERROR_STOP=1 -q -f "$f"

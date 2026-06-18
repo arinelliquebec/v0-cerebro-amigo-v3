@@ -127,6 +127,20 @@ public sealed class MedicoOnboardingService
             await tx.CommitAsync();
         }
 
+        // ADR-065: auto-inscrição na newsletter (free tier). FORA da transação e best-effort:
+        // falha — ou tabela ainda não migrada — não desfaz a conta (igual ao envio de e-mail).
+        try
+        {
+            var unsubToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32))
+                .Replace("+", "-").Replace("/", "_").Replace("=", "");
+            await _db.Database.ExecuteSqlRawAsync(@"
+                INSERT INTO newsletter_inscricoes (medico_id, email, unsub_token, status, consent_origin)
+                VALUES ({0}, {1}, {2}, 'subscribed', {3})
+                ON CONFLICT DO NOTHING",
+                medicoId, email, unsubToken, input.SignupSource == "admin" ? "admin" : "signup");
+        }
+        catch { /* best-effort: inscrição não bloqueia o onboarding */ }
+
         // Email com link de ativação (fora da transação — falha não desfaz a conta).
         var baseUrl = _cfg["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
         var link = $"{baseUrl}/ativar-conta?token={token}";

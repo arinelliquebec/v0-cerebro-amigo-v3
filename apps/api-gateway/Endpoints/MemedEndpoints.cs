@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -18,7 +19,10 @@ public static class MemedEndpoints
 {
     public static void Map(WebApplication app)
     {
-        var g = app.MapGroup("/api/v1/memed").WithTags("memed").RequireAuthorization();
+        var g = app.MapGroup("/api/v1/memed").WithTags("memed")
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva()  // ADR-065: espelho de receita = escrita operacional
+            .RequireWriteAccess();     // trial read-only bloqueia o POST; GET de token passa
 
         // Token do prescritor para o SDK do frontend (registra/reobtém no MEMED).
         g.MapGet("/prescritor-token", async (

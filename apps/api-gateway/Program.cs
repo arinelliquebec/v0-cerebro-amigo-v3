@@ -328,6 +328,7 @@ app.MapGet("/ready", async (AppDbContext db) =>
 
 // Endpoints
 AuthEndpoints.Map(app);
+NewsletterEndpoints.Map(app); // ADR-065: newsletter do médico (inscrição/unsub; free tier)
 AgentesEndpoints.Map(app);
 PacientesPsiqEndpoints.Map(app);
 PrescricoesEndpoints.Map(app);

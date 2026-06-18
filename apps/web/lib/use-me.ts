@@ -20,6 +20,9 @@ export interface Me {
   diasRestantes?: number | null
   motivo?: string
   prazoPagamentoAte?: string | null
+  // ADR-065: trial de aquisição read-only (pendente, em prazo, sem plano pago). A UI
+  // mostra banner read-only + teaser; escrita (exceto pacientes) e IA ficam bloqueadas.
+  readOnly?: boolean
   // Plano + features de IA liberadas (ADR-059). `features` espelha PlanCatalog.FeaturesDe;
   // a UI usa p/ travar afordância de IA (mostrar upsell) antes mesmo de chamar o backend.
   plano?: string | null

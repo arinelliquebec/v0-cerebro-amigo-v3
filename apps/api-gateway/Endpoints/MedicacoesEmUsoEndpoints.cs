@@ -19,7 +19,8 @@ public static class MedicacoesEmUsoEndpoints
         var g = app.MapGroup("/api/v1/medicacoes-em-uso")
             .WithTags("medicacoes-em-uso")
             .RequireAuthorization()
-            .RequireAssinaturaAtiva(); // ADR-055 Fase D: gate de assinatura (dashboard)
+            .RequireAssinaturaAtiva()  // ADR-055 Fase D: gate de assinatura (dashboard)
+            .RequireWriteAccess();     // ADR-065: trial read-only bloqueia escrita (exceto pacientes)
 
         // Lista as medicações em uso (ativas) do paciente.
         g.MapGet("/paciente/{pacienteId:guid}", async (Guid pacienteId, AppDbContext db, ClaimsPrincipal user) =>

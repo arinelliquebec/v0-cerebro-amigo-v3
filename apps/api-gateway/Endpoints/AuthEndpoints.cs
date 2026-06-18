@@ -100,7 +100,7 @@ public static class AuthEndpoints
             // SEM enforcement aqui — /me NUNCA é gateado (é como o front detecta o
             // bloqueio). O gate real (Fase D) mora nos endpoints de dashboard.
             var sit = AssinaturaGate.Avaliar(
-                row.AssinaturaStatus, row.PrazoPagamentoAte, row.TrialAte, DateTime.UtcNow);
+                row.AssinaturaStatus, row.PrazoPagamentoAte, row.TrialAte, DateTime.UtcNow, row.Plano);
 
             return Results.Ok(new
             {
@@ -109,6 +109,8 @@ public static class AuthEndpoints
                 email = row.Email, role = row.Role,
                 assinaturaStatus = row.AssinaturaStatus,
                 liberado = sit.Liberado, bloqueado = !sit.Liberado, emPrazo = sit.EmPrazo,
+                // ADR-065: trial de aquisição — UI mostra banner read-only + teaser.
+                readOnly = sit.TrialReadOnly,
                 diasRestantes = sit.DiasRestantes, motivo = sit.Motivo,
                 prazoPagamentoAte = row.PrazoPagamentoAte,
                 // ADR-059: plano + features liberadas (camada IA = Pro) p/ a UI gatear/upsell.
@@ -182,15 +184,13 @@ public static class AuthEndpoints
             var fromCheckup = src == "checkup";
             var rid = fromCheckup ? SanitizeRid(req.Rid) : null;
 
-            // CPF (opcional no signup; necessário p/ o self-checkout Asaas depois). Valida
-            // e normaliza aqui — se vazio, o médico preenche em /me/config antes de cobrar.
-            string? cpf = null;
-            if (!string.IsNullOrWhiteSpace(req.Cpf))
-            {
-                if (!ApiGateway.Services.Cpf.Valido(req.Cpf))
-                    return Results.Json(new { error = "cpf_invalido", mensagem = "CPF inválido. Confira os números." }, statusCode: 400);
-                cpf = ApiGateway.Services.Cpf.Normalizar(req.Cpf);
-            }
+            // CPF OBRIGATÓRIO no signup (ADR-065): identidade forte (junto de CRM+UF+nome)
+            // e necessário p/ o self-checkout Asaas. Vazio → 400; inválido → 400.
+            if (string.IsNullOrWhiteSpace(req.Cpf))
+                return Results.Json(new { error = "cpf_obrigatorio", mensagem = "CPF é obrigatório para o cadastro." }, statusCode: 400);
+            if (!ApiGateway.Services.Cpf.Valido(req.Cpf))
+                return Results.Json(new { error = "cpf_invalido", mensagem = "CPF inválido. Confira os números." }, statusCode: 400);
+            var cpf = ApiGateway.Services.Cpf.Normalizar(req.Cpf);
 
             var r = await onboarding.OnboardAsync(new OnboardMedicoInput(
                 Nome: req.Nome, Email: req.Email, Crm: req.Crm, CrmUf: req.CrmUf, Cpf: cpf,

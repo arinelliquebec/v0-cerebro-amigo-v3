@@ -18,6 +18,32 @@ public static class AssinaturaGate
     public static AssinaturaSituacao Avaliar(
         string? status, DateTime? prazoPagamentoAte, DateTime? trialAte, DateTime nowUtc)
     {
+        return AvaliarBase(status, prazoPagamentoAte, trialAte, nowUtc);
+    }
+
+    /// <summary>
+    /// Sobrecarga que também deriva o estado "trial read-only" (ADR-065): médico
+    /// recém-cadastrado, em prazo, AINDA SEM plano pago. Nesse estado o dashboard é
+    /// liberado para LEITURA, mas a escrita (exceto pacientes) é bloqueada pelo
+    /// <c>ReadOnlyTrialFilter</c> e a IA pelo <c>FeatureGateFilter</c>. Quem já tem
+    /// plano pago (código conhecido no catálogo) nunca é read-only.
+    /// </summary>
+    public static AssinaturaSituacao Avaliar(
+        string? status, DateTime? prazoPagamentoAte, DateTime? trialAte, DateTime nowUtc, string? plano)
+    {
+        var sit = AvaliarBase(status, prazoPagamentoAte, trialAte, nowUtc);
+        // Plano pago = código existente no catálogo (starter/pro/master/enterprise).
+        // pendente/trial/null/"" → não é plano pago → candidato a read-only.
+        var temPlanoPago = PlanCatalog.TryGet(plano) is not null;
+        var trialReadOnly = sit.Liberado
+            && (sit.Motivo is "pendente_em_prazo" or "pendente_sem_prazo")
+            && !temPlanoPago;
+        return sit with { TrialReadOnly = trialReadOnly };
+    }
+
+    private static AssinaturaSituacao AvaliarBase(
+        string? status, DateTime? prazoPagamentoAte, DateTime? trialAte, DateTime nowUtc)
+    {
         switch ((status ?? "").Trim().ToLowerInvariant())
         {
             case "ativa":
@@ -56,4 +82,7 @@ public static class AssinaturaGate
 /// <param name="EmPrazo">true = ainda no prazo de pagamento → mostrar banner de aviso.</param>
 /// <param name="Motivo">rótulo do estado (ativa, pendente_em_prazo, pendente_vencido, suspensa, ...).</param>
 /// <param name="DiasRestantes">dias até vencer o prazo (null quando não se aplica).</param>
-public record AssinaturaSituacao(bool Liberado, bool EmPrazo, string Motivo, int? DiasRestantes);
+/// <param name="TrialReadOnly">true = trial de aquisição (ADR-065): leitura liberada,
+/// escrita (exceto pacientes) e IA bloqueadas. Só preenchido pela sobrecarga que recebe `plano`.</param>
+public record AssinaturaSituacao(
+    bool Liberado, bool EmPrazo, string Motivo, int? DiasRestantes, bool TrialReadOnly = false);

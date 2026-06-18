@@ -8,7 +8,8 @@ const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null)
-  if (!body?.nome || !body?.email || !body?.crm || !body?.crmUf) {
+  // ADR-065: CPF obrigatório no signup (identidade forte + self-checkout Asaas).
+  if (!body?.nome || !body?.email || !body?.crm || !body?.crmUf || !body?.cpf) {
     return NextResponse.json({ error: "campos_obrigatorios" }, { status: 400 })
   }
 
@@ -27,7 +28,7 @@ export async function POST(req: NextRequest) {
         email: body.email,
         crm: body.crm,
         crmUf: body.crmUf,
-        cpf: body.cpf ?? null,
+        cpf: body.cpf,
         src: body.src ?? null,
         rid: body.rid ?? null,
         // Token do Cloudflare Turnstile (ADR-055). O gateway é quem valida; aqui

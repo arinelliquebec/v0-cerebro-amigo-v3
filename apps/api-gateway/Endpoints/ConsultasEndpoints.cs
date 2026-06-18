@@ -30,7 +30,8 @@ public static class ConsultasEndpoints
         var g = app.MapGroup("/api/v1/consultas")
             .WithTags("consultas")
             .RequireAuthorization()
-            .RequireAssinaturaAtiva(); // ADR-055 Fase D: gate de assinatura (dashboard)
+            .RequireAssinaturaAtiva()  // ADR-055 Fase D: gate de assinatura (dashboard)
+            .RequireWriteAccess();     // ADR-065: trial read-only bloqueia escrita (exceto pacientes)
 
         // Agenda no intervalo [de, ate). Default: hoje .. +7 dias.
         g.MapGet("/", async (

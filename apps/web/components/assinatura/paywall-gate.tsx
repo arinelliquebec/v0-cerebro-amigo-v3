@@ -7,6 +7,7 @@ import { useMe } from "@/lib/use-me"
 import { Button } from "@/components/ui/button"
 import { ShieldAlert, Lock, Check, Loader2 } from "lucide-react"
 import { PagueViaPix } from "@/components/assinatura/pague-via-pix"
+import { ReadOnlyBanner } from "@/components/assinatura/read-only-banner"
 
 /**
  * Paywall do dashboard (ADR-055, Fase D — UI). Reflete o gate do gateway:
@@ -39,6 +40,10 @@ export function PaywallGate({ children }: { children: React.ReactNode }) {
   if (!me) return <>{children}</>
 
   if (me.bloqueado && !isExempt(pathname)) return <PaywallScreen motivo={me.motivo} />
+
+  // ADR-065: trial de aquisição read-only tem precedência sobre o banner de prazo —
+  // comunica que o painel está em modo demonstração (escrita/IA travadas, exceto pacientes).
+  if (me.readOnly) return (<><ReadOnlyBanner dias={me.diasRestantes ?? null} />{children}</>)
 
   if (me.emPrazo) return (<><PrazoBanner dias={me.diasRestantes ?? null} />{children}</>)
 

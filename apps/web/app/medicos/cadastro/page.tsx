@@ -22,7 +22,8 @@ const ERRO_MSG: Record<string, string> = {
   nome_divergente: "O nome informado não confere com o cadastro do seu CRM no CFM.",
   crm_indisponivel: "Não foi possível validar seu CRM agora. Tente novamente em instantes.",
   crm_validacao_nao_configurada: "Validação de CRM indisponível no momento. Tente mais tarde.",
-  cpf_invalido: "CPF inválido. Confira os números (ou deixe em branco e preencha depois).",
+  cpf_obrigatorio: "Informe seu CPF para concluir o cadastro.",
+  cpf_invalido: "CPF inválido. Confira os números.",
   rate_limited: "Muitas tentativas. Aguarde alguns minutos e tente de novo.",
   captcha_invalido: "Falha na verificação de segurança. Recarregue a página e tente de novo.",
   erro_interno: "Algo deu errado. Tente novamente.",
@@ -69,7 +70,7 @@ function CadastroForm() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     setErro(null)
-    if (!nome.trim() || !email.trim() || !crm.trim() || !crmUf) {
+    if (!nome.trim() || !email.trim() || !crm.trim() || !crmUf || !cpf.trim()) {
       setErro(ERRO_MSG.campos_obrigatorios)
       return
     }
@@ -91,7 +92,7 @@ function CadastroForm() {
           email: email.trim(),
           crm: crm.trim(),
           crmUf,
-          cpf: cpf.trim() || null,
+          cpf: cpf.trim(),
           src: fromCheckup ? "checkup" : null,
           rid: fromCheckup ? rid : null,
           turnstileToken,
@@ -177,10 +178,9 @@ function CadastroForm() {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="cpf">CPF <span className="text-muted-foreground font-normal">(opcional — necessário para a cobrança)</span></Label>
-        <Input id="cpf" value={cpf} onChange={(e) => setCpf(e.target.value)}
+        <Label htmlFor="cpf">CPF <span className="text-muted-foreground font-normal">(necessário para a cobrança)</span></Label>
+        <Input id="cpf" value={cpf} onChange={(e) => setCpf(e.target.value)} required
           inputMode="numeric" placeholder="Só números" autoComplete="off" />
-        <p className="text-xs text-muted-foreground">Pode deixar em branco e preencher depois no seu perfil.</p>
       </div>
 
       <label className="flex items-start gap-2 text-sm text-muted-foreground">

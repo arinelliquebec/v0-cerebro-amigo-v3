@@ -76,6 +76,13 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable("Jwt__Audience", "dashboard");
         Environment.SetEnvironmentVariable("INTERNAL_API_TOKEN", InternalToken);
         Environment.SetEnvironmentVariable("EXPOSE_ERROR_DETAILS", "true");
+        // RESEND_API_KEY: o POST /pacientes injeta ResendClient (resolvido pelo DI ANTES
+        // do handler); sem a key o app estoura 500 antes mesmo do cap/validação rodarem.
+        // Key dummy só p/ construir o client — os testes retornam (cap/validação/403/400)
+        // antes de qualquer SendAsync, então nenhum e-mail é realmente enviado. O ctor do
+        // ResendClient exige RESEND_API_KEY E EMAIL_FROM; sem qualquer um → 500.
+        Environment.SetEnvironmentVariable("RESEND_API_KEY", "test-resend-key");
+        Environment.SetEnvironmentVariable("EMAIL_FROM", "Cérebro Amigo CI <ci@example.com>");
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder => builder.UseEnvironment("Testing"));
@@ -114,6 +121,12 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
             signingCredentials: creds);
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    // Cliente HTTP SEM autenticação (p/ endpoints anônimos, ex.: unsubscribe da newsletter).
+    public HttpClient AnonClient() => _factory.CreateClient();
+
+    // Service provider do host de teste (p/ introspecção de EndpointDataSource — ADR-065 R2).
+    public IServiceProvider Services => _factory.Services;
 
     public async Task<NpgsqlConnection> OpenDbAsync()
     {
@@ -165,6 +178,19 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
             .OrderBy(f => f).ToArray();
         await using var conn = new NpgsqlConnection(ConnectionString);
         await conn.OpenAsync();
+
+        // Migrations recentes (ex.: 0050) fazem GRANT a cerebro_gateway/cerebro_workers —
+        // roles criados em PROD pela 0036 (que o fixture pula). Cria stubs idempotentes só
+        // p/ os GRANTs não falharem; as conexões de teste usam superuser + gw_test (depois).
+        await using (var roleCmd = new NpgsqlCommand(@"
+            DO $$ BEGIN
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='cerebro_gateway') THEN CREATE ROLE cerebro_gateway NOLOGIN; END IF;
+              IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='cerebro_workers') THEN CREATE ROLE cerebro_workers NOLOGIN; END IF;
+            END $$;", conn))
+        {
+            await roleCmd.ExecuteNonQueryAsync();
+        }
+
         foreach (var file in files)
         {
             var sql = await File.ReadAllTextAsync(file);

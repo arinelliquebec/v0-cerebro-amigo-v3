@@ -21,7 +21,8 @@ public static class InsightsEndpoints
             .WithTags("insights")
             .RequireAuthorization()
             .RequireAssinaturaAtiva()  // ADR-055 Fase D: gate de assinatura (dashboard)
-            .RequireFeature(FeatureKeys.IaInsights); // ADR-059: insights dos agentes = camada IA (Pro)
+            .RequireFeature(FeatureKeys.IaInsights) // ADR-059: insights dos agentes = camada IA (Pro)
+            .RequireWriteAccess();     // ADR-065: defesa extra (a IA já bloqueia o trial pelo FeatureGate)
 
         // Lista insights pendentes (não vistos, não descartados, ainda válidos)
         g.MapGet("/pendentes", async (AppDbContext db, ClaimsPrincipal user) =>
