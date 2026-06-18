@@ -13,9 +13,9 @@ interface DiarioEntrada {
   conteudo: string
   humor: number | null
   tags: string[]
-  compartilhada_com_medico: boolean
-  criada_em: string
-  atualizada_em: string
+  compartilhadaComMedico: boolean
+  criadaEm: string
+  atualizadaEm: string
   tipo: string
   transcricao: string | null
 }
@@ -47,7 +47,7 @@ export default async function DiarioDetalhePage({
   const entrada = await carregarEntrada(id)
   if (!entrada) notFound()
 
-  const quando = format(new Date(entrada.criada_em), "d 'de' MMMM 'de' yyyy', às' HH:mm", {
+  const quando = format(new Date(entrada.criadaEm), "d 'de' MMMM 'de' yyyy', às' HH:mm", {
     locale: ptBR,
   })
 
@@ -79,7 +79,7 @@ export default async function DiarioDetalhePage({
         <span>·</span>
         <span>{quando}</span>
         {entrada.humor != null && <HumorBadge humor={entrada.humor} />}
-        {entrada.compartilhada_com_medico && (
+        {entrada.compartilhadaComMedico && (
           <Badge variant="outline" className="text-[10px] h-4 px-1.5">
             Compartilhado
           </Badge>

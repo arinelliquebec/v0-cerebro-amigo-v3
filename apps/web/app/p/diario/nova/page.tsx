@@ -98,8 +98,8 @@ export default function NovaDiarioPage() {
       const body = await res.json().catch(() => null)
 
       // Crise detectada no texto: entrada NÃO foi salva, mostra acolhimento.
-      if (body?.crise && body?.crise_texto) {
-        setCriseTexto(body.crise_texto)
+      if (body?.crise && body?.criseTexto) {
+        setCriseTexto(body.criseTexto)
         setModo("crise")
         return
       }
