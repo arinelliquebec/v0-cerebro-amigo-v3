@@ -76,6 +76,11 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable("Jwt__Audience", "dashboard");
         Environment.SetEnvironmentVariable("INTERNAL_API_TOKEN", InternalToken);
         Environment.SetEnvironmentVariable("EXPOSE_ERROR_DETAILS", "true");
+        // RESEND_API_KEY: o POST /pacientes injeta ResendClient (resolvido pelo DI ANTES
+        // do handler); sem a key o app estoura 500 antes mesmo do cap/validação rodarem.
+        // Key dummy só p/ construir o client — os testes retornam (cap/validação/403/400)
+        // antes de qualquer SendAsync, então nenhum e-mail é realmente enviado.
+        Environment.SetEnvironmentVariable("RESEND_API_KEY", "test-resend-key");
 
         _factory = new WebApplicationFactory<Program>()
             .WithWebHostBuilder(builder => builder.UseEnvironment("Testing"));

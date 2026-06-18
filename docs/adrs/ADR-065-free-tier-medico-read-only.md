@@ -122,7 +122,7 @@ registrar a colisão histórica em 055 a reconciliar.
 - `Endpoints/PacientesPsiqEndpoints.cs` (cap) · `Endpoints/AuthEndpoints.cs` (CPF + `readOnly` no /me)
 - `Services/MedicoOnboardingService.cs` (auto-inscrição) · `Endpoints/NewsletterEndpoints.cs` (novo) · `Program.cs`
 - `infra/migrations/0051_newsletter_inscricoes.sql` (novo)
-- web: `lib/use-me.ts`, `lib/read-only.ts` (novo), `components/assinatura/{read-only-banner,feature-upsell}.tsx` (novos), `paywall-gate.tsx`, `app/medicos/cadastro/page.tsx`, `app/api/medico-signup/route.ts`, briefing/escriba pages
+- web: `lib/use-me.ts`, `components/assinatura/{read-only-banner,feature-upsell}.tsx` (novos), `paywall-gate.tsx`, `app/medicos/cadastro/page.tsx`, `app/api/medico-signup/route.ts`, briefing/escriba/RAG pages
 - testes: `ReadOnlyTrialFilterIntegrationTests`, `TrialCapPacientesTests`, `NewsletterIntegrationTests`, `WriteAccessCoverageTests`, `AssinaturaGateTests` (unit)
 
 ## Env vars novas
