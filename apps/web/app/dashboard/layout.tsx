@@ -21,8 +21,13 @@ export default function DashboardLayout({
       <div className="print:hidden">
         <SidebarWrapper />
       </div>
-      <main className="pl-64 min-h-screen transition-all duration-300 print:pl-0">
-        <div className="relative">
+      <main className="pl-64 min-h-screen flex flex-col transition-all duration-300 print:pl-0">
+        {/* flex-col + relative flex-1: páginas normais seguem com scroll do body
+            (min-h-screen cresce com o conteúdo); páginas que se pinam ao viewport
+            (Mensagens) usam flex-1/min-h-0 e ocupam a altura restante DESCONTANDO
+            o banner do PaywallGate (sticky, in-flow) — corrige o bloco branco sem
+            número mágico (ADR-066 review). */}
+        <div className="relative flex flex-1 flex-col">
           <Suspense fallback={<div className="min-h-[60vh]" />}>
             <FeatureUpsellProvider>
               <PaywallGate>{children}</PaywallGate>

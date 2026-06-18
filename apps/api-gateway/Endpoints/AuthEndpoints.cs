@@ -1,3 +1,5 @@
+using Amazon.S3;
+using Amazon.S3.Model;
 using ApiGateway.Auth;
 using ApiGateway.Data;
 using ApiGateway.Models;
@@ -77,7 +79,7 @@ public static class AuthEndpoints
         // GET /api/v1/auth/me — valida a sessão e retorna dados do médico logado.
         // Útil para o frontend verificar se a configuração está ok antes de
         // operações que dependem do registro em `medicos`.
-        g.MapGet("/me", async (AppDbContext db, ClaimsPrincipal user) =>
+        g.MapGet("/me", async (AppDbContext db, ClaimsPrincipal user, IAmazonS3 s3, IConfiguration cfg) =>
         {
             var sub = user.FindFirst("sub")?.Value;
             if (!Guid.TryParse(sub, out var usuarioId))
@@ -87,7 +89,7 @@ public static class AuthEndpoints
                 SELECT m.id AS medico_id, m.nome, m.crm, m.especialidade,
                        u.id AS usuario_id, u.email, u.role,
                        a.status AS assinatura_status, a.prazo_pagamento_ate, a.trial_ate,
-                       a.plano
+                       a.plano, m.foto_s3key
                 FROM medicos m
                 JOIN usuarios u ON u.id = m.usuario_id
                 LEFT JOIN assinaturas a ON a.medico_id = m.id
@@ -95,6 +97,19 @@ public static class AuthEndpoints
                 usuarioId).FirstOrDefaultAsync();
 
             if (row is null) return Results.Forbid();
+
+            // ADR-066: avatar via presigned GET curto (só se houver foto). /me é
+            // chamado uma vez por navegação (cache no use-me) → custo aceitável.
+            string? fotoUrl = null;
+            if (!string.IsNullOrWhiteSpace(row.FotoS3Key))
+            {
+                var bucket = cfg["S3_BUCKET_MEDICO_DOCS"] ?? "cerebro-amigo-medico-docs";
+                fotoUrl = s3.GetPreSignedURL(new GetPreSignedUrlRequest
+                {
+                    BucketName = bucket, Key = row.FotoS3Key, Verb = HttpVerb.GET,
+                    Expires = DateTime.UtcNow.AddMinutes(60),
+                });
+            }
 
             // ADR-055: situação de acesso exposta p/ a UI (sidebar/banner/paywall).
             // SEM enforcement aqui — /me NUNCA é gateado (é como o front detecta o
@@ -116,6 +131,7 @@ public static class AuthEndpoints
                 // ADR-059: plano + features liberadas (camada IA = Pro) p/ a UI gatear/upsell.
                 plano = row.Plano,
                 features = PlanCatalog.FeaturesDe(row.Plano),
+                fotoUrl,
             });
         })
         .RequireAuthorization()
@@ -132,8 +148,11 @@ public static class AuthEndpoints
                 return Results.BadRequest(new { error = "senha minimo 8 caracteres" });
 
             var tokenHash = AuthSha256(req.Token);
+            // Filtra proposito='ativacao' (ADR-066/migration 0053): um token de RESET
+            // de senha não pode ser consumido pelo fluxo de ativação (isolamento por
+            // finalidade). Tokens criados antes da 0053 têm o DEFAULT 'ativacao'.
             var row = await db.Database.SqlQueryRaw<TokenRow>(
-                "SELECT usuario_id::text AS usuario_id, expira_em, usado_em FROM medico_invite_tokens WHERE token_hash = {0}",
+                "SELECT usuario_id::text AS usuario_id, expira_em, usado_em FROM medico_invite_tokens WHERE token_hash = {0} AND proposito = 'ativacao'",
                 tokenHash).FirstOrDefaultAsync();
 
             if (row is null) return Results.BadRequest(new { error = "token_invalido" });
@@ -252,4 +271,4 @@ public record MedicoMeDto(
     Guid MedicoId, string Nome, string Crm, string? Especialidade,
     Guid UsuarioId, string Email, string Role,
     string? AssinaturaStatus, DateTime? PrazoPagamentoAte, DateTime? TrialAte,
-    string? Plano = null);
+    string? Plano = null, string? FotoS3Key = null);

@@ -27,6 +27,8 @@ export interface Me {
   // a UI usa p/ travar afordância de IA (mostrar upsell) antes mesmo de chamar o backend.
   plano?: string | null
   features?: string[]
+  // ADR-066: avatar (presigned GET curto). Ausente = mostra iniciais.
+  fotoUrl?: string | null
 }
 
 // Cache de módulo: evita refetch quando vários componentes (sidebar + header)
