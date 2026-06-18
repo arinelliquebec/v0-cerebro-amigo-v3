@@ -83,6 +83,42 @@ public sealed class ReadOnlyTrialFilterIntegrationTests
         Assert.Contains("read_only_trial", await r.Content.ReadAsStringAsync());
     }
 
+    [Theory]
+    [InlineData("/api/v1/exames/{0}/resultado")]
+    [InlineData("/api/v1/memed/receitas")]
+    [InlineData("/api/v1/renovacoes/{0}/renovada")]
+    [InlineData("/api/v1/consultas/{0}/video/entrar")]
+    public async Task Trial_GruposOperacionais_Bloqueados(string rotaTemplate)
+    {
+        // ADR-065: grupos operacionais (exames/memed/renovações/teleconsulta-médico)
+        // agora gateados → escrita bloqueada no trial.
+        var client = await SeedTrial();
+        var rota = string.Format(rotaTemplate, Guid.NewGuid());
+        var r = await client.PostAsync(rota, Json("{}"));
+        Assert.Equal(HttpStatusCode.Forbidden, r.StatusCode);
+        Assert.Contains("read_only_trial", await r.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task Trial_Me_ExpoeReadOnlyTrue()
+    {
+        var client = await SeedTrial();
+        var r = await client.GetAsync("/api/v1/auth/me");
+        Assert.Equal(HttpStatusCode.OK, r.StatusCode);
+        Assert.Contains("\"readOnly\":true", await r.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task PlanoPago_Me_ReadOnlyFalse()
+    {
+        var usuario = Guid.NewGuid();
+        await SeedMedico(usuario, Guid.NewGuid(), $"ro.me.pago.{usuario:N}@ex.com",
+            "pendente", "pro", "NOW() + INTERVAL '5 days'");
+        var client = _fx.ClientForMedico(usuario);
+        var r = await client.GetAsync("/api/v1/auth/me");
+        Assert.Contains("\"readOnly\":false", await r.Content.ReadAsStringAsync());
+    }
+
     [Fact]
     public async Task Trial_Crise_NUNCA_Bloqueada()
     {

@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -43,7 +44,9 @@ public static class RenovacoesEndpoints
 
         var g = app.MapGroup("/api/v1/renovacoes/{id:guid}")
             .WithTags("renovacoes")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva()  // ADR-065: marcar renovada/dispensar = escrita operacional
+            .RequireWriteAccess();     // trial read-only bloqueia; vencido cai no paywall
 
         // Médico reemitiu a receita (via MEMED) → marca renovada.
         g.MapPost("/renovada", (Guid id, AppDbContext db, ClaimsPrincipal user) =>

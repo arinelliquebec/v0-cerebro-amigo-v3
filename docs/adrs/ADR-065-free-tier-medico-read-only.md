@@ -93,6 +93,20 @@ Popup de upsell de IA global (`FeatureUpsellProvider` no layout do dashboard) di
 - **Custo de LLM no trial** limitado pelo cap de pacientes (paciente conversa → orchestrator
   roda LLM). Crise sempre roda independentemente do cap/plano.
 
+## Revisão (pós-PR #83)
+
+Revisão adversarial multi-agente apontou que outros grupos de **escrita operacional do
+médico** nunca tiveram `RequireAssinaturaAtiva` (buraco pré-existente, igual ao Condutas):
+**Exames** (registrar/cancelar resultado), **Teleconsulta-médico** (`/video/*`), **Memed**
+(`POST /receitas`), **Renovações** (`renovada`/`dispensar`). Todos ganharam
+`RequireAssinaturaAtiva()` + `RequireWriteAccess()` (o lado **paciente** da teleconsulta
+fica intocado). Fecha o vazamento de paywall (vencido) e de trial. O
+`WriteAccessCoverageTests` foi endurecido: além de "grupo gateado tem ReadOnly/Feature",
+agora também falha se **qualquer** mutador `/api/v1` ficar sem gate de assinatura fora de
+uma allowlist explícita de isentos (crise/escalação/portal/auth/checkout/IA-feature/etc.).
+Outros fixes: popup de upsell também no RAG; cap de pacientes em try/catch (fail-open);
+`GRANT` explícito na 0051; CPF obrigatório com texto do form corrigido.
+
 ## Dívida de numeração de ADR
 
 Há **`ADR-055` duplicado** no diretório (`ADR-055-*captcha*` e `ADR-055-*sem-trial*`). Este

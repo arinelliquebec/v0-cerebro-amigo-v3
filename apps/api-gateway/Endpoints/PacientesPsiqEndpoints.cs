@@ -642,8 +642,13 @@ public static class PacientesPsiqEndpoints
         if (!await EmTrialReadOnlyAsync(db, user)) return null;
 
         var limite = int.TryParse(cfg["TRIAL_MAX_PACIENTES"], out var l) && l > 0 ? l : 5;
-        var atual = await db.Database.ExecuteScalarAsync<long>(
-            "SELECT COUNT(*) FROM pacientes WHERE medico_responsavel_id = {0}", medicoId);
+        long atual;
+        try
+        {
+            atual = await db.Database.ExecuteScalarAsync<long>(
+                "SELECT COUNT(*) FROM pacientes WHERE medico_responsavel_id = {0}", medicoId);
+        }
+        catch { return null; } // fail-open: nunca bloquear cadastro por erro de infra
         if (atual < limite) return null;
 
         return Results.Json(new

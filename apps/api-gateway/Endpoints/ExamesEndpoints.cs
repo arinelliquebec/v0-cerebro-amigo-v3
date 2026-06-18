@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -47,7 +48,9 @@ public static class ExamesEndpoints
 
         var g = app.MapGroup("/api/v1/exames/{id:guid}")
             .WithTags("exames")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva()  // ADR-065: registrar/cancelar resultado = escrita operacional
+            .RequireWriteAccess();     // trial read-only bloqueia; vencido cai no paywall
 
         // Registrar resultado: compara com a faixa armazenada → fora_faixa.
         g.MapPost("/resultado", async (

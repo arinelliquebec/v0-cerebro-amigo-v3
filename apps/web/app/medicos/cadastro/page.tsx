@@ -181,7 +181,6 @@ function CadastroForm() {
         <Label htmlFor="cpf">CPF <span className="text-muted-foreground font-normal">(necessário para a cobrança)</span></Label>
         <Input id="cpf" value={cpf} onChange={(e) => setCpf(e.target.value)} required
           inputMode="numeric" placeholder="Só números" autoComplete="off" />
-        <p className="text-xs text-muted-foreground">Pode deixar em branco e preencher depois no seu perfil.</p>
       </div>
 
       <label className="flex items-start gap-2 text-sm text-muted-foreground">

@@ -9,6 +9,7 @@ import { Search, Loader2, Quote, Info } from "lucide-react"
 import { useMe } from "@/lib/use-me"
 import { FEATURE, temFeature, readFeatureGate } from "@/lib/feature-gate"
 import { UpsellFeature } from "@/components/assinatura/upsell-feature"
+import { useFeatureUpsell } from "@/components/assinatura/feature-upsell"
 
 // Busca semântica (RAG, ADR-028) no histórico do paciente. Doctor-facing,
 // retrieval-only: lista trechos CITADOS do que foi relatado, com fonte e
@@ -34,6 +35,7 @@ const FONTE_LABEL: Record<string, string> = {
 
 export function BuscaSemantica({ pacienteId }: { pacienteId: string }) {
   const me = useMe()
+  const { showUpsell } = useFeatureUpsell()
   const [query, setQuery] = useState("")
   const [trechos, setTrechos] = useState<Trecho[] | null>(null)
   const [loading, setLoading] = useState(false)
@@ -53,7 +55,7 @@ export function BuscaSemantica({ pacienteId }: { pacienteId: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q, incluirKb: true }),
       })
-      if (await readFeatureGate(res)) { setBloqueado(true); setTrechos(null); return }
+      { const gate = await readFeatureGate(res); if (gate) { setBloqueado(true); setTrechos(null); showUpsell(gate.feature); return } }
       if (!res.ok) {
         setErro(res.status === 503 ? "Busca indisponível no momento." : "Não foi possível buscar.")
         setTrechos(null)

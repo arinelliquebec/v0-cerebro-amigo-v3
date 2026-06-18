@@ -37,3 +37,9 @@ CREATE INDEX IF NOT EXISTS idx_newsletter_envio
 
 COMMENT ON TABLE newsletter_inscricoes IS
   'ADR-065: inscricao de medico em newsletter (free tier). Inscricao+unsub funcionais; envio atras de NEWSLETTER_SEND_ENABLED (CK-4 SES pendente). SEM RLS (identidade/marketing; unsub anonimo por token).';
+
+-- GRANTs explicitos (consistencia com 0047/0050; nao depender so do ALTER DEFAULT
+-- PRIVILEGES da 0036). Em prod ja foram concedidos por default privilege ao aplicar
+-- como cerebroadmin; idempotente. O gateway le/escreve (unsub/me); workers full.
+GRANT SELECT, INSERT, UPDATE ON newsletter_inscricoes TO cerebro_gateway;
+GRANT ALL ON newsletter_inscricoes TO cerebro_workers;

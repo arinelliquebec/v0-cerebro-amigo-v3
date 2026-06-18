@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -33,7 +34,9 @@ public static class TeleconsultaEndpoints
         // ─── Médico ───────────────────────────────────────────────────────
         var med = app.MapGroup("/api/v1/consultas/{id:guid}/video")
             .WithTags("teleconsulta-medico")
-            .RequireAuthorization();
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva()  // ADR-065: iniciar teleconsulta = operacional (só lado médico)
+            .RequireWriteAccess();     // trial read-only bloqueia; vencido cai no paywall
 
         med.MapPost("/entrar", async (
             Guid id, AppDbContext db, ClaimsPrincipal user, TurnCredentialService turn) =>
