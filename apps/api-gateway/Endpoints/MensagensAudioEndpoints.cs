@@ -1,0 +1,195 @@
+using Amazon.S3;
+using Amazon.S3.Model;
+using ApiGateway.Data;
+using ApiGateway.Auth;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+
+// ADR-064: mensagens de áudio do paciente para o médico.
+// Upload: paciente → presigned PUT → S3 → registrar via POST.
+// Playback: médico → presigned GET (1h) → S3 direto.
+// Retenção: S3 lifecycle 60d + expira_em no DB.
+
+namespace ApiGateway.Endpoints;
+
+public static class MensagensAudioEndpoints
+{
+    private const int PresignedUploadMinutes = 15;
+    private const int PresignedPlayMinutes   = 60;
+
+    public static void MapMensagensAudio(this WebApplication app)
+    {
+        var bucket = app.Configuration["S3_BUCKET_AUDIO_MSGS"] ?? "cerebro-amigo-audio-msgs";
+
+        // ── PORTAL PACIENTE ──────────────────────────────────────────────────
+        var p = app.MapGroup("/api/v1/portal/paciente/mensagens-audio")
+            .WithTags("portal-audio")
+            .RequireAuthorization("paciente");
+
+        // Ativar/verificar consentimento
+        p.MapPost("/consent", async (AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var pid = PacienteAuthEndpoints.GetPacienteId(user);
+            if (pid is null) return Results.Unauthorized();
+            await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE pacientes SET consentimento_audio = TRUE
+                WHERE cliente_id = {0}", pid.Value);
+            return Results.NoContent();
+        });
+
+        p.MapGet("/consent", async (AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var pid = PacienteAuthEndpoints.GetPacienteId(user);
+            if (pid is null) return Results.Unauthorized();
+            var ok = await db.Database.ExecuteScalarAsync<bool?>(@"
+                SELECT consentimento_audio FROM pacientes WHERE cliente_id = {0}", pid.Value);
+            return Results.Ok(new { consentimento = ok ?? false });
+        });
+
+        // Gerar URL de upload (presigned PUT, 15min)
+        p.MapPost("/upload-url", async (AppDbContext db, ClaimsPrincipal user, IAmazonS3 s3) =>
+        {
+            var pid = PacienteAuthEndpoints.GetPacienteId(user);
+            if (pid is null) return Results.Unauthorized();
+
+            var consentimento = await db.Database.ExecuteScalarAsync<bool?>(@"
+                SELECT consentimento_audio FROM pacientes WHERE cliente_id = {0}", pid.Value);
+            if (consentimento != true)
+                return Results.Json(new { erro = "consentimento_pendente" }, statusCode: 403);
+
+            var key = $"audio/{pid.Value}/{Guid.NewGuid()}.webm";
+            var url = s3.GetPreSignedURL(new GetPreSignedUrlRequest
+            {
+                BucketName  = bucket,
+                Key         = key,
+                Verb        = HttpVerb.PUT,
+                Expires     = DateTime.UtcNow.AddMinutes(PresignedUploadMinutes),
+                ContentType = "audio/webm"
+            });
+
+            return Results.Ok(new { uploadUrl = url, s3Key = key });
+        });
+
+        // Registrar mensagem após upload concluído
+        p.MapPost("/", async (AppDbContext db, ClaimsPrincipal user,
+            [FromBody] RegistrarAudioRequest req) =>
+        {
+            var pid = PacienteAuthEndpoints.GetPacienteId(user);
+            if (pid is null) return Results.Unauthorized();
+            if (string.IsNullOrWhiteSpace(req.S3Key)) return Results.BadRequest();
+            // Valida que a key pertence ao paciente (path inclui paciente_id)
+            if (!req.S3Key.Contains(pid.Value.ToString()))
+                return Results.Forbid();
+
+            var medicoId = await db.Database.ExecuteScalarAsync<Guid?>(@"
+                SELECT medico_responsavel_id FROM pacientes WHERE cliente_id = {0}", pid.Value);
+            if (medicoId is null) return Results.NotFound();
+
+            var id = await db.Database.ExecuteScalarAsync<Guid>(@"
+                INSERT INTO mensagens_audio (paciente_id, medico_id, s3_key, duracao_s)
+                VALUES ({0}, {1}, {2}, {3})
+                RETURNING id",
+                pid.Value, medicoId.Value, req.S3Key, req.DuracaoS > 0 ? req.DuracaoS : (int?)null);
+
+            return Results.Ok(new { id });
+        });
+
+        // Listar mensagens do paciente (para histórico)
+        p.MapGet("/", async (AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var pid = PacienteAuthEndpoints.GetPacienteId(user);
+            if (pid is null) return Results.Unauthorized();
+            var lista = await db.Database.SqlQueryRaw<MensagemAudioItem>(@"
+                SELECT id, duracao_s, ouvido_em, criada_em, expira_em
+                FROM mensagens_audio
+                WHERE paciente_id = {0}
+                ORDER BY criada_em DESC LIMIT 20", pid.Value).ToListAsync();
+            return Results.Ok(lista);
+        });
+
+        // ── DASHBOARD MÉDICO ─────────────────────────────────────────────────
+        var m = app.MapGroup("/api/v1/prontuario/{pacienteId:guid}/mensagens-audio")
+            .WithTags("prontuario-audio")
+            .RequireAuthorization("medico");
+
+        // Listar mensagens de áudio do paciente
+        m.MapGet("/", async (Guid pacienteId, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = MedicoId(user);
+            if (medicoId is null) return Results.Unauthorized();
+            // RLS garante tenant; verificação explícita extra
+            var lista = await db.Database.SqlQueryRaw<MensagemAudioItem>(@"
+                SELECT ma.id, ma.duracao_s, ma.ouvido_em, ma.criada_em, ma.expira_em
+                FROM mensagens_audio ma
+                JOIN pacientes p ON p.cliente_id = ma.paciente_id
+                WHERE ma.paciente_id = {0}
+                  AND p.medico_responsavel_id = {1}
+                ORDER BY ma.criada_em DESC LIMIT 50",
+                pacienteId, medicoId.Value).ToListAsync();
+            return Results.Ok(lista);
+        });
+
+        // Presigned GET para playback (1h)
+        m.MapGet("/{id:guid}/play-url", async (Guid pacienteId, Guid id,
+            AppDbContext db, ClaimsPrincipal user, IAmazonS3 s3) =>
+        {
+            var medicoId = MedicoId(user);
+            if (medicoId is null) return Results.Unauthorized();
+
+            var key = await db.Database.ExecuteScalarAsync<string?>(@"
+                SELECT ma.s3_key
+                FROM mensagens_audio ma
+                JOIN pacientes p ON p.cliente_id = ma.paciente_id
+                WHERE ma.id = {0}
+                  AND ma.paciente_id = {1}
+                  AND p.medico_responsavel_id = {2}",
+                id, pacienteId, medicoId.Value);
+            if (key is null) return Results.NotFound();
+
+            var url = s3.GetPreSignedURL(new GetPreSignedUrlRequest
+            {
+                BucketName = bucket,
+                Key        = key,
+                Verb       = HttpVerb.GET,
+                Expires    = DateTime.UtcNow.AddMinutes(PresignedPlayMinutes)
+            });
+            return Results.Ok(new { playUrl = url });
+        });
+
+        // Marcar como ouvido
+        m.MapPatch("/{id:guid}/ouvido", async (Guid pacienteId, Guid id,
+            AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = MedicoId(user);
+            if (medicoId is null) return Results.Unauthorized();
+            var rows = await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE mensagens_audio ma
+                SET ouvido_em = NOW()
+                FROM pacientes p
+                WHERE ma.id = {0}
+                  AND ma.ouvido_em IS NULL
+                  AND ma.paciente_id = p.cliente_id
+                  AND p.medico_responsavel_id = {1}",
+                id, medicoId.Value);
+            return rows > 0 ? Results.NoContent() : Results.NotFound();
+        });
+    }
+
+    private static Guid? MedicoId(ClaimsPrincipal user)
+    {
+        var sub = user.FindFirstValue(ClaimTypes.NameIdentifier)
+               ?? user.FindFirstValue("sub");
+        return Guid.TryParse(sub, out var g) ? g : null;
+    }
+}
+
+public record RegistrarAudioRequest(string S3Key, int DuracaoS);
+
+public record MensagemAudioItem(
+    Guid Id,
+    int? DuracaoS,
+    DateTime? OuvidoEm,
+    DateTime CriadaEm,
+    DateTime ExpiraEm
+);

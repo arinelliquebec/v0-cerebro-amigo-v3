@@ -15,6 +15,7 @@ const SECOES = [
   { slug: "busca", label: "Busca" },
   { slug: "conduta", label: "Conduta" },
   { slug: "exames", label: "Exames" },
+  { slug: "audio", label: "Áudios" },
 ] as const
 
 export function ProntuarioNav({ pacienteId }: { pacienteId: string }) {

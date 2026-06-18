@@ -1,0 +1,32 @@
+import { NextRequest, NextResponse } from "next/server"
+import { cookies } from "next/headers"
+
+const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
+
+async function tok() {
+  return (await cookies()).get("paciente_token")?.value ?? null
+}
+
+// GET /api/paciente/audio — listar mensagens
+export async function GET() {
+  const token = await tok()
+  if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
+  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio`, {
+    headers: { Authorization: `Bearer ${token}` },
+  })
+  return new NextResponse(await res.text(), { status: res.status })
+}
+
+// POST /api/paciente/audio — registrar após upload
+export async function POST(req: NextRequest) {
+  const token = await tok()
+  if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
+  const body = await req.json().catch(() => null)
+  if (!body?.s3Key) return NextResponse.json({ erro: "s3Key obrigatório" }, { status: 400 })
+  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ s3Key: body.s3Key, duracaoS: body.duracaoS ?? 0 }),
+  })
+  return new NextResponse(await res.text(), { status: res.status })
+}

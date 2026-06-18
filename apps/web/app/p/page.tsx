@@ -3,6 +3,7 @@ import { redirect } from "next/navigation"
 import { BookText, Pill, CalendarClock, Smile, ChevronRight, LogOut, MessageCircle, User } from "lucide-react"
 import { gatewayPaciente, GatewayPacienteError } from "@/lib/gateway-paciente"
 import { Button } from "@/components/ui/button"
+import { AudioRecorder } from "@/components/portal/audio-recorder"
 import { sairPaciente } from "./entrar/actions"
 
 interface HomeData {
@@ -127,6 +128,9 @@ export default async function PortalHome() {
           )}
         </section>
       )}
+
+      {/* Mensagem de áudio */}
+      <AudioRecorder />
 
       {/* Atalho conversa */}
       <Link

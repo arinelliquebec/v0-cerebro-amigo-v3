@@ -361,6 +361,7 @@ ConfigEndpoints.Map(app);
 EscalacaoEndpoints.Map(app);
 ComunicacaoEndpoints.Map(app);
 MensagensEndpoints.Map(app);
+app.MapMensagensAudio();
 PromptsEndpoints.Map(app);
 AdminEndpoints.Map(app);
 SeedEndpoint.Map(app);
