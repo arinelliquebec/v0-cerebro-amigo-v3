@@ -98,7 +98,7 @@ function InboxList({
   onAbrir: (c: ConversaInbox) => void
 }) {
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="min-h-0 flex-1 overflow-y-auto">
       {carregando ? (
         <Spinner />
       ) : itens.length === 0 ? (
@@ -121,7 +121,7 @@ function MensagensInbox(props: {
   onAbrir: (c: ConversaInbox) => void
 }) {
   return (
-    <aside className="flex flex-col border-r border-border/60">
+    <aside className="flex min-h-0 flex-col border-r border-border/60">
       <InboxSearch busca={props.busca} onBusca={props.onBusca} />
       <InboxList carregando={props.carregando} itens={props.itens} selId={props.selId} onAbrir={props.onAbrir} />
     </aside>
@@ -177,7 +177,7 @@ function MessageBubble({ m }: { m: Mensagem }) {
 
 function ThreadMessages({ carregando, thread }: { carregando: boolean; thread: Mensagem[] }) {
   return (
-    <div className="flex-1 space-y-3 overflow-y-auto p-5">
+    <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-5">
       {carregando ? (
         <Spinner />
       ) : thread.length === 0 ? (
@@ -209,7 +209,7 @@ function MensagensThread({
   carregandoThread: boolean
 }) {
   return (
-    <section className="flex flex-col bg-muted/20">
+    <section className="flex min-h-0 flex-col bg-muted/20">
       {!sel ? (
         <ThreadVazio />
       ) : (
@@ -274,7 +274,7 @@ export default function MensagensPage() {
     <div className="flex h-screen flex-col overflow-hidden bg-background">
       <Header title="Mensagens" />
       <EscalacaoInbox />
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[320px_1fr]">
+      <div className="grid min-h-0 flex-1 grid-rows-1 grid-cols-1 md:grid-cols-[320px_1fr]">
         <MensagensInbox
           busca={busca}
           onBusca={setBusca}
