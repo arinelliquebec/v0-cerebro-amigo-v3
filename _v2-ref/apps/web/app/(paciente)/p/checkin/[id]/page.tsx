@@ -45,7 +45,7 @@ export default function CheckinPage({
       .finally(() => setCarregando(false))
   }, [id])
 
-  async function responder(resposta: any) {
+  async function responder(resposta: string): Promise<void> {
     const res = await fetch(`/api/paciente/checkins/${id}/responder`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -112,8 +112,8 @@ function CheckinMedicacao({
   payload,
   responder,
 }: {
-  payload: any
-  responder: (r: any) => void
+  payload: { medicamento?: string; horario?: string }
+  responder: (r: unknown) => void
 }) {
   const [nota, setNota] = useState('')
 
@@ -235,7 +235,15 @@ function BigButton({
 // HUMOR — sliders
 // =============================================================================
 
-function CheckinHumor({ responder }: { responder: (r: any) => void }) {
+interface CheckinResult {
+  humor: number
+  ansiedade: number
+  sono: number
+  energia: number
+  nota: string
+}
+
+function CheckinHumor({ responder }: { responder: (r: CheckinResult) => void }) {
   const [humor, setHumor] = useState(5)
   const [ansiedade, setAnsiedade] = useState(5)
   const [sono, setSono] = useState(7)
@@ -318,7 +326,7 @@ function CheckinQuestionario({
   responder,
 }: {
   tipo: string
-  responder: (r: any) => void
+  responder: (r: Record<string, number>) => void
 }) {
   const codigo = tipo.replace('questionario_', '').toUpperCase()
   const perguntas = codigo === 'PHQ9' ? PERGUNTAS_PHQ9 : PERGUNTAS_GAD7
@@ -410,8 +418,8 @@ function CheckinEfeito({
   payload,
   responder,
 }: {
-  payload: any
-  responder: (r: any) => void
+  payload: { medicamento?: string }
+  responder: (r: unknown) => void
 }) {
   const [texto, setTexto] = useState('')
   return (

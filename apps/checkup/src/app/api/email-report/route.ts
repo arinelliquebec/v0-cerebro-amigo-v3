@@ -60,10 +60,9 @@ export async function POST(req: NextRequest) {
   const { sessionId, email, scale, score, band, label, crisis } = parsed.data;
 
   // gera o PDF (mesmo componente do /api/pdf)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pdf = (await renderToBuffer(
-    createElement(CheckupPDF, { scale, score, band, label, crisis, rid: sessionId.slice(0, 8) }) as any
-  )) as Buffer;
+  const pdf: Buffer = await renderToBuffer(
+    createElement(CheckupPDF, { scale, score, band, label, crisis, rid: sessionId.slice(0, 8) })
+  );
 
   // envia via Resend (PDF como anexo base64)
   try {
