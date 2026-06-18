@@ -7,8 +7,8 @@ import { FileText, Loader2, AlertTriangle } from "lucide-react"
 // Globais do SDK MEMED (tipados soltos — o SDK é injetado por <script>).
 declare global {
   interface Window {
-    MdSinapsePrescricao?: any
-    MdHub?: any
+    MdSinapsePrescricao?: unknown
+    MdHub?: unknown
   }
 }
 
@@ -127,39 +127,59 @@ export function BotaoReceitaMemed({
       }
 
       // 3. espelho ao concluir a prescrição
-      Md.event?.add?.("prescricaoImpressa", (data: any) => {
-        const memedPrescricaoId = String(data?.prescricao?.id ?? data?.id ?? "")
-        if (!memedPrescricaoId) return
-        const brutos = data?.prescricao?.medicamentos ?? data?.medicamentos ?? []
-        const medicamentos = (Array.isArray(brutos) ? brutos : []).map((m: any) => ({
+      interface MedicationItem {
+        nome?: string;
+        medicamento?: string;
+        descricao?: string;
+        posologia?: string;
+      }
+      interface PrescricaoEventData {
+        prescricao?: {
+          id?: string | number;
+          medicamentos?: MedicationItem[];
+        };
+        id?: string | number;
+        medicamentos?: MedicationItem[];
+      }
+      interface ModuleEvent {
+        name?: string;
+      }
+
+      Md.event?.add?.("prescricaoImpressa", (data: PrescricaoEventData) => {
+        const memedPrescricaoId = String(data?.prescricao?.id ?? data?.id ?? "");
+        if (!memedPrescricaoId) return;
+        const brutos = data?.prescricao?.medicamentos ?? data?.medicamentos ?? [];
+        const medicamentos = (Array.isArray(brutos) ? brutos : []).map((m: MedicationItem) => ({
           nome: m?.nome ?? m?.medicamento ?? m?.descricao ?? "",
           posologia: m?.posologia ?? m?.descricao ?? null,
-        }))
-        void espelhar(memedPrescricaoId, medicamentos)
+        }));
+        void espelhar(memedPrescricaoId, medicamentos);
       })
 
       // 4. abre o módulo
-      const abrirModulo = async () => {
-        await Hub.command.send("plataforma.prescricao", "setPaciente", paciente)
-        await Hub.module.show("plataforma.prescricao")
+      const abrirModulo = async (): Promise<void> => {
+        await Hub.command.send("plataforma.prescricao", "setPaciente", paciente);
+        await Hub.module.show("plataforma.prescricao");
       }
 
       if (eraCarregado) {
         // SDK já estava na página → módulo já inicializado, abre direto
-        await abrirModulo()
+        await abrirModulo();
       } else {
         // 1ª carga → espera o módulo inicializar
-        Md.event?.add?.("core:moduleInit", async (module: any) => {
-          if (module?.name && module.name !== "plataforma.prescricao") return
-          await abrirModulo()
+        Md.event?.add?.("core:moduleInit", async (module: unknown): Promise<void> => {
+          if (typeof module !== "object" || module === null) return;
+          const evt = module as { name?: string };
+          if (evt.name && evt.name !== "plataforma.prescricao") return;
+          await abrirModulo();
         })
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Detalhe técnico só no console (pode ser texto cru/em inglês do SDK do MEMED) — nunca na tela do médico.
-      console.error("[BotaoReceitaMemed] falha ao abrir o MEMED:", e)
-      setErro("Não foi possível abrir o MEMED para emitir a receita. Verifique sua conexão e tente novamente.")
+      console.error("[BotaoReceitaMemed] falha ao abrir o MEMED:", e);
+      setErro("Não foi possível abrir o MEMED para emitir a receita. Verifique sua conexão e tente novamente.");
     } finally {
-      setCarregando(false)
+      setCarregando(false);
     }
   }, [pacienteId, pacienteNome, espelhar])
 

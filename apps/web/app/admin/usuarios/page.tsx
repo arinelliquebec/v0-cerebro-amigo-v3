@@ -141,7 +141,7 @@ function NovoUsuarioDialog({ onCriado }: { onCriado: () => void }) {
           </div>
           <div className="space-y-1.5">
             <Label>Role</Label>
-            <Select value={role} onValueChange={(v) => setValue("role", v as any)}>
+            <Select value={role} onValueChange={(v: string) => setValue("role", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="medico">Médico</SelectItem>
@@ -176,7 +176,7 @@ function RoleDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
     reset,
   } = useForm<RoleFormData>({
     resolver: zodResolver(roleSchema),
-    defaultValues: { role: u.role as any },
+    defaultValues: { role: u.role },
   })
 
   const role = watch("role")
@@ -190,7 +190,7 @@ function RoleDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: data.role }),
       })
-      const d = await r.json().catch(() => ({}))
+      const d: { error?: string } = await r.json().catch(() => ({} as { error?: string }))
       if (!r.ok) {
         const map: Record<string, string> = {
           nao_pode_desativar_owner: "Não é possível rebaixar o último owner.",
@@ -222,7 +222,7 @@ function RoleDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setErro(null); reset({ role: u.role as any }) } }}>
+    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setErro(null); reset({ role: u.role as string }) } }}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-primary" title="Mudar role">
           <Shield className="h-3.5 w-3.5" />
@@ -232,7 +232,7 @@ function RoleDialog({ u, onSalvo }: { u: Usuario; onSalvo: () => void }) {
         <DialogHeader><DialogTitle>Mudar role — {u.nome}</DialogTitle></DialogHeader>
         {erro && <p className="text-sm text-destructive">{erro}</p>}
         <form onSubmit={handleSubmit(salvar)} className="space-y-3">
-          <Select value={role} onValueChange={(v) => setValue("role", v as any)}>
+          <Select value={role} onValueChange={(v: string) => setValue("role", v)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="medico">Médico</SelectItem>
