@@ -26,7 +26,7 @@ concurrency:
 
 env:
   REGION: sa-east-1
-  SOURCE_ID: cerebro-postgres
+  SOURCE_ID: cerebro-postgres-enc
   DRILL_ID: cerebro-postgres-restore-drill
   BOX_ID: i-057860cd97edafefb
 
