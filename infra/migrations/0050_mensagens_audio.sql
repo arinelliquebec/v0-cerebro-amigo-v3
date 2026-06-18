@@ -14,7 +14,7 @@ CREATE TABLE mensagens_audio (
     duracao_s    INTEGER,                        -- duração em segundos (preenchida no upload)
     ouvido_em    TIMESTAMPTZ,                    -- NULL = não ouvido ainda
     criada_em    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    expira_em    TIMESTAMPTZ NOT NULL GENERATED ALWAYS AS (criada_em + INTERVAL '60 days') STORED
+    expira_em    TIMESTAMPTZ NOT NULL DEFAULT NOW() + INTERVAL '60 days'
 );
 
 CREATE INDEX idx_mensagens_audio_medico    ON mensagens_audio(medico_id, ouvido_em NULLS FIRST, criada_em DESC);
