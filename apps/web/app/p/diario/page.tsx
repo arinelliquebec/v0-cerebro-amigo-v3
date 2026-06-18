@@ -12,8 +12,8 @@ interface DiarioEntrada {
   conteudo: string
   humor: number | null
   tags: string[]
-  compartilhada_com_medico: boolean
-  criada_em: string
+  compartilhadaComMedico: boolean
+  criadaEm: string
   tipo: string
   transcricao: string | null
 }
@@ -76,7 +76,7 @@ export default async function DiarioPage() {
 function EntradaCard({ entrada }: { entrada: DiarioEntrada }) {
   const preview = entrada.conteudo.slice(0, 120)
   const temMais = entrada.conteudo.length > 120
-  const quando = formatDistanceToNow(new Date(entrada.criada_em), {
+  const quando = formatDistanceToNow(new Date(entrada.criadaEm), {
     addSuffix: true,
     locale: ptBR,
   })
@@ -113,7 +113,7 @@ function EntradaCard({ entrada }: { entrada: DiarioEntrada }) {
             {entrada.humor != null && (
               <HumorBadge humor={entrada.humor} />
             )}
-            {entrada.compartilhada_com_medico && (
+            {entrada.compartilhadaComMedico && (
               <Badge variant="outline" className="text-[10px] h-4 px-1.5">
                 Compartilhado
               </Badge>
