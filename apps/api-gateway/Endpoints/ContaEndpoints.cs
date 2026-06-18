@@ -159,7 +159,7 @@ public static class ContaEndpoints
                 || !req.S3Key.StartsWith($"medico/{medicoId.Value}/foto/", StringComparison.Ordinal))
                 return Results.BadRequest(new { error = "s3key_invalida" });
             await db.Database.ExecuteSqlRawAsync(
-                "UPDATE medicos SET foto_s3_key = {1} WHERE id = {0}", medicoId.Value, req.S3Key);
+                "UPDATE medicos SET foto_s3key = {1} WHERE id = {0}", medicoId.Value, req.S3Key);
             return Results.NoContent();
         }).WithTags("conta").RequireAuthorization();
 

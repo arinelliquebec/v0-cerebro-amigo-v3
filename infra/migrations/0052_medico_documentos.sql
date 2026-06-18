@@ -69,8 +69,9 @@ $$;
 
 -- ── Foto de perfil do médico (avatar) — S3 presigned no mesmo bucket de docs.
 -- Coluna guarda só a key; o binário vive no S3 (SSE). Aparece na sidebar.
--- Nome `foto_s3_key`: é a saída da convenção snake_case do EF (UseSnakeCaseNaming)
--- p/ a propriedade FotoS3Key (insere _ antes de cada maiúscula: Foto|S3|Key →
--- foto_s3_key). O nome anterior (foto_s3key, sem _) NÃO casava → /me dava
--- "column foto_s3key does not exist". Migration ainda não aplicada em prod.
-ALTER TABLE medicos ADD COLUMN IF NOT EXISTS foto_s3_key TEXT;
+-- Nome SEM underscore antes de "key" (foto_s3key) DE PROPÓSITO: a convenção
+-- snake_case do EF (UseSnakeCaseNamingConvention) NÃO insere "_" depois de dígito,
+-- então a propriedade FotoS3Key vira `foto_s3key` (Foto|S3Key). É o nome que o EF
+-- referencia na query do /me; usar foto_s3_key quebra com
+-- "column a.foto_s3key does not exist". (Verificado empiricamente, 2026-06-18.)
+ALTER TABLE medicos ADD COLUMN IF NOT EXISTS foto_s3key TEXT;

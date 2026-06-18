@@ -89,7 +89,7 @@ public static class AuthEndpoints
                 SELECT m.id AS medico_id, m.nome, m.crm, m.especialidade,
                        u.id AS usuario_id, u.email, u.role,
                        a.status AS assinatura_status, a.prazo_pagamento_ate, a.trial_ate,
-                       a.plano, m.foto_s3_key
+                       a.plano, m.foto_s3key
                 FROM medicos m
                 JOIN usuarios u ON u.id = m.usuario_id
                 LEFT JOIN assinaturas a ON a.medico_id = m.id

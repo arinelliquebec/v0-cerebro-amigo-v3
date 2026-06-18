@@ -39,7 +39,11 @@ public sealed class WriteAccessCoverageTests
     {
         // Segurança clínica + portal + identidade/auth + anônimas:
         "api/v1/auth", "api/v1/crise", "api/v1/escalacoes", "api/v1/portal",
-        "api/v1/me/config", "api/v1/me/newsletter", "api/v1/newsletter",
+        "api/v1/newsletter",
+        // Conta do próprio médico (ADR-066): config, senha, foto, exclusão (me/*) e
+        // cofre de documentos (conta/*). São ações de conta/segurança/LGPD — não-clínicas
+        // e não-paywall por design (o médico pode trocar senha / pedir exclusão bloqueado).
+        "api/v1/me", "api/v1/conta",
         "api/v1/notificacoes", "api/v1/asaas", "api/v1/checkins", "api/v1/seed",
         "api/v1/paciente", "api/v1/admin",
         // Checkout/billing (o médico PRECISA pagar mesmo bloqueado):
