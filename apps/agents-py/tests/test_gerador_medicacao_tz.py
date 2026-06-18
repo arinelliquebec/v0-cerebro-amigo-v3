@@ -65,7 +65,7 @@ def _slots(tz: ZoneInfo, fim=None):
         ate=agora + timedelta(hours=48),
         inicio_prescricao=date(2026, 6, 1),
         fim_prescricao=fim,
-        tz=tz,
+        tzinfo=tz,
     )
 
 
