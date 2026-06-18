@@ -41,7 +41,7 @@ public sealed class WriteAccessCoverageTests
         "api/v1/auth", "api/v1/crise", "api/v1/escalacoes", "api/v1/portal",
         "api/v1/me/config", "api/v1/me/newsletter", "api/v1/newsletter",
         "api/v1/notificacoes", "api/v1/asaas", "api/v1/checkins", "api/v1/seed",
-        "api/v1/paciente/", "api/v1/admin", "api/v1/comunicacao",
+        "api/v1/paciente", "api/v1/admin",
         // Checkout/billing (o médico PRECISA pagar mesmo bloqueado):
         "api/v1/minha-assinatura", "api/v1/cobrancas",
         // Leitura/consumo de baixo risco e IA-adjacentes (config moot sem IA):
@@ -96,7 +96,9 @@ public sealed class WriteAccessCoverageTests
         {
             if (ep.Metadata.GetMetadata<AssinaturaGated>() is not null) continue;  // gateado por assinatura, ok
             if (ep.Metadata.GetMetadata<FeatureGated>() is not null) continue;     // IA-gated: o trial (plano nulo) já não acessa
-            if (IsentosPorPrefixo.Any(p => rota.StartsWith(p))) continue;          // isento legítimo
+            // Match por BOUNDARY de segmento (não StartsWith solto) p/ não mascarar
+            // um endpoint novo cujo nome colida no prefixo (ex.: agentes vs agentes-x).
+            if (IsentosPorPrefixo.Any(p => rota == p || rota.StartsWith(p + "/"))) continue;
             semGate.Add($"{string.Join(",", verbos)} {rota}");
         }
 

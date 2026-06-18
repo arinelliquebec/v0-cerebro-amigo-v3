@@ -98,9 +98,10 @@ Popup de upsell de IA global (`FeatureUpsellProvider` no layout do dashboard) di
 Revisão adversarial multi-agente apontou que outros grupos de **escrita operacional do
 médico** nunca tiveram `RequireAssinaturaAtiva` (buraco pré-existente, igual ao Condutas):
 **Exames** (registrar/cancelar resultado), **Teleconsulta-médico** (`/video/*`), **Memed**
-(`POST /receitas`), **Renovações** (`renovada`/`dispensar`). Todos ganharam
-`RequireAssinaturaAtiva()` + `RequireWriteAccess()` (o lado **paciente** da teleconsulta
-fica intocado). Fecha o vazamento de paywall (vencido) e de trial. O
+(`POST /receitas`), **Renovações** (`renovada`/`dispensar`) e **Comunicação**
+(`POST /comunicacao/rascunho`, que **usa LLM** — era vazamento de spend no trial/vencido).
+Todos ganharam `RequireAssinaturaAtiva()` + `RequireWriteAccess()` (o lado **paciente** da
+teleconsulta fica intocado). Fecha o vazamento de paywall (vencido) e de trial. O
 `WriteAccessCoverageTests` foi endurecido: além de "grupo gateado tem ReadOnly/Feature",
 agora também falha se **qualquer** mutador `/api/v1` ficar sem gate de assinatura fora de
 uma allowlist explícita de isentos (crise/escalação/portal/auth/checkout/IA-feature/etc.).

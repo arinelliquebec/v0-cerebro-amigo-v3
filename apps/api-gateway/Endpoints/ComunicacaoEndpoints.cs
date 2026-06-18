@@ -1,3 +1,4 @@
+using ApiGateway.Auth;
 using ApiGateway.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -18,7 +19,15 @@ public static class ComunicacaoEndpoints
 {
     public static void Map(WebApplication app)
     {
-        app.MapPost("/api/v1/comunicacao/rascunho", async (
+        // ADR-065: rascunho usa LLM (proxy ao orchestrator) → escrita IA. Gateado:
+        // bloqueia trial read-only (403) e vencido (402); médico pagante passa.
+        var g = app.MapGroup("/api/v1/comunicacao")
+            .WithTags("comunicacao")
+            .RequireAuthorization()
+            .RequireAssinaturaAtiva()
+            .RequireWriteAccess();
+
+        g.MapPost("/rascunho", async (
             [FromBody] RascunhoRequest req, AppDbContext db, ClaimsPrincipal user,
             IHttpClientFactory httpFactory, IConfiguration cfg) =>
         {
@@ -59,7 +68,7 @@ public static class ComunicacaoEndpoints
             {
                 return Results.StatusCode(502);
             }
-        }).RequireAuthorization().WithTags("comunicacao");
+        });
     }
 
     private static async Task<Guid?> GetMedicoIdAsync(AppDbContext db, ClaimsPrincipal user)
