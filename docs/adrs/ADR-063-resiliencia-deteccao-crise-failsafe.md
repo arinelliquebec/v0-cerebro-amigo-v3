@@ -1,10 +1,12 @@
 # ADR-063: Resiliência da detecção de crise — o fail-safe não pode conflar outage de LLM com crise
 
-**Status:** Proposto (NÃO implementado). **Gate clínico:** a lista determinística de termos
-e o texto de "instabilidade técnica" exigem curadoria + atestação do clínico (Adonai) ANTES
-de qualquer código em produção (clinical-safety R1/R2).
-**Data:** 2026-06-17
-**Decisores:** Rafael Arinelli + Adonai Arinelli (decisão clínica — não é só engenharia)
+**Status:** Implementado (camadas 1-4); gateado por `CRISIS_RESILIENCE_ENABLED=false` (default).
+**Gates clínicos pendentes antes de ativar em prod:**
+- `LISTA_ATESTADA=True` em `crisis.py` — curadoria + atestação Adonai (lista `_TERMOS_CRISE_RAW`).
+- `INSTABILIDADE_COPY.atestado=True` em `crisis_copy.py` — revisão + atestação Adonai (texto neutro).
+- `CRISIS_RESILIENCE_ENABLED=true` no `.env` do box — só ligar após os dois acima.
+**Data:** 2026-06-17  **Implementado:** 2026-06-18
+**Decisores:** Patrick Arinelli + Adonai Arinelli (decisão clínica — não é só engenharia)
 **Categoria:** Segurança clínica / resiliência / observabilidade
 
 ## Contexto
@@ -105,15 +107,25 @@ conflação que precisa morrer.
   contexto não-crise — citação, negação). Mitigado por alta precisão + refino do LLM quando up;
   em degradado, errar para o lado seguro no explícito é aceitável.
 
-## Pendências (gates para implementar — nesta ordem)
+## Implementação (2026-06-18)
 
-- [ ] Lista determinística pt-BR **curada + atestada por Adonai**. A IA **não inventa** termos
-      clínicos (clinical-safety) — a lista é do clínico.
-- [ ] Texto fixo de "instabilidade técnica" pré-aprovado (mesmo rito do `crisis_copy.py`).
-- [ ] Definir thresholds: nº de retries, janela/contagem do circuit breaker, o que conta como
-      "sistêmico".
-- [ ] Métrica + alarme de ops (taxa de erro do classificador; entradas em modo degradado).
-- [ ] Rollout em **SHADOW_MODE** → validação clínica → ativar.
+Arquivos alterados:
+- `apps/orchestrator-py/app/conversation/nodes/crisis.py` — camadas 1-3 + `degraded_response` node; circuit breaker (`_CircuitBreaker`); screen determinístico (`_screen_deterministico`); retry com backoff; routing para modo degradado vs fail-safe conservador.
+- `apps/orchestrator-py/app/conversation/crisis_copy.py` — `InstabilidadeCopy` dataclass + `INSTABILIDADE_COPY` (rascunho, `atestado=False`).
+- `apps/orchestrator-py/app/config.py` — `crisis_resilience_enabled: bool = False`.
+- `apps/orchestrator-py/app/conversation/state.py` — `modo_degradado: NotRequired[bool]`.
+- `apps/orchestrator-py/app/conversation/graph.py` — nó `degraded_response` + `_route_after_crisis` atualizado.
+- `apps/orchestrator-py/tests/test_crisis_failsafe.py` — 17 testes (todos passando).
+Thresholds implementados: retry=2 tentativas; circuit breaker limite=3 falhas sistêmicas consecutivas.
+
+## Pendências (gates clínicos — nesta ordem)
+
+- [ ] **Lista determinística** `_TERMOS_CRISE_RAW` em `crisis.py` **curada + atestada por Adonai**.
+      A IA **não inventa** termos clínicos — a lista é do clínico. Após: `LISTA_ATESTADA = True`.
+- [ ] **Texto de instabilidade** `_RASCUNHO_INSTABILIDADE` em `crisis_copy.py` revisado + atestado
+      por Adonai. Após: `INSTABILIDADE_COPY = _versionar_instabilidade(..., atestado=True)`.
+- [ ] **Ativar em prod:** `CRISIS_RESILIENCE_ENABLED=true` no `.env` do box + `--force-recreate orchestrator-py`.
+- [ ] Métrica + alarme de ops dedicado (taxa de entradas em modo degradado via CloudWatch/Sentry).
 
 ## Relacionado
 

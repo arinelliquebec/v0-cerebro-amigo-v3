@@ -31,6 +31,10 @@ class Settings(BaseSettings):
         "Usado na fase de validação shadow contra o orchestrator Go.",
     )
     max_retry_audit: int = 2
+    # ADR-063: ativa camadas 1-3 (screen determinístico, retry, modo degradado).
+    # Default False: comportamento histórico (fail-safe = crise) preservado até
+    # LISTA_ATESTADA=True + INSTABILIDADE_COPY.atestado=True em crisis_copy.py.
+    crisis_resilience_enabled: bool = False
 
     # ─── Provider LLM (ADR-015) ───
     # anthropic = API direta (default operacional). bedrock = AWS, atrás da flag.

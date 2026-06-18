@@ -36,7 +36,7 @@ from psycopg_pool import AsyncConnectionPool
 
 from app.config import get_settings
 from app.conversation.nodes.context import load_context
-from app.conversation.nodes.crisis import crisis_protocol, detect_crisis
+from app.conversation.nodes.crisis import crisis_protocol, degraded_response, detect_crisis
 from app.conversation.nodes.finalize import finalize
 from app.conversation.nodes.medication import (
     classify_medication,
@@ -63,8 +63,12 @@ def _route_after_context(state: ConversaState) -> Literal["detect_crisis", "__en
 
 def _route_after_crisis(
     state: ConversaState,
-) -> Literal["crisis_protocol", "classify_medication"]:
-    return "crisis_protocol" if state["crise"]["detectada"] else "classify_medication"
+) -> Literal["crisis_protocol", "degraded_response", "classify_medication"]:
+    if state["crise"]["detectada"]:
+        return "crisis_protocol"
+    if state.get("modo_degradado"):
+        return "degraded_response"
+    return "classify_medication"
 
 
 def _route_after_medication(
@@ -99,6 +103,7 @@ def build_graph() -> StateGraph:
     g.add_node("load_context", load_context)
     g.add_node("detect_crisis", detect_crisis)
     g.add_node("crisis_protocol", crisis_protocol)
+    g.add_node("degraded_response", degraded_response)
     g.add_node("classify_medication", classify_medication)
     g.add_node("update_medication_intake", update_medication_intake)
     g.add_node("medication_acknowledgment", medication_acknowledgment)
@@ -115,6 +120,7 @@ def build_graph() -> StateGraph:
 
     g.add_conditional_edges("detect_crisis", _route_after_crisis)
     g.add_edge("crisis_protocol", END)
+    g.add_edge("degraded_response", END)
 
     g.add_conditional_edges("classify_medication", _route_after_medication)
     g.add_edge("update_medication_intake", "medication_acknowledgment")
