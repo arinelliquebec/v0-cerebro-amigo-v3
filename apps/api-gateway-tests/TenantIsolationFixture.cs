@@ -57,6 +57,10 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
     public Guid ConversaB { get; } = Guid.NewGuid();     // conversa do paciente B (2-hop por cliente_id)
     public Guid ConversaA { get; } = Guid.NewGuid();     // conversa do paciente A (controle +)
 
+    // ── Cofre de documentos (ADR-066/0052): tenant direto por medico_id ──
+    public Guid DocB { get; } = Guid.NewGuid();          // documento do médico B (alvo do ataque)
+    public Guid DocA { get; } = Guid.NewGuid();          // documento do médico A (controle +)
+
     public async Task InitializeAsync()
     {
         await _pg.StartAsync();
@@ -307,6 +311,12 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
         await Exec(@"INSERT INTO acessos_prontuario (medico_id, paciente_id, recurso)
                      VALUES (@p0,@p1,'timeline')",
             MedicoB, PacienteB);
+
+        // cofre de documentos (ADR-066/0052): doc do médico B (alvo) + do A (controle +).
+        await Exec(@"INSERT INTO medico_documentos (id, medico_id, direcao, tipo, titulo, s3_key)
+                     VALUES (@p0,@p1,'enviado','contrato','Doc secreto de B','medico/b/enviado/b.pdf'),
+                            (@p2,@p3,'enviado','contrato','Doc de A','medico/a/enviado/a.pdf')",
+            DocB, MedicoB, DocA, MedicoA);
     }
 }
 
