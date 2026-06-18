@@ -3,6 +3,13 @@
 # setup-diario-audio.sh
 # Provisiona infraestrutura para o Diário de Voz (S3 + IAM + migration).
 #
+# NOTA (2026-06-18): este script de MANAGED policy nunca rodou em prod (role
+# placeholder). O bucket cerebro-amigo-audio-sa-east-1 + lifecycle 24h JÁ existiam,
+# mas a IAM faltava → transcrição dava AccessDenied no s3:PutObject. Corrigido
+# aplicando a `iam-policy-diario-audio.json` (já com s3:PutObjectTagging) como
+# INLINE policy `CerebroAmigoAudioDiarioS3Transcribe` na role real do box
+# `EC2-SSM-CerebroAmigo`. Para reproduzir num box novo: anexar essa policy à role.
+#
 # Pré-requisitos:
 #   - AWS CLI configurado com perfil que tenha permissão de admin/PowerUser
 #   - EC2_ROLE_NAME preenchido abaixo (nome da IAM role da instância EC2)
