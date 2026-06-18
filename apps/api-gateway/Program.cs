@@ -363,6 +363,8 @@ EscalacaoEndpoints.Map(app);
 ComunicacaoEndpoints.Map(app);
 MensagensEndpoints.Map(app);
 app.MapMensagensAudio();
+app.MapMedicoDocumentos();
+ContaEndpoints.Map(app);
 PromptsEndpoints.Map(app);
 AdminEndpoints.Map(app);
 SeedEndpoint.Map(app);

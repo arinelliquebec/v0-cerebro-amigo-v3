@@ -20,6 +20,7 @@ import {
   TrendingUp,
   Wallet,
   Sparkles,
+  UserCircle,
 } from "lucide-react"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
@@ -37,6 +38,7 @@ const navigation = [
 ]
 
 const secondaryNavigation = [
+  { name: "Minha conta", href: "/dashboard/conta", icon: UserCircle },
   { name: "Lembretes", href: "/dashboard/lembretes", icon: Bell },
   { name: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
 ]
@@ -178,8 +180,13 @@ export function Sidebar() {
       {!collapsed && (
         <div className="px-4 py-4 border-t border-border/40">
           <div className="flex items-center gap-3 px-2 py-2 rounded-lg bg-secondary/30">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-primary to-purple-dark flex items-center justify-center text-primary-foreground font-semibold text-xs shadow-sm">
-              {iniciais(me?.nome)}
+            <div className="h-8 w-8 overflow-hidden rounded-full bg-gradient-to-br from-primary to-purple-dark flex items-center justify-center text-primary-foreground font-semibold text-xs shadow-sm">
+              {me?.fotoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={me.fotoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                iniciais(me?.nome)
+              )}
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-foreground truncate">
