@@ -183,7 +183,7 @@ export default function NovaDiarioPage() {
             <div className="text-center">
               <p className="font-semibold">Gravar áudio</p>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Fale como está se sentindo (até 30 segundos)
+                Fale como está se sentindo (até 60 segundos)
               </p>
             </div>
           </button>
