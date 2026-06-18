@@ -30,7 +30,7 @@ export default function NovaDiarioPage() {
   const [humor, setHumor] = useState<number | null>(null)
   const [tags, setTags] = useState<string[]>([])
   const [tagInput, setTagInput] = useState("")
-  const [compartilhar, setCompartilhar] = useState(false)
+  const [compartilhar, setCompartilhar] = useState(true)
 
   // Dados específicos de áudio
   const [transcricao, setTranscricao] = useState<string | null>(null)
