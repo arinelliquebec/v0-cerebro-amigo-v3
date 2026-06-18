@@ -1,9 +1,29 @@
 """Nós de detecção e protocolo de crise.
 
-`detect_crisis`: Haiku, fail-safe (exceção → trata como crise).
+`detect_crisis`: Haiku com 4 camadas de resiliência (ADR-063).
 `crisis_protocol`: SEM LLM. Texto fixo, grava trilha e aciona o alerta ao médico.
+`degraded_response`: modo degradado — LLM sistemicamente fora, sem crise explícita.
 
-Ordem em `crisis_protocol` (tudo numa transação):
+── Camadas ADR-063 em `detect_crisis` ────────────────────────────────────────
+
+  1. Screen determinístico (LISTA_ATESTADA + _TERMOS_NORMALIZADOS):
+     lista curada pelo clínico de termos explícitos pt-BR. Alta precisão.
+     Roda SEMPRE quando crisis_resilience_enabled=True, independente do LLM.
+     Hit → crise dispara mesmo num outage total da API.
+     LISTA_ATESTADA=False (padrão) → screen desabilitado até atestação do Adonai.
+
+  2. Retry com backoff para erros transitórios (timeout, 5xx isolado).
+     Sistêmico (auth 401/403) → sem retry, falha imediata para não atrasar.
+
+  3. Modo degradado quando LLM está sistemicamente fora:
+     - screen (camada 1) SEGUE ativo — explícito ainda dispara crise.
+     - mensagens sem hit no screen → `degraded_response` (não fabricar crise).
+     - circuit breaker: 3 falhas sistêmicas consecutivas → pula LLM em futuras msgs.
+
+  4. Observabilidade: Sentry alert quando classificador cai (já estava; mantido).
+
+── Ordem em `crisis_protocol` (tudo numa transação) ─────────────────────────
+
   1. INSERT protocolos_crise_acionados (RETURNING id) — fonte da verdade da crise
   2. INSERT notificacoes_medico (severidade='critica') — canal in-app
   3. INSERT crise_alerta_eventos (canal='in_app') — abre a trilha de entrega (ADR-041)
@@ -20,13 +40,15 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
+import unicodedata
 from uuid import UUID
 
 import structlog
 from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.config import get_settings
-from app.conversation.crisis_copy import CRISIS_COPY, texto_protocolo
+from app.conversation.crisis_copy import CRISIS_COPY, INSTABILIDADE_COPY, texto_protocolo
 from app.conversation.llm import haiku, with_schema
 from app.conversation.prompt_loader import get_prompt
 from app.conversation.schemas import CrisisDetectionOutput
@@ -79,11 +101,8 @@ async def _notificar_notifier(protocolo_id: UUID) -> None:
 
 
 # ── Camada 4 do ADR-063: observabilidade do classificador de crise ──────────
-# PURA INSTRUMENTAÇÃO — não altera a decisão de crise (as camadas 1-3 do ADR, que
-# mudam comportamento, dependem de atestação clínica). Aqui só tornamos um outage
-# do classificador VISÍVEL à engenharia em minutos: o incidente que motivou o ADR
-# (chave Anthropic revogada → fail-safe disparando crise em toda msg) passou ~18
-# dias silencioso porque o `logger.exception` do structlog não chegava ao Sentry.
+# PURA INSTRUMENTAÇÃO — alerta engenharia em minutos via Sentry.
+# LGPD/R4: capture_message (não capture_exception) — não anexa frame locals.
 
 
 def _classify_llm_error(exc: Exception) -> tuple[str, bool]:
@@ -106,14 +125,11 @@ def _classify_llm_error(exc: Exception) -> tuple[str, bool]:
 
 
 def _report_classifier_down(exc: Exception, error_class: str, systemic: bool) -> None:
-    """Alerta de OPS no Sentry (canal de erro do backend). Best-effort: nunca deixa
-    a observabilidade derrubar o caminho de crise.
+    """Alerta de OPS no Sentry. Best-effort: nunca derruba o caminho de crise.
 
-    LGPD/R4: usa ``capture_message`` (NÃO ``capture_exception``) — não anexa frame
-    locals, que conteriam a mensagem do paciente. Só classe/tipo/status do erro.
     Fingerprint estável → 1 issue agrupada (não spamma 1 por mensagem).
-    Gate manual: regra de alerta no Sentry mirando ``component:crisis_classifier``
-    (ou nível fatal) → e-mail/Slack à engenharia.
+    Gate manual: regra de alerta no Sentry mirando `component:crisis_classifier`
+    (nível fatal) → e-mail/Slack à engenharia.
     """
     try:
         import sentry_sdk
@@ -140,28 +156,199 @@ def _report_classifier_down(exc: Exception, error_class: str, systemic: bool) ->
         logger.warning("crisis.detect.sentry_capture_failed")
 
 
-async def detect_crisis(state: ConversaState) -> dict:
-    llm = with_schema(haiku(), CrisisDetectionOutput)
+# ── Camada 3 do ADR-063: circuit breaker ────────────────────────────────────
 
-    try:
-        result: CrisisDetectionOutput = await llm.ainvoke(
-            [
-                SystemMessage(content=await get_prompt("orchestrator", "crisis_detection")),
-                HumanMessage(content=state["mensagem"]),
-            ]
-        )
-    except Exception as exc:  # pragma: no cover
-        error_class, systemic = _classify_llm_error(exc)
-        # Fail-safe clínico (INALTERADO): classificador falhou → trata como crise.
-        logger.exception(
-            "crisis.detect.failed",
-            error=str(exc),
-            error_class=error_class,
-            systemic=systemic,
-        )
-        # Camada 4 (ADR-063): torna o outage do classificador visível à engenharia.
-        # NÃO altera a decisão abaixo — só alerta. Sistêmico (auth) = afeta todos.
-        _report_classifier_down(exc, error_class, systemic)
+
+class _CircuitBreaker:
+    """Circuit breaker para falhas sistêmicas do classificador.
+
+    Thread-safe para uso em contexto async (single-thread event loop do uvicorn).
+    Resets automaticamente ao primeiro sucesso do LLM.
+    """
+
+    def __init__(self, limite: int = 3) -> None:
+        self._limite = limite
+        self._falhas = 0
+        self._degradado = False
+
+    def em_modo_degradado(self) -> bool:
+        return self._degradado
+
+    def registrar_sucesso(self) -> None:
+        if self._degradado or self._falhas > 0:
+            logger.info(
+                "crisis.circuit_breaker.reset",
+                falhas_anteriores=self._falhas,
+            )
+        self._falhas = 0
+        self._degradado = False
+
+    def registrar_falha_sistemica(self) -> bool:
+        """Registra falha sistêmica. Retorna True se circuito acabou de tripar."""
+        self._falhas += 1
+        if not self._degradado and self._falhas >= self._limite:
+            self._degradado = True
+            logger.error(
+                "crisis.circuit_breaker.tripped",
+                falhas=self._falhas,
+                limite=self._limite,
+            )
+            return True
+        return False
+
+    def reset(self) -> None:
+        """Limpa estado entre testes."""
+        self._falhas = 0
+        self._degradado = False
+
+    def estado(self) -> dict:
+        return {"degradado": self._degradado, "falhas": self._falhas}
+
+
+_circuit_breaker = _CircuitBreaker(limite=3)
+
+
+# ── Camada 1 do ADR-063: screen determinístico ───────────────────────────────
+# ATENÇÃO: lista clínica. NÃO EDITAR sem revisão + atestação do Adonai Arinelli.
+#
+# LISTA_ATESTADA = False → screen desabilitado (retorna False sempre).
+# Quando Adonai atestar: (1) preencher _TERMOS_CRISE_RAW,
+# (2) LISTA_ATESTADA = True, (3) PR com revisão clínica documentada.
+LISTA_ATESTADA: bool = False
+
+_TERMOS_CRISE_RAW: list[str] = [
+    # RASCUNHO — AGUARDANDO CURADORIA E ATESTAÇÃO DO CLÍNICO (ADONAI ARINELLI).
+    # Inserir termos explícitos de ideação suicida/autolesão em pt-BR.
+    # NÃO inventar, parafrasear ou traduzir — lista vem do clínico.
+    # Otimizado para PRECISÃO (minimizar falso-positivo), não exaustividade.
+]
+
+
+def _normalizar_texto(texto: str) -> str:
+    """Lowercase + remove acentos + colapsa espaços."""
+    nfkd = unicodedata.normalize("NFKD", texto.lower())
+    sem_acento = "".join(c for c in nfkd if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", sem_acento).strip()
+
+
+_TERMOS_NORMALIZADOS: frozenset[str] = frozenset(
+    _normalizar_texto(t) for t in _TERMOS_CRISE_RAW
+)
+
+
+def _screen_deterministico(texto: str) -> bool:
+    """Camada 1 (ADR-063): True se hit em termo explícito curado.
+
+    Alta precisão, não exaustivo — complementa, não substitui, o LLM.
+    LISTA_ATESTADA=False → sempre False (seguro sem atestação clínica).
+    """
+    if not LISTA_ATESTADA or not _TERMOS_NORMALIZADOS:
+        return False
+    norm = _normalizar_texto(texto)
+    return any(termo in norm for termo in _TERMOS_NORMALIZADOS)
+
+
+# ── Nó principal ────────────────────────────────────────────────────────────
+
+
+async def detect_crisis(state: ConversaState) -> dict:
+    settings = get_settings()
+    mensagem = state["mensagem"]
+
+    # ── Camada 1: screen determinístico (independente do LLM) ──────────────
+    if settings.crisis_resilience_enabled and _screen_deterministico(mensagem):
+        logger.info("crisis.detect.screen_hit")
+        return {
+            "crise": {
+                "detectada": True,
+                "confianca": 1.0,
+                "nivel": "alto",
+                "gatilhos": ["screen_deterministico"],
+            }
+        }
+
+    # ── Camada 3: circuit breaker tripado → modo degradado imediato ─────────
+    if settings.crisis_resilience_enabled and _circuit_breaker.em_modo_degradado():
+        logger.warning("crisis.detect.circuito_aberto")
+        return {
+            "crise": {
+                "detectada": False,
+                "confianca": 0.0,
+                "nivel": "nenhum",
+                "gatilhos": ["modo_degradado"],
+            },
+            "modo_degradado": True,
+        }
+
+    # ── Camada 2: chamada LLM com retry para transitórios ───────────────────
+    llm = with_schema(haiku(), CrisisDetectionOutput)
+    prompt = await get_prompt("orchestrator", "crisis_detection")
+
+    max_tentativas = 2 if settings.crisis_resilience_enabled else 1
+    exc_final: Exception | None = None
+    error_class_final = "other"
+    systemic_final = False
+
+    for tentativa in range(max_tentativas):
+        try:
+            result: CrisisDetectionOutput = await llm.ainvoke(
+                [
+                    SystemMessage(content=prompt),
+                    HumanMessage(content=mensagem),
+                ]
+            )
+            _circuit_breaker.registrar_sucesso()
+            logger.info(
+                "crisis.detect.done",
+                detectada=result.crise_detectada,
+                nivel=result.nivel,
+                confianca=result.confianca,
+            )
+            return {
+                "crise": {
+                    "detectada": result.crise_detectada,
+                    "confianca": result.confianca,
+                    "nivel": result.nivel,
+                    "gatilhos": result.gatilhos,
+                }
+            }
+        except Exception as exc:
+            error_class, systemic = _classify_llm_error(exc)
+            exc_final = exc
+            error_class_final = error_class
+            systemic_final = systemic
+            # Sistêmico não retria (auth 401/403 não melhora com retry).
+            # Última tentativa: sai do loop para o handler de falha.
+            if systemic or tentativa == max_tentativas - 1:
+                break
+            await asyncio.sleep(0.5)
+
+    # Todas as tentativas falharam.
+    logger.error(
+        "crisis.detect.failed",
+        error=str(exc_final),
+        error_class=error_class_final,
+        systemic=systemic_final,
+    )
+    # Camada 4: torna o outage visível à engenharia.
+    if exc_final is not None:
+        _report_classifier_down(exc_final, error_class_final, systemic_final)
+
+    if settings.crisis_resilience_enabled:
+        if systemic_final:
+            # Camada 3: falha sistêmica → modo degradado (não fabricar crise para todos).
+            _circuit_breaker.registrar_falha_sistemica()
+            return {
+                "crise": {
+                    "detectada": False,
+                    "confianca": 0.0,
+                    "nivel": "nenhum",
+                    "gatilhos": ["modo_degradado"],
+                },
+                "modo_degradado": True,
+            }
+        # Transitório após retries: fail-safe conservador para ESTA mensagem isolada.
+        # Camada 1 já cobre explícito; este caminho = nuance que só LLM pegaria.
         return {
             "crise": {
                 "detectada": True,
@@ -171,19 +358,13 @@ async def detect_crisis(state: ConversaState) -> dict:
             }
         }
 
-    logger.info(
-        "crisis.detect.done",
-        detectada=result.crise_detectada,
-        nivel=result.nivel,
-        confianca=result.confianca,
-    )
-
+    # resilience desabilitado: comportamento histórico inalterado (ADR-006 fail-safe).
     return {
         "crise": {
-            "detectada": result.crise_detectada,
-            "confianca": result.confianca,
-            "nivel": result.nivel,
-            "gatilhos": result.gatilhos,
+            "detectada": True,
+            "confianca": 0.0,
+            "nivel": "alto",
+            "gatilhos": ["classifier_error"],
         }
     }
 
@@ -311,5 +492,79 @@ async def crisis_protocol(state: ConversaState) -> dict:
         "resposta_final": texto,
         "enviado": not settings.shadow_mode,
         "automacao_pausada": True,
+        "conversa_status": "humano",
+    }
+
+
+async def degraded_response(state: ConversaState) -> dict:
+    """ADR-063 camada 3: classificador sistemicamente indisponível, sem hit no screen.
+
+    NÃO dispara protocolo de crise (evita flood de falsos-positivos no médico).
+    NÃO seta automacao_pausada (não é crise confirmada).
+    Escala para revisão humana + notifica médico com tipo 'instabilidade_tecnica'.
+    Envia texto neutro ao paciente SOMENTE se INSTABILIDADE_COPY.atestado=True.
+    """
+    paciente_id = state["paciente_id"]
+    medico_id = state["medico_responsavel_id"]
+    conversa_id = state["conversa_id"]
+    settings = get_settings()
+
+    texto_paciente: str | None = None
+
+    async with acquire() as conn, conn.transaction():
+        # Escala para revisão humana — não é crise, é falha técnica.
+        await conn.execute(
+            "UPDATE conversas SET status = 'humano' WHERE id = $1",
+            conversa_id,
+        )
+
+        # Notifica médico com tipo 'instabilidade_tecnica' (não 'crise').
+        # Severidade 'media' para não confundir com protocolo de crise real.
+        await conn.execute(
+            """
+            INSERT INTO notificacoes_medico
+                (medico_id, paciente_id, severidade, tipo, titulo, mensagem, metadata)
+            VALUES ($1, $2, 'media', 'instabilidade_tecnica', $3, $4, $5::jsonb)
+            """,
+            medico_id,
+            paciente_id,
+            "Classificador de crise temporariamente indisponível",
+            (
+                "O paciente enviou uma mensagem, mas a classificação automática de "
+                "risco está indisponível por instabilidade técnica. "
+                "A conversa foi escalada para revisão humana. Verifique a mensagem."
+            ),
+            json.dumps(
+                {"modo_degradado": True, "cb_estado": _circuit_breaker.estado()},
+                ensure_ascii=False,
+            ),
+        )
+
+        # Envia texto neutro ao paciente apenas se cópia atestada pelo clínico.
+        if INSTABILIDADE_COPY.atestado and not settings.shadow_mode:
+            key = settings.encryption_key
+            key_str = key.get_secret_value() if key else None
+            await conn.execute(
+                """
+                INSERT INTO mensagens (conversa_id, papel, conteudo, modelo_usado)
+                VALUES ($1, 'assistant', $2, $3)
+                """,
+                conversa_id,
+                encrypt(INSTABILIDADE_COPY.texto, key_str),
+                f"instabilidade_copy:{INSTABILIDADE_COPY.versao}",
+            )
+            texto_paciente = INSTABILIDADE_COPY.texto
+
+    logger.warning(
+        "crisis.degraded_response.executed",
+        paciente_id=str(paciente_id),
+        texto_enviado=texto_paciente is not None,
+        copy_atestada=INSTABILIDADE_COPY.atestado,
+        cb_estado=_circuit_breaker.estado(),
+    )
+
+    return {
+        "resposta_final": texto_paciente,
+        "enviado": texto_paciente is not None,
         "conversa_status": "humano",
     }

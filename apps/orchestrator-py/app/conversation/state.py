@@ -76,6 +76,12 @@ class ConversaState(TypedDict, total=False):
     audit: AuditDecision
     retry_count: int
 
+    # ─── ADR-063 modo degradado ───
+    # True quando o classificador de crise está sistemicamente indisponível e a
+    # mensagem não bateu no screen determinístico (camada 1). Rota para
+    # `degraded_response` (human loop + notificação técnica, sem protocolo de crise).
+    modo_degradado: NotRequired[bool]
+
     # ─── Telemetria / billing ───
     trace_id: str
     enviado: bool
