@@ -86,11 +86,18 @@ public static class MensagensAudioEndpoints
                 SELECT medico_responsavel_id FROM pacientes WHERE cliente_id = {0}", pid.Value);
             if (medicoId is null) return Results.NotFound();
 
+            // SET LOCAL: RLS do INSERT exige app.current_medico = medico_id inserido.
+            // Paciente token seta current_paciente, não current_medico.
+            // Usamos transação + set_config local para não vazar entre conexões do pool.
+            await using var tx = await db.Database.BeginTransactionAsync();
+            await db.Database.ExecuteRawAsync(
+                "SELECT set_config('app.current_medico', {0}, true)", medicoId.Value.ToString());
             var id = await db.Database.ExecuteScalarAsync<Guid>(@"
                 INSERT INTO mensagens_audio (paciente_id, medico_id, s3_key, duracao_s)
                 VALUES ({0}, {1}, {2}, {3})
                 RETURNING id",
                 pid.Value, medicoId.Value, req.S3Key, req.DuracaoS > 0 ? req.DuracaoS : (int?)null);
+            await tx.CommitAsync();
 
             return Results.Ok(new { id });
         });
