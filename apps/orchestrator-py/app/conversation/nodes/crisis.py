@@ -78,6 +78,68 @@ async def _notificar_notifier(protocolo_id: UUID) -> None:
         )
 
 
+# ── Camada 4 do ADR-063: observabilidade do classificador de crise ──────────
+# PURA INSTRUMENTAÇÃO — não altera a decisão de crise (as camadas 1-3 do ADR, que
+# mudam comportamento, dependem de atestação clínica). Aqui só tornamos um outage
+# do classificador VISÍVEL à engenharia em minutos: o incidente que motivou o ADR
+# (chave Anthropic revogada → fail-safe disparando crise em toda msg) passou ~18
+# dias silencioso porque o `logger.exception` do structlog não chegava ao Sentry.
+
+
+def _classify_llm_error(exc: Exception) -> tuple[str, bool]:
+    """Retorna (error_class, is_systemic).
+
+    Sistêmico = afeta TODOS os pacientes (config/credencial), não é ambiguidade de
+    uma mensagem isolada: auth (401/403). Esse é o sinal que precisa gritar.
+    """
+    status = getattr(exc, "status_code", None)
+    if status is None:
+        status = getattr(getattr(exc, "response", None), "status_code", None)
+    name = type(exc).__name__
+    if status in (401, 403) or "Authentication" in name or "PermissionDenied" in name:
+        return "auth", True
+    if status == 429 or "RateLimit" in name:
+        return "rate_limit", False
+    if isinstance(status, int) and 500 <= status < 600:
+        return "server", False
+    return "other", False
+
+
+def _report_classifier_down(exc: Exception, error_class: str, systemic: bool) -> None:
+    """Alerta de OPS no Sentry (canal de erro do backend). Best-effort: nunca deixa
+    a observabilidade derrubar o caminho de crise.
+
+    LGPD/R4: usa ``capture_message`` (NÃO ``capture_exception``) — não anexa frame
+    locals, que conteriam a mensagem do paciente. Só classe/tipo/status do erro.
+    Fingerprint estável → 1 issue agrupada (não spamma 1 por mensagem).
+    Gate manual: regra de alerta no Sentry mirando ``component:crisis_classifier``
+    (ou nível fatal) → e-mail/Slack à engenharia.
+    """
+    try:
+        import sentry_sdk
+    except ImportError:
+        return
+    try:
+        status = getattr(exc, "status_code", None)
+        with sentry_sdk.push_scope() as scope:
+            scope.set_tag("component", "crisis_classifier")
+            scope.set_tag("error_class", error_class)
+            scope.set_tag("systemic", "true" if systemic else "false")
+            if status is not None:
+                scope.set_tag("http_status", str(status))
+            scope.set_level("fatal" if systemic else "error")
+            scope.fingerprint = ["crisis-classifier-down", error_class]
+            detalhe = f"{error_class} / {type(exc).__name__}"
+            if status is not None:
+                detalhe += f" / HTTP {status}"
+            sentry_sdk.capture_message(
+                f"crisis classifier indisponível (ADR-063 camada 4): {detalhe}",
+                level="fatal" if systemic else "error",
+            )
+    except Exception:  # nunca deixa a observabilidade derrubar a crise
+        logger.warning("crisis.detect.sentry_capture_failed")
+
+
 async def detect_crisis(state: ConversaState) -> dict:
     llm = with_schema(haiku(), CrisisDetectionOutput)
 
@@ -89,8 +151,17 @@ async def detect_crisis(state: ConversaState) -> dict:
             ]
         )
     except Exception as exc:  # pragma: no cover
-        # Fail-safe: classificador falhou → trata como crise.
-        logger.exception("crisis.detect.failed", error=str(exc))
+        error_class, systemic = _classify_llm_error(exc)
+        # Fail-safe clínico (INALTERADO): classificador falhou → trata como crise.
+        logger.exception(
+            "crisis.detect.failed",
+            error=str(exc),
+            error_class=error_class,
+            systemic=systemic,
+        )
+        # Camada 4 (ADR-063): torna o outage do classificador visível à engenharia.
+        # NÃO altera a decisão abaixo — só alerta. Sistêmico (auth) = afeta todos.
+        _report_classifier_down(exc, error_class, systemic)
         return {
             "crise": {
                 "detectada": True,
