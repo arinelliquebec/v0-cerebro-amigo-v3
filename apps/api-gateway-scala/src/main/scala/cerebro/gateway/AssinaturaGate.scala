@@ -21,15 +21,7 @@ final case class AssinaturaSituacao(
 
 object AssinaturaGate:
 
-  def avaliar(
-      status: Option[String],
-      prazoPagamentoAte: Option[Instant],
-      trialAte: Option[Instant],
-      nowUtc: Instant,
-  ): AssinaturaSituacao =
-    avaliarBase(status, prazoPagamentoAte, trialAte, nowUtc)
-
-  /** Sobrecarga que deriva o estado "trial read-only" (ADR-065): médico recém
+  /** Avalia a situação e deriva o estado "trial read-only" (ADR-065): médico recém
     * cadastrado, em prazo, AINDA SEM plano pago. Quem já tem plano pago (código
     * conhecido no catálogo) nunca é read-only.
     */

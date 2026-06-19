@@ -29,6 +29,7 @@ lazy val root = (project in file("."))
       "org.tpolecat"                %% "doobie-core"            % doobieV,
       "org.tpolecat"                %% "doobie-hikari"          % doobieV,
       "org.tpolecat"                %% "doobie-postgres"        % doobieV,
+      "org.postgresql"               % "postgresql"             % "42.7.3", // driver JDBC no classpath do main (review #3)
       // JWT (HS256, mesmo JWT_SECRET do gateway .NET)
       "com.github.jwt-scala"        %% "jwt-circe"              % "10.0.1",
       // json
@@ -39,7 +40,6 @@ lazy val root = (project in file("."))
       "com.dimafeng"                %% "testcontainers-scala-munit"      % "0.41.4" % Test,
       "com.dimafeng"                %% "testcontainers-scala-postgresql" % "0.41.4" % Test,
       "org.typelevel"               %% "munit-cats-effect"      % "2.0.0"  % Test,
-      "org.postgresql"               % "postgresql"             % "42.7.3" % Test,
     ),
     // a RLS exige o pgvector:pg16 (mesma imagem do fixture .NET) — ver TenantIsolationSpec.
     Test / fork := true,

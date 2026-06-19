@@ -101,6 +101,10 @@ services:
     ports:
       - "5001:5001"
     env_file: .env
+    environment:
+      # Cap de heap p/ caber no mem_limit (review #2): 70% de 768m ≈ 538m heap,
+      # resto p/ metaspace/netty/offheap. Pool Hikari enxuto (10) no Database.scala.
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70.0"
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:5001/health"]
       interval: 10s

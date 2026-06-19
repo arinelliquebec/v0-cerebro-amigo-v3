@@ -58,12 +58,16 @@ object Config:
       val port = get("port").getOrElse("5432")
       val user = get("username", "user id", "uid").getOrElse("")
       val pass = get("password", "pwd").getOrElse("")
-      // RDS força SSL (rds.force_ssl=1). `require` cifra sem verificar CA — conecta
-      // sempre. verify-full (paridade com .NET RdsCa.UpgradeToVerifyFull) exige a CA
-      // do RDS no truststore (sslrootcert) → TODO de hardening antes do flip do BFF.
-      val sslParam = get("ssl mode", "sslmode").map(_.toLowerCase) match
-        case Some("disable")                            => "?sslmode=disable"
-        case Some(_)                                    => "?sslmode=require"
+      // Mapeia o "SSL Mode" do Npgsql p/ o sslmode do JDBC preservando modos OPCIONAIS
+      // (prefer/allow) — forçar require quebrava DSN dev sem TLS (review #8). verify-ca/
+      // verify-full caem p/ require até a CA do RDS entrar no truststore (review #1).
+      // RDS sem sslmode → require (rds.force_ssl=1).
+      val sslParam = get("ssl mode", "sslmode").map(_.toLowerCase.replace(" ", "")) match
+        case Some("disable")                       => "?sslmode=disable"
+        case Some("allow")                         => "?sslmode=allow"
+        case Some("prefer")                        => "?sslmode=prefer"
+        case Some("verifyca") | Some("verifyfull") => "?sslmode=require" // TODO #1: verify-full c/ sslrootcert
+        case Some(_)                               => "?sslmode=require"
         case None if host.contains("rds.amazonaws.com") => "?sslmode=require"
-        case None                                       => ""
+        case None                                  => ""
       DbConfig(s"jdbc:postgresql://$host:$port/$db$sslParam", user, pass)

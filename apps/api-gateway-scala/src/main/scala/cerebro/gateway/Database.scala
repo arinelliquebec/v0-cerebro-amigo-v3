@@ -15,6 +15,8 @@ object Database:
     hikari.setUsername(cfg.user)
     hikari.setPassword(cfg.password)
     hikari.setDriverClassName("org.postgresql.Driver")
-    hikari.setMaximumPoolSize(40) // espelha DB_MAX_POOL_SIZE default do .NET
+    // /me é read-only leve; pool enxuto p/ caber no mem_limit do container (review #2).
+    // Subir junto com o mem_limit quando assumir endpoints de escrita/tráfego real.
+    hikari.setMaximumPoolSize(10)
     hikari.setPoolName("cerebro-gateway-scala")
     HikariTransactor.fromHikariConfig[IO](hikari)

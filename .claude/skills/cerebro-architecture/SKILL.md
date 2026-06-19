@@ -43,7 +43,7 @@ orchestrator agents-py  notifier-py  PostgreSQL (RDS sa-east-1)
 | Tipo de trabalho | Serviço dono |
 | --- | --- |
 | Chamar Claude / LLM | **Apenas Python** (orchestrator-py, agents-py) via Bedrock |
-| CRUD transacional, JWT, e-mail, proxy SSE | **api-gateway (.NET 10)** |
+| CRUD transacional, JWT, e-mail, proxy SSE | **api-gateway** (.NET 10 → migrando p/ Scala/JVM, ADR-067) |
 | Cookies, sessão, agregação para tela, render | **web / BFF** (`app/api/*`) |
 | Push de check-in | **notifier-py** |
 | Jobs analíticos agendados | **agents-py** |
@@ -52,7 +52,8 @@ Nunca: LLM no gateway ou no front; CRUD direto do front no Postgres; lógica cl�
 
 ## Decisões de stack (fechadas)
 
-- **Gateway = .NET 10, não Go** (ADR-007). Motivos: reaproveita o gateway do V2 (mesmo domínio/schema), é o stack mais forte do time, EF Core acelera o CRUD-pesado, integração AWS first-class. Go só venceria por RAM ociosa — e o gargalo de RAM são os 3 Python + Next, não o gateway. Alavanca certa: subir a instância (`t3.small`/`medium`) ou Native AOT no .NET, não reescrever.
+- **Gateway: migrando .NET 10 → Scala 3/JVM via strangler (ADR-067, SUPERSEDE ADR-007).** Motivo: fluência do time é Scala (não F#) + JVM posiciona p/ futuro bounded context de pagamento/fraude (Fluxo B). Os dois COEXISTEM (`apps/api-gateway` .NET + `apps/api-gateway-scala`: cats-effect/http4s/Tapir/Doobie); o BFF aponta pro .NET até o flip por endpoint; **clínico/dinheiro migram POR ÚLTIMO** (com `clinical-safety` + suíte de tenant verde). Invariantes preservados: `cerebro_gateway` NOBYPASSRLS + GUC `app.current_medico` (Scala usa `set_config` tx-local) + JWT HS256 mesmo segredo. **Go segue descartado** — não confundir a migração p/ JVM com reintroduzir Go.
+  - *Histórico (ADR-007, superseded) — por que .NET venceu Go:* reaproveitava o gateway do V2, EF Core no CRUD-pesado, integração AWS; Go só venceria por RAM ociosa (não-gargalo).
 - **LLM = Bedrock In-Region sa-east-1** (ADR-008). Haiku/Sonnet/Opus 4.7 confirmados na região. Dado de inferência fica no Brasil → ideal p/ LGPD, sem transferência internacional. Sem `ANTHROPIC_API_KEY`; IAM role.
 - **Azure removido.** Sem Key Vault, sem Document Intelligence, sem Azure OpenAI. Não reintroduzir.
 
