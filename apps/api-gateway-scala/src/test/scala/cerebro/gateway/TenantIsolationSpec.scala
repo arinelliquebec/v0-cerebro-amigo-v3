@@ -4,10 +4,8 @@ import com.dimafeng.testcontainers.PostgreSQLContainer
 import com.dimafeng.testcontainers.munit.TestContainerForAll
 import doobie.*
 import doobie.implicits.*
-import org.testcontainers.utility.DockerImageName
 import java.sql.{DriverManager, Statement}
 import java.util.UUID
-import scala.io.Source
 
 /** Gate de isolamento de tenant do api-gateway-scala (ADR-067) — porte do
   * `apps/api-gateway-tests/RlsTests.cs`. Prova, no MESMO caminho de produção
@@ -16,18 +14,12 @@ import scala.io.Source
   *   2. médico B só vê a sua;
   *   3. SEM tenant setado, o role do gateway não vê nada (fail-closed).
   *
-  * Sobe pgvector:pg16 (mesma imagem do fixture .NET), aplica TODAS as
-  * `infra/migrations/0*.sql` (exceto least_privilege_roles, com roles stubadas) e
-  * semeia dois tenants. É a barreira que tem de estar VERDE antes de o BFF flipar
-  * qualquer endpoint que leia tabela com RLS.
+  * Infra (container, migrations, gw_test) vem de [[PgTestSetup]]. É a barreira que
+  * tem de estar VERDE antes de o BFF flipar qualquer endpoint que leia tabela RLS.
   */
 class TenantIsolationSpec extends munit.CatsEffectSuite with TestContainerForAll:
 
-  override val containerDef: PostgreSQLContainer.Def =
-    PostgreSQLContainer.Def(
-      dockerImageName = DockerImageName.parse("pgvector/pgvector:pg16").asCompatibleSubstituteFor("postgres"),
-      databaseName = "cerebro_v3_test",
-    )
+  override val containerDef: PostgreSQLContainer.Def = PgTestSetup.containerDef
 
   // ── Dois tenants ──
   private val usuarioA  = UUID.randomUUID()
@@ -36,22 +28,21 @@ class TenantIsolationSpec extends munit.CatsEffectSuite with TestContainerForAll
   private val medicoB   = UUID.randomUUID()
   private val pacienteA = UUID.randomUUID()
   private val pacienteB = UUID.randomUUID()
-  private val gwPassword = "gw_test_pw"
 
   // Setup roda uma vez, com a conexão admin (superuser do container).
   override def afterContainersStart(pg: PostgreSQLContainer): Unit =
     val conn = DriverManager.getConnection(pg.jdbcUrl, pg.username, pg.password)
     try
       val st = conn.createStatement()
-      stubRoles(st)
-      applyMigrations(st)
+      PgTestSetup.stubRoles(st)
+      PgTestSetup.applyMigrations(st)
       seed(st)
-      createGatewayRole(st)
+      PgTestSetup.createGatewayRole(st)
     finally conn.close()
 
   // Transactor como gw_test (NOBYPASSRLS) — a RLS da 0037/0038 VALE aqui.
   private def gwXa(pg: PostgreSQLContainer) =
-    Database.transactor(DbConfig(pg.jdbcUrl, "gw_test", gwPassword))
+    Database.transactor(DbConfig(pg.jdbcUrl, "gw_test", PgTestSetup.gwPassword))
 
   test("médico A não vê prescrição do paciente de B (RLS barra cross-tenant)") {
     withContainers { pg =>
@@ -97,25 +88,6 @@ class TenantIsolationSpec extends munit.CatsEffectSuite with TestContainerForAll
     }
   }
 
-  // ── helpers de setup (espelham TenantIsolationFixture.cs) ──
-
-  private def stubRoles(st: Statement): Unit =
-    st.execute("""
-      DO $$ BEGIN
-        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='cerebro_gateway') THEN CREATE ROLE cerebro_gateway NOLOGIN; END IF;
-        IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname='cerebro_workers') THEN CREATE ROLE cerebro_workers NOLOGIN; END IF;
-      END $$;""")
-
-  private def applyMigrations(st: Statement): Unit =
-    val dir = findMigrationsDir()
-    val files = dir
-      .listFiles((_, n) => n.matches("0.*\\.sql") && !n.contains("least_privilege_roles"))
-      .sortBy(_.getName)
-    for f <- files do
-      val sql = Source.fromFile(f, "UTF-8").mkString
-      try st.execute(sql)
-      catch case e: Exception => throw new RuntimeException(s"falha ao aplicar ${f.getName}: ${e.getMessage}", e)
-
   private def seed(st: Statement): Unit =
     st.execute(s"""
       INSERT INTO usuarios (id, email, senha_hash, nome, role) VALUES
@@ -133,20 +105,3 @@ class TenantIsolationSpec extends munit.CatsEffectSuite with TestContainerForAll
         ('${UUID.randomUUID()}','$pacienteB','$medicoB','Sertralina 50mg','1x ao dia',TRUE),
         ('${UUID.randomUUID()}','$pacienteA','$medicoA','Escitalopram 10mg','1x ao dia',TRUE);
     """)
-
-  // gw_test: NOSUPERUSER NOBYPASSRLS — espelha cerebro_gateway de prod (0036).
-  private def createGatewayRole(st: Statement): Unit =
-    st.execute(s"""
-      DROP ROLE IF EXISTS gw_test;
-      CREATE ROLE gw_test LOGIN PASSWORD '$gwPassword' NOSUPERUSER NOBYPASSRLS;
-      GRANT USAGE ON SCHEMA public TO gw_test;
-      GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO gw_test;
-      GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO gw_test;""")
-
-  private def findMigrationsDir(): java.io.File =
-    var d = new java.io.File(System.getProperty("user.dir")).getAbsoluteFile
-    while d != null do
-      val cand = new java.io.File(d, "infra/migrations")
-      if cand.isDirectory then return cand
-      d = d.getParentFile
-    throw new RuntimeException("infra/migrations não encontrado subindo a partir de " + System.getProperty("user.dir"))
