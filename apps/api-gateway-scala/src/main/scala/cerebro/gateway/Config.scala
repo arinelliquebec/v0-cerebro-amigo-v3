@@ -58,9 +58,12 @@ object Config:
       val port = get("port").getOrElse("5432")
       val user = get("username", "user id", "uid").getOrElse("")
       val pass = get("password", "pwd").getOrElse("")
-      // sslmode: o .NET usa VerifyFull em RDS; o driver JDBC do PG aceita o param na URL.
-      val sslParam = get("ssl mode", "sslmode") match
-        case Some(m) if m.toLowerCase.contains("verify") => "?sslmode=verify-full"
-        case Some(m) if m.toLowerCase == "require"        => "?sslmode=require"
-        case _                                             => ""
+      // RDS força SSL (rds.force_ssl=1). `require` cifra sem verificar CA — conecta
+      // sempre. verify-full (paridade com .NET RdsCa.UpgradeToVerifyFull) exige a CA
+      // do RDS no truststore (sslrootcert) → TODO de hardening antes do flip do BFF.
+      val sslParam = get("ssl mode", "sslmode").map(_.toLowerCase) match
+        case Some("disable")                            => "?sslmode=disable"
+        case Some(_)                                    => "?sslmode=require"
+        case None if host.contains("rds.amazonaws.com") => "?sslmode=require"
+        case None                                       => ""
       DbConfig(s"jdbc:postgresql://$host:$port/$db$sslParam", user, pass)

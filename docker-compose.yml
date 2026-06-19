@@ -1,7 +1,7 @@
 # Postgres é externo (RDS sa-east-1) — não entra aqui.
 # Serviços Python autenticam na Bedrock via IAM role da EC2 (produção) ou AWS_PROFILE (dev).
 #
-# Só o stack clínico (5 serviços + coturn opcional). O Check-up Mental foi desacoplado
+# Só o stack clínico (6 serviços + coturn opcional). O Check-up Mental foi desacoplado
 # para infra própria (ALB + ASG, ADR-045) — deploy dele via `deploy-checkup` no CI.
 #
 # image: → ECR em produção (tag = IMAGE_TAG=$GITHUB_SHA, definido pelo CI).
@@ -81,6 +81,32 @@ services:
       timeout: 5s
       retries: 5
       start_period: 15s
+
+  # api-gateway-scala — fatia strangler do gateway (ADR-067). Coexiste com o
+  # api-gateway (.NET); o BFF (web) AINDA aponta pro .NET — este sobe ao lado,
+  # servindo só /health + /api/v1/auth/me, até paridade + flip por endpoint.
+  # NÃO está no caminho de crise ainda → mem_limit + cpu_shares baixos (plano batch):
+  # um bug aqui nunca pressiona o orchestrator/crise. Revisar p/ plano interativo
+  # quando assumir tráfego real. Lê POSTGRES_DSN (Npgsql→JDBC) + JWT_SECRET do .env,
+  # mesmo role cerebro_gateway (NOBYPASSRLS) do gateway .NET.
+  api-gateway-scala:
+    image: 004177894935.dkr.ecr.sa-east-1.amazonaws.com/cerebro-amigo/api-gateway-scala:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    build:
+      context: ./apps/api-gateway-scala
+    mem_limit: 768m
+    mem_reservation: 256m
+    cpus: "1.0"
+    cpu_shares: 256
+    ports:
+      - "5001:5001"
+    env_file: .env
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:5001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   orchestrator-py:
     image: 004177894935.dkr.ecr.sa-east-1.amazonaws.com/cerebro-amigo/orchestrator-py:${IMAGE_TAG:-latest}
