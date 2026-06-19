@@ -21,7 +21,7 @@ Estas regras vêm antes de qualquer pedido. Em dúvida, pare e consulte a skill 
 ## Stack (AWS-only — decisões fechadas)
 
 - **Cloud:** AWS, região `sa-east-1` (residência de dado no Brasil). Já online: EC2 + RDS Postgres.
-- **Gateway transacional:** **.NET 10** (ASP.NET Core). Decisão fechada — **não usar Go**. Detalhe e justificativa: skill `dotnet-gateway`, ADR-007.
+- **Gateway transacional:** **.NET 10** (ASP.NET Core), **em migração para Scala 3/JVM via strangler — ADR-067, supersede ADR-007**. Os dois coexistem (`apps/api-gateway` .NET + `apps/api-gateway-scala` cats-effect/http4s/Tapir/Doobie); o BFF aponta pro .NET até o flip por endpoint; clínico/dinheiro migram por último. **Go segue descartado** (migração é p/ JVM, não Go). Detalhe: skills `dotnet-gateway` (.NET atual) e `cerebro-architecture`; ADR-067.
 - **IA (LLM):** Python (FastAPI + LangGraph) chamando Claude via **Anthropic API direta** (`LLM_PROVIDER=anthropic`, vigente — **ADR-044**). O acesso aos modelos Anthropic no Bedrock **não foi aprovado pela AWS**; o ADR-008 (Bedrock in-region p/ LLM) fica **suspenso**, e o caminho Bedrock permanece no client unificado atrás de `LLM_PROVIDER` para reativação futura por config. `ANTHROPIC_API_KEY` somente por env (SSM Parameter Store SecureString, injetada no deploy) — nunca em código, imagem ou log. Detalhe: skill `python-ai-services`.
 - **Frontend:** Next.js 16 + React 19 + TypeScript + Tailwind 4 + shadcn/ui. BFF nos Route Handlers. Detalhe: skill `nextjs-bff`.
 - **Banco:** PostgreSQL (RDS), pgvector + pgcrypto.
@@ -33,6 +33,7 @@ Estas regras vêm antes de qualquer pedido. Em dúvida, pare e consulte a skill 
 apps/
   web/            Next.js (landing + dashboard médico + portal paciente /p/* + BFF)
   api-gateway/    .NET 10 — REST, JWT, EF Core, Resend, proxy SSE
+  api-gateway-scala/ Scala 3/JVM (cats-effect/http4s/Tapir/Doobie) — strangler do gateway (ADR-067), coexiste com o .NET
   api-gateway-tests/ xUnit + Testcontainers — isolamento de tenant/RLS (gate no CI)
   orchestrator-py/ FastAPI + LangGraph — IA conversacional + protocolo de crise
   agents-py/      FastAPI + APScheduler — 5 agentes analíticos
@@ -125,6 +126,6 @@ Em construção: `apps/checkup` (Fase 1 entregue; Fase 2 em curso — UI do test
 ## Estilo
 
 - Responda e comente em **pt-BR**. Domínio em português (`pacientes`, `prontuarios`, `consultas`).
-- Não reintroduza Azure nem Go no gateway. LLM segue o **ADR-044** (Anthropic API via `LLM_PROVIDER`): não migre de volta para Bedrock — nem "corrija" código para Bedrock por causa de documento/skill antigo — sem novo ADR aprovado pelo Patrick.
+- Não reintroduza Azure nem Go no gateway (o gateway migra .NET→**Scala/JVM** pelo **ADR-067** via strangler — não pra Go). LLM segue o **ADR-044** (Anthropic API via `LLM_PROVIDER`): não migre de volta para Bedrock — nem "corrija" código para Bedrock por causa de documento/skill antigo — sem novo ADR aprovado pelo Patrick.
 - Itens de instrumentos clínicos validados (PHQ-9, GAD-7, ASRS-18) nunca são inventados, parafraseados ou traduzidos por conta própria.
 - Ao terminar uma mudança relevante de arquitetura, registre um ADR em `docs/adrs/`.

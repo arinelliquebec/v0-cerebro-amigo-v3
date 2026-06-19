@@ -96,6 +96,33 @@ jobs:
         working-directory: apps/api-gateway-tests
         run: dotnet test --configuration Release --logger "console;verbosity=normal"
 
+  # ADR-067 — fatia strangler do gateway em Scala/JVM. Mesmo gate de isolamento de
+  # tenant do job dotnet-tests, portado p/ testcontainers-scala: sobe pgvector via
+  # Testcontainers, aplica as migrations, seeda 2 médicos e prova que médico A não
+  # lê prescrição do paciente de B + fail-closed sem app.current_medico. `sbt test`
+  # também compila main+test (vale como build-check). Docker já vem no runner.
+  gateway-scala:
+    name: api-gateway-scala — isolamento de tenant (sbt test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: sbt
+
+      - name: Setup sbt
+        uses: sbt/setup-sbt@v1
+
+      - name: Test
+        working-directory: apps/api-gateway-scala
+        run: sbt -v test
+
   # G-6 — integração entre serviços: Postgres real (pgvector) + api-gateway
   # (dotnet run) + orchestrator-py (uvicorn), migrations aplicadas, e a cadeia
   # HTTP→gateway→Postgres / orchestrator→Postgres exercitada de fato (login,
