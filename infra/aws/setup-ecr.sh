@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# setup-ecr.sh — Cria os 5 repositórios ECR e configura lifecycle policies.
+# setup-ecr.sh — Cria os 6 repositórios ECR e configura lifecycle policies.
 #
 # Executar UMA VEZ antes do primeiro deploy ECR-based.
 # Pré-requisitos:
@@ -21,6 +21,7 @@ CI_POLICY_NAME="${CI_POLICY_NAME:-CerebroAmigoGitHubDeploy}"
 SERVICES=(
   "cerebro-amigo/web"
   "cerebro-amigo/api-gateway"
+  "cerebro-amigo/api-gateway-scala"
   "cerebro-amigo/orchestrator-py"
   "cerebro-amigo/agents-py"
   "cerebro-amigo/notifier-py"
