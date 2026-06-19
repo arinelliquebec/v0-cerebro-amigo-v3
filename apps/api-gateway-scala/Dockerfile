@@ -20,10 +20,17 @@ RUN sbt stage
 # =============================================================================
 FROM eclipse-temurin:21-jre-jammy AS runtime
 
-# curl para o HEALTHCHECK (a imagem jre slim não traz)
+# curl p/ HEALTHCHECK + ca-certificates p/ baixar a CA do RDS via HTTPS (jre slim não traz)
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
     && rm -rf /var/lib/apt/lists/*
+
+# CA bundle do RDS p/ TLS verify-full (review #1 / paridade com o RdsCa do .NET).
+# Config usa RDS_CA_PATH como sslrootcert quando o host é RDS.
+RUN curl -fsSL https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem \
+      -o /usr/local/share/rds-ca.pem \
+    && chmod 0644 /usr/local/share/rds-ca.pem
+ENV RDS_CA_PATH=/usr/local/share/rds-ca.pem
 
 WORKDIR /app
 
