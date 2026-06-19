@@ -201,8 +201,10 @@ public record InteracaoAlerta(
     string Tipo, string Severidade, string MedicamentoA, string MedicamentoB,
     string Mecanismo, string? Recomendacao, string? Fonte);
 
-file record DicRow(string Generico, string Classe, string? Sinonimos);
+// `public` (não `file`): EF Core não materializa `SqlQueryRaw<T>` de tipo
+// file-scoped — ShortName() estoura IndexOutOfRange no nome mangled (efcore #30115/#32323).
+public record DicRow(string Generico, string Classe, string? Sinonimos);
 
-file record CatRow(
+public record CatRow(
     string ChaveA, string TipoA, string ChaveB, string TipoB, string Severidade,
     string Mecanismo, string Recomendacao, string Fonte, string CatalogoVersao);

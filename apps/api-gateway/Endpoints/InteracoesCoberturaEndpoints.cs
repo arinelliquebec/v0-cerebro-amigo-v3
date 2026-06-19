@@ -90,8 +90,9 @@ public static class InteracoesCoberturaEndpoints
     }
 }
 
-file record MedCountRow(string Medicamento, int Ocorrencias);
-file record CobDicRow(string Generico, string? Sinonimos, string CatalogoVersao);
+// `public` (não `file`): file-scoped quebra EF Core SqlQueryRaw<T> (efcore #30115/#32323).
+public record MedCountRow(string Medicamento, int Ocorrencias);
+public record CobDicRow(string Generico, string? Sinonimos, string CatalogoVersao);
 
 public record MedNaoReconhecido(string Medicamento, int Ocorrencias);
 

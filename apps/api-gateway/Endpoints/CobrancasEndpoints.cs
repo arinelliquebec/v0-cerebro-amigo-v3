@@ -396,5 +396,6 @@ public record FinanceiroResumo(
     decimal RecebidoMes, decimal PendenteTotal, decimal VencidoTotal,
     int PagasMes, int EmitidasMes, int PacientesInativos);
 
-file record PacienteCobranca(Guid PacienteId, string? Nome, string? Email, string? Telefone, string? Cpf);
-file record AsaasMedicoCfg(string? WalletId, decimal FeePct);
+// `public` (não `file`): file-scoped quebra EF Core SqlQueryRaw<T> (efcore #30115/#32323).
+public record PacienteCobranca(Guid PacienteId, string? Nome, string? Email, string? Telefone, string? Cpf);
+public record AsaasMedicoCfg(string? WalletId, decimal FeePct);
