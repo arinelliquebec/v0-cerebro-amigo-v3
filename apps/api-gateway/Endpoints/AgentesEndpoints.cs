@@ -13,10 +13,11 @@ public static class AgentesEndpoints
 {
     public static void Map(WebApplication app)
     {
-        // Editor de prompts = poder de plataforma. Só owner/admin.
+        // Editor de prompts = poder de plataforma (salvaguarda crise/auditoria).
+        // T0-6/ADR-068: SÓ owner — admin_financeiro não edita prompts de agente.
         var g = app.MapGroup("/api/v1/agentes")
             .WithTags("agentes")
-            .RequireAuthorization("admin_geral");
+            .RequireAuthorization("owner");
 
         g.MapGet("/", async (AppDbContext db) =>
             Results.Ok(await db.Agentes.OrderBy(a => a.Nome).ToListAsync()));

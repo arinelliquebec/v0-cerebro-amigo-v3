@@ -9,9 +9,11 @@ namespace ApiGateway.Endpoints;
 
 /// <summary>
 /// Painel do dono da plataforma (role=owner / role=admin).
-/// Todos os endpoints requerem policy "admin_geral" (owner OU admin).
-/// Operações destrutivas (change role) exigem policy "owner".
-/// ZERO escopo de tenant — vê tudo da plataforma.
+/// Endpoints administrativos/financeiros requerem policy "admin_geral" (owner OU admin).
+/// Operações destrutivas (change role) e endpoints que tocam dado CLÍNICO
+/// (/metricas, /crises, /acessos, /medicos/{id}) exigem policy "owner" — T0-6/ADR-068:
+/// o admin_financeiro não enxerga conteúdo clínico (minimização LGPD, regra #3).
+/// owner tem bypass RLS; admin é fail-closed na clínica (TenantSessionMiddleware).
 /// </summary>
 public static class AdminEndpoints
 {
@@ -113,7 +115,8 @@ public static class AdminEndpoints
                 lucroBrutoMes = receitaMes,  // Por enquanto = receita (infra não rastreada aqui)
                 calculadoEm = agora,
             });
-        });
+        })
+        .RequireAuthorization("owner"); // T0-6/ADR-068: conta mensagens/checkins (RLS) → só owner
 
         // ── Cockpit de receita (Fluxo A): MRR, receita/mês, inadimplência, funil ──
         // Foca na cobrança plataforma→médico (assinaturas + pagamentos_manuais).
@@ -295,7 +298,8 @@ public static class AdminEndpoints
                 automacaoPausada,
                 eventos,
             });
-        });
+        })
+        .RequireAuthorization("owner"); // T0-6/ADR-068: supervisão de crise (clínico) → só owner
 
         // ── Trilha de acesso a dados sensíveis (LGPD art.37, READ-ONLY) ───────────
         // Quem-viu-qual-paciente. Detecta acesso cruzado (médico abriu paciente que
@@ -322,7 +326,8 @@ public static class AdminEndpoints
                 ORDER BY ap.criado_em DESC
                 LIMIT 200", filtro).ToListAsync();
             return Results.Ok(new { total30d, cruzados30d, itens });
-        });
+        })
+        .RequireAuthorization("owner"); // T0-6/ADR-068: trilha LGPD de acesso clínico → só owner
 
         // ── Solicitações de direitos do titular (LGPD) ───────────────────────────
         // Registro/acompanhamento das solicitações (acesso, portabilidade,
@@ -650,7 +655,8 @@ public static class AdminEndpoints
                 WHERE m.id = {0}", id).FirstOrDefaultAsync();
 
             return perfil is null ? Results.NotFound() : Results.Ok(perfil);
-        });
+        })
+        .RequireAuthorization("owner"); // T0-6/ADR-068: drill-down clínico do médico → só owner
 
         // ─── Assinaturas / Billing ────────────────────────────────────────────
 

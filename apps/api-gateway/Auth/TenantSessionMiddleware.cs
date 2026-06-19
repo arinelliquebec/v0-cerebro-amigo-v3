@@ -18,7 +18,9 @@ namespace ApiGateway.Auth;
 ///
 ///   role=medico    -> app.current_medico  = medico_id (resolvido do claim sub)
 ///   role=paciente  -> app.current_paciente = paciente_id (sub do paciente_token)
-///   role=owner/admin -> app.tenant_bypass = on (leitura cross-tenant do painel)
+///   role=owner      -> app.tenant_bypass = on (leitura cross-tenant do painel; SÓ owner)
+///   role=admin      -> nenhum GUC (admin_financeiro, T0-6/ADR-068): fail-closed na
+///                      clínica; tabelas administrativas não têm RLS → segue lendo
 ///   anônimo / sem médico -> nenhum GUC (fail-closed: RLS não entrega nada)
 /// </summary>
 public sealed class TenantSessionMiddleware(RequestDelegate next)
@@ -52,11 +54,18 @@ public sealed class TenantSessionMiddleware(RequestDelegate next)
             gucName = "app.current_paciente";
             gucValue = pacienteId.ToString();
         }
-        else if (role is "owner" or "admin")
+        else if (role is "owner")
         {
+            // SÓ owner faz bypass cross-tenant da RLS (inclui dado clínico).
             gucName = "app.tenant_bypass";
             gucValue = "on";
         }
+        // role=admin (admin_financeiro — T0-6/ADR-068): NÃO recebe bypass. Cai no
+        // ramo gucName==null abaixo → fail-closed nas 25 tabelas clínicas com RLS
+        // (vê nada mesmo se um endpoint esquecer o filtro). Tabelas administrativas
+        // (assinaturas/pagamentos/cobrancas/medico_asaas_config/newsletter) não têm
+        // RLS → admin segue lendo normal. Minimização LGPD (clinical-safety regra #3):
+        // perfil financeiro/suporte não enxerga conteúdo clínico de tenant nenhum.
 
         if (gucName is null)
         {

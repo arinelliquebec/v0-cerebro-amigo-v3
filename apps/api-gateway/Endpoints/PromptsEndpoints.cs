@@ -47,11 +47,12 @@ public static class PromptsEndpoints
 
     public static void Map(WebApplication app)
     {
-        // Editor de prompts = poder de plataforma. Só owner/admin.
+        // Editor de prompts = poder de plataforma (salvaguarda crise/auditoria, ADR-035).
+        // T0-6/ADR-068: SÓ owner — admin_financeiro não edita prompts.
         // (Os serviços Python leem o prompt ativo direto do banco, não por aqui.)
         var g = app.MapGroup("/api/v1/prompts")
             .WithTags("prompts")
-            .RequireAuthorization("admin_geral");
+            .RequireAuthorization("owner");
 
         // ─── LISTAR prompts ativos (todas as versões ativas) ────────────────────
         g.MapGet("/", async (AppDbContext db) =>

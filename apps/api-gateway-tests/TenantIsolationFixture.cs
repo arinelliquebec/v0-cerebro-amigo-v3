@@ -99,22 +99,25 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
     }
 
     // ── HttpClient autenticado como um médico (JWT no formato do TokenService) ──
-    public HttpClient ClientForMedico(Guid usuarioId)
+    public HttpClient ClientForMedico(Guid usuarioId) => ClientForRole("medico", usuarioId);
+
+    // HttpClient autenticado com role arbitrário (owner/admin/medico) — T0-6/ADR-068.
+    public HttpClient ClientForRole(string role, Guid? sub = null)
     {
         var client = _factory.CreateClient();
         client.DefaultRequestHeaders.Authorization =
-            new AuthenticationHeaderValue("Bearer", MintMedicoToken(usuarioId));
+            new AuthenticationHeaderValue("Bearer", MintToken(sub ?? Guid.NewGuid(), role));
         return client;
     }
 
-    private static string MintMedicoToken(Guid usuarioId)
+    private static string MintToken(Guid sub, string role)
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, usuarioId.ToString()),
-            new Claim("role", "medico"),
+            new Claim(JwtRegisteredClaimNames.Sub, sub.ToString()),
+            new Claim("role", role),
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
         var token = new JwtSecurityToken(

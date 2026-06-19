@@ -20,9 +20,10 @@ public static class InteracoesCoberturaEndpoints
 {
     public static void Map(WebApplication app)
     {
+        // T0-6/ADR-068: catálogo clínico de interações → SÓ owner (não admin_financeiro).
         var g = app.MapGroup("/api/v1/admin/interacoes")
             .WithTags("admin")
-            .RequireAuthorization("admin_geral");
+            .RequireAuthorization("owner");
 
         // ativasApenas=true limita às prescrições ativas; default = todo o vocabulário
         // já prescrito (cobertura é sobre o texto, não o estado).
