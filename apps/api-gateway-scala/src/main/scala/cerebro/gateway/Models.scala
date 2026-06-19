@@ -4,18 +4,17 @@ import cats.effect.IO
 import doobie.*
 import doobie.implicits.*
 import doobie.postgres.implicits.*
-import io.circe.Encoder
-import io.circe.generic.semiauto.deriveEncoder
-import java.sql.Timestamp
-import java.time.Instant
+import io.circe.{Decoder, Encoder}
+import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
+import java.time.{Instant, OffsetDateTime}
 import java.util.UUID
 
 /** Erros de API mapeados para status HTTP (espelha Results.Forbid/Unauthorized do .NET). */
 enum ApiError:
   case Unauthorized, Forbidden
 
-/** Linha crua do SELECT do /me. Timestamps lidos como java.sql.Timestamp (robusto a
-  * timestamp/timestamptz) e convertidos p/ Instant na borda.
+/** Linha crua do SELECT do /me. Colunas TIMESTAMPTZ (assinaturas) lidas como
+  * OffsetDateTime (doobie-postgres) e convertidas p/ Instant na borda.
   */
 final case class MeRow(
     medicoId: UUID,
@@ -26,8 +25,8 @@ final case class MeRow(
     email: String,
     role: String,
     assinaturaStatus: Option[String],
-    prazoPagamentoAte: Option[Timestamp],
-    trialAte: Option[Timestamp],
+    prazoPagamentoAte: Option[OffsetDateTime],
+    trialAte: Option[OffsetDateTime],
     plano: Option[String],
     fotoS3Key: Option[String],
 )
@@ -58,6 +57,8 @@ final case class MeResponse(
 
 object MeResponse:
   given Encoder[MeResponse] = deriveEncoder
+  // Tapir jsonBody exige Codec bidirecional → precisa de Decoder mesmo sendo só output.
+  given Decoder[MeResponse] = deriveDecoder
 
 /** Lógica do /me: lê perfil + assinatura, deriva situação (AssinaturaGate) e features
   * (PlanCatalog). Naturalmente tenant-scopado por `usuario_id` (mesma estratégia do .NET).
