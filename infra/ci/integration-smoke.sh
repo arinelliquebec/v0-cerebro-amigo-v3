@@ -9,7 +9,7 @@
 # chama a Anthropic (ANTHROPIC_API_KEY é dummy).
 #
 # Pré-condições (ver job `integration` no ci.yml): Postgres com migrations
-# aplicadas + seed (medico.ci / admin.ci com senha bcrypt), gateway em $GW,
+# aplicadas + seed (medico.ci / admin.ci / owner.ci com senha bcrypt), gateway em $GW,
 # orchestrator em $ORCH.
 # =============================================================================
 set -euo pipefail
@@ -62,34 +62,45 @@ CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$GW/api/v1/auth/login" \
 [ "$CODE" = "429" ] || fail "6ª tentativa deveria ser 429 (bloqueio T1-1), veio $CODE"
 ok "rate limit de login bloqueia na 6ª tentativa (tabela login_rate_limits)"
 
-# ─── 4. Validação de prompt (T4-2) via HTTP com admin ───────────────────────
-ADMIN_TOKEN=$(curl -sf -X POST "$GW/api/v1/auth/login" -H 'Content-Type: application/json' \
-  -d "{\"email\":\"admin.ci@example.com\",\"senha\":\"$SENHA\"}" | json_field token) \
-  || fail "login do admin"
+# ─── 4. Validação de prompt (T4-2) via HTTP com OWNER ───────────────────────
+# Editor de prompts é owner-only (T0-6/ADR-068): admin_financeiro NÃO edita prompts.
+OWNER_TOKEN=$(curl -sf -X POST "$GW/api/v1/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"owner.ci@example.com\",\"senha\":\"$SENHA\"}" | json_field token) \
+  || fail "login do owner"
 
 # 4a. prompt formatado com JSON sem escape → 422
 CODE=$(curl -s -o /tmp/prompt-invalido.json -w '%{http_code}' -X POST "$GW/api/v1/prompts" \
-  -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $OWNER_TOKEN" -H 'Content-Type: application/json' \
   -d '{"agente":"orchestrator","nome":"response_generation","conteudo":"Oi {nome_paciente} {sintomas_resumo}. JSON: {\"humor\": 1}"}')
 [ "$CODE" = "422" ] || fail "prompt quebrado deveria ser 422, veio $CODE: $(cat /tmp/prompt-invalido.json)"
 ok "prompt com chave solta rejeitado (422, T4-2)"
 
 # 4b. prompt cru válido → cria e ativa
 RESP=$(curl -sf -X POST "$GW/api/v1/prompts" \
-  -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $OWNER_TOKEN" -H 'Content-Type: application/json' \
   -d '{"agente":"agents","nome":"resumidor","conteudo":"Você é o resumidor de teste de integração."}') \
   || fail "criar prompt válido"
 PROMPT_ID=$(echo "$RESP" | json_field id)
 curl -sf -X POST "$GW/api/v1/prompts/$PROMPT_ID/ativar" \
-  -H "Authorization: Bearer $ADMIN_TOKEN" >/dev/null || fail "ativar prompt válido"
+  -H "Authorization: Bearer $OWNER_TOKEN" >/dev/null || fail "ativar prompt válido"
 ok "prompt válido criado e ativado (id $PROMPT_ID)"
 
 # 4c. prompt travado (ADR-035) continua barrado → 409
 CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$GW/api/v1/prompts" \
-  -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $OWNER_TOKEN" -H 'Content-Type: application/json' \
   -d '{"agente":"orchestrator","nome":"crisis_detection","conteudo":"x"}')
 [ "$CODE" = "409" ] || fail "prompt travado deveria ser 409, veio $CODE"
 ok "salvaguarda ADR-035 segue travada (409)"
+
+# 4d. admin_financeiro é BARRADO no editor de prompts → 403 (T0-6/ADR-068)
+ADMIN_TOKEN=$(curl -sf -X POST "$GW/api/v1/auth/login" -H 'Content-Type: application/json' \
+  -d "{\"email\":\"admin.ci@example.com\",\"senha\":\"$SENHA\"}" | json_field token) \
+  || fail "login do admin"
+CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$GW/api/v1/prompts" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H 'Content-Type: application/json' \
+  -d '{"agente":"agents","nome":"resumidor","conteudo":"x"}')
+[ "$CODE" = "403" ] || fail "admin em /prompts deveria ser 403 (T0-6), veio $CODE"
+ok "admin_financeiro barrado no editor de prompts (403, T0-6/ADR-068)"
 
 # ─── 5. Auth interna do orchestrator (sem LLM: só a rejeição) ────────────────
 CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$ORCH/internal/conversation/run" \
@@ -99,4 +110,4 @@ CODE=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$ORCH/internal/conversati
 ok "INTERNAL_API_TOKEN rejeita token errado (401)"
 
 echo
-echo "integração OK — gateway↔Postgres, orchestrator↔Postgres, T1-1, T4-2, ADR-035"
+echo "integração OK — gateway↔Postgres, orchestrator↔Postgres, T1-1, T4-2, ADR-035, T0-6"
