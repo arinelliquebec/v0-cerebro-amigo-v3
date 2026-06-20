@@ -211,7 +211,7 @@ export default function EscribaRevisaoPage() {
                 </p>
                 {sinaisAlerta.length > 0 && (
                   <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-foreground/90">
-                    {sinaisAlerta.map((s, i) => <li key={i}>{s}</li>)}
+                    {sinaisAlerta.map((s) => <li key={s}>{s}</li>)}
                   </ul>
                 )}
               </div>
