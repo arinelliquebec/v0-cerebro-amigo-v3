@@ -19,7 +19,9 @@ const nextConfig = {
      Em Docker standalone (dev local) mantemos unoptimized para evitar
      dependência de loader externo sem configuração adicional. */
   images: {
-    unoptimized: !process.env.VERCEL,
+    /* Otimização on-the-fly (WebP/AVIF/resize) também fora da Vercel: no EC2
+       standalone o Next usa `sharp` (em dependencies) p/ servir /_next/image. */
+    unoptimized: false,
     remotePatterns: [
       {
         protocol: "https",
@@ -57,6 +59,21 @@ const nextConfig = {
   /* Headers de cache e segurança para rotas estáticas */
   async headers() {
     return [
+      {
+        /* Assets versionados (hash no nome) = imutáveis. Reforça o default do Next
+           e garante o header atrás do ALB/CloudFront. */
+        source: "/_next/static/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+      {
+        /* Imagens otimizadas (/_next/image): cache + revalidação em background. */
+        source: "/_next/image",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
+        ],
+      },
       {
         source: "/:path*",
         headers: [

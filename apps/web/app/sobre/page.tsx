@@ -5,7 +5,7 @@ import { AuroraBackdrop } from "@/components/landing/aurora-backdrop"
 import { Eyebrow } from "@/components/landing/eyebrow"
 import { Reveal, RevealGroup, RevealItem } from "@/components/landing/reveal"
 import { FooterSection } from "@/components/landing/footer-section"
-import { Schema, orgSchema } from "@/components/seo/schema"
+import { Schema, orgSchema, breadcrumb } from "@/components/seo/schema"
 import {
   ArrowRight, HeartHandshake, Code2, ShieldCheck, Star, Mail,
 } from "lucide-react"
@@ -82,6 +82,7 @@ export default function SobrePage() {
     <main className="theme-noir min-h-screen bg-background text-foreground antialiased">
       <Schema data={orgSchema} />
       <Schema data={founderSchema} />
+      <Schema data={breadcrumb([{ name: "Início", path: "/" }, { name: "Sobre", path: "/sobre" }])} />
 
       {/* Nav */}
       <header className="sticky top-0 z-50">

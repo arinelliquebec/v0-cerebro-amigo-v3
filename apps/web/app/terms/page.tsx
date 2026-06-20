@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 export const metadata = {
   title: "Termos de Uso — Cérebro Amigo",
   description: "Termos de uso da plataforma Cérebro Amigo",
+  alternates: { canonical: "https://www.cerebroamigo.com.br/terms" },
 }
 
 export default function TermsPage() {

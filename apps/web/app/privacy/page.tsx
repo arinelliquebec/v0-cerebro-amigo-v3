@@ -5,6 +5,7 @@ import { ArrowLeft } from "lucide-react"
 export const metadata = {
   title: "Política de Privacidade — Cérebro Amigo",
   description: "Política de privacidade da plataforma Cérebro Amigo",
+  alternates: { canonical: "https://www.cerebroamigo.com.br/privacy" },
 }
 
 export default function PrivacyPage() {
