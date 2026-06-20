@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { ShieldAlert, ShieldCheck, ShieldQuestion, Loader2, Search } from "lucide-react"
+import { MedicamentoPickerClasse } from "@/components/medicamentos/picker-classe"
 
 interface Alerta {
   tipo: string // "interacao" | "duplicidade"
@@ -36,11 +37,15 @@ export function VerificadorInteracoes({ pacienteId }: { pacienteId: string }) {
   // colapsar os dois: uma 2ª barreira que falhou não pode parecer "sem interações".
   const [erro, setErro] = useState(false)
   const [candidato, setCandidato] = useState("")
+  // Nomes avaliados na última checagem (texto livre ou seleção do catálogo) — mostrados
+  // como chips p/ o médico ver exatamente o que foi cruzado contra os ativos do paciente.
+  const [consultados, setConsultados] = useState<string[]>([])
 
   const checar = useCallback(
     async (medicamentos?: string[]) => {
       setLoading(true)
       setErro(false)
+      setConsultados(medicamentos ?? [])
       try {
         const r = await fetch("/api/prescricoes/checar-interacoes", {
           method: "POST",
@@ -84,26 +89,45 @@ export function VerificadorInteracoes({ pacienteId }: { pacienteId: string }) {
         <h4 className="text-sm font-semibold text-foreground">Interações (2ª barreira)</h4>
       </div>
 
-      {/* Testar um medicamento candidato contra os ativos do paciente. */}
-      <div className="mb-3 flex gap-2">
-        <Input
-          value={candidato}
-          onChange={(e) => setCandidato(e.target.value)}
-          placeholder="Avaliar medicamento (ex.: Tramadol)"
-          className="h-9 text-sm"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && candidato.trim()) void checar([candidato.trim()])
+      {/* Testar medicamento(s) candidato(s) contra os ativos do paciente:
+          digitar OU escolher do catálogo por classe (sem precisar lembrar o nome). */}
+      <div className="mb-3 space-y-2">
+        <div className="flex gap-2">
+          <Input
+            value={candidato}
+            onChange={(e) => setCandidato(e.target.value)}
+            placeholder="Avaliar medicamento (ex.: Tramadol)"
+            className="h-9 text-sm"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && candidato.trim()) void checar([candidato.trim()])
+            }}
+          />
+          <Button
+            type="button"
+            variant="secondary"
+            className="h-9 gap-1.5"
+            disabled={loading || !candidato.trim()}
+            onClick={() => candidato.trim() && void checar([candidato.trim()])}
+          >
+            <Search className="h-4 w-4" /> Verificar
+          </Button>
+        </div>
+        <MedicamentoPickerClasse
+          onConfirmar={(nomes) => {
+            setCandidato("")
+            void checar(nomes)
           }}
         />
-        <Button
-          type="button"
-          variant="secondary"
-          className="h-9 gap-1.5"
-          disabled={loading || !candidato.trim()}
-          onClick={() => candidato.trim() && void checar([candidato.trim()])}
-        >
-          <Search className="h-4 w-4" /> Verificar
-        </Button>
+        {consultados.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-[0.7rem] text-muted-foreground">Avaliando:</span>
+            {consultados.map((n) => (
+              <Badge key={n} variant="outline" className="text-[0.7rem]">
+                {n}
+              </Badge>
+            ))}
+          </div>
+        )}
       </div>
 
       {loading ? (

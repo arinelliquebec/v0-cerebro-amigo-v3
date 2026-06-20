@@ -98,6 +98,22 @@ public static class MedicamentosEndpoints
                 .ToListAsync();
             return Results.Ok(rows);
         });
+
+        // GET /api/v1/medicamentos/agrupado — catálogo completo p/ o picker por classe.
+        // Read-only e NÃO-tenant (`medicamentos` é dicionário global). O cliente agrupa
+        // por classe_terapeutica. Cap alto: catálogo é pequeno, mas cresce com a curadoria
+        // do A5 (não confiar no LIMIT 50 da busca). Ordenado p/ agrupamento estável.
+        g.MapGet("/agrupado", async (AppDbContext db) =>
+        {
+            var rows = await db.Database
+                .SqlQueryRaw<MedicamentoItemDto>(@"SELECT id, nome_comercial, nome_generico, classe_terapeutica
+                                                  FROM medicamentos
+                                                  WHERE ativo = TRUE
+                                                  ORDER BY classe_terapeutica, nome_generico
+                                                  LIMIT 1000")
+                .ToListAsync();
+            return Results.Ok(rows);
+        });
     }
 }
 
@@ -116,3 +132,12 @@ public record MedicamentoDto(
 );
 
 public record ClasseDto(string Classe);
+
+// Item enxuto do catálogo p/ o picker por classe (GET /agrupado). `public` (não `file`):
+// `file record` quebra EF SqlQueryRaw<T> em runtime (IndexOutOfRangeException no ShortName).
+public record MedicamentoItemDto(
+    Guid Id,
+    string? NomeComercial,
+    string NomeGenerico,
+    string ClasseTerapeutica
+);
