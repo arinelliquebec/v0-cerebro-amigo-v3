@@ -1,12 +1,30 @@
 "use client"
 
-import { Bell, Search, Plus } from "lucide-react"
+import Link from "next/link"
+import { Search, Plus, UserCircle, Wallet, LogOut } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { NovoPacienteDialog } from "@/components/pacientes/novo-paciente-dialog"
 import { useMe } from "@/lib/use-me"
+
+/** Iniciais p/ o avatar quando não há foto — mesmo padrão da sidebar. */
+function iniciais(nome?: string) {
+  if (!nome) return "·"
+  const partes = nome.trim().split(/\s+/).filter(Boolean)
+  const ini = (partes[0]?.[0] ?? "") + (partes.length > 1 ? partes[partes.length - 1][0] : "")
+  return ini.toUpperCase() || "·"
+}
 
 interface HeaderProps {
   title: string
@@ -17,6 +35,18 @@ export function Header({ title, subtitle }: HeaderProps) {
   const router = useRouter()
   const me = useMe()
   const [busca, setBusca] = useState("")
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [fotoErro, setFotoErro] = useState(false)
+
+  async function handleLogout() {
+    if (isLoggingOut) return // trava duplo-clique: evita POST duplicado + evento de auditoria duplicado
+    setIsLoggingOut(true)
+    try {
+      await fetch("/api/auth/logout", { method: "POST" })
+    } finally {
+      router.push("/login")
+    }
+  }
 
   function buscarPacientes(e: React.FormEvent) {
     e.preventDefault()
@@ -70,18 +100,47 @@ export function Header({ title, subtitle }: HeaderProps) {
             }
           />
 
-          {/* Notifications */}
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Notificações"
-            className="relative rounded-full text-muted-foreground/60 transition-all duration-200 hover:bg-secondary/70 hover:text-primary focus-visible:ring-2 focus-visible:ring-primary/30"
-          >
-            <Bell className="h-[18px] w-[18px]" />
-            <span className="absolute -right-0.5 -top-0.5 flex h-[18px] w-[18px] items-center justify-center rounded-full bg-coral text-[10px] font-bold text-accent-foreground ring-2 ring-background">
-              3
-            </span>
-          </Button>
+          {/* Menu da conta — única porta de entrada visível no topo p/ Minha conta / 2ª via / Sair */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                aria-label="Abrir menu da conta"
+                className="rounded-full outline-none transition-all duration-200 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/30"
+              >
+                <Avatar className="h-9 w-9 shadow-sm">
+                  {me?.fotoUrl && !fotoErro ? (
+                    <AvatarImage src={me.fotoUrl} alt="" onError={() => setFotoErro(true)} />
+                  ) : null}
+                  <AvatarFallback className="bg-gradient-to-br from-primary to-purple-dark text-xs font-semibold text-primary-foreground">
+                    {iniciais(me?.nome)}
+                  </AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel className="truncate">{me?.nome ?? "Minha conta"}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/conta">
+                  <UserCircle className="h-4 w-4" aria-hidden="true" /> Minha conta
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/financeiro">
+                  <Wallet className="h-4 w-4" aria-hidden="true" /> Pagamentos &amp; 2ª via
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" /> {isLoggingOut ? "Saindo…" : "Sair"}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>

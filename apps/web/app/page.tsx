@@ -69,10 +69,29 @@ export default function ChooserPage() {
           ))}
         </div>
 
-        <Reveal delay={0.28} className="mt-10 text-center">
+        <Reveal delay={0.24} className="mt-8 text-center">
+          <p className="text-sm text-muted-foreground">
+            Já tem conta?{" "}
+            <Link
+              href="/login"
+              className="font-medium text-accent-on-dark underline-offset-4 hover:underline"
+            >
+              Entrar como médico
+            </Link>
+            <span className="mx-2 text-noir-text-dim" aria-hidden="true">·</span>
+            <Link
+              href="/p/entrar"
+              className="font-medium text-accent-on-dark underline-offset-4 hover:underline"
+            >
+              Entrar como paciente
+            </Link>
+          </p>
+        </Reveal>
+
+        <Reveal delay={0.32} className="mt-8 text-center">
           <p className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-            <LifeBuoy className="h-3.5 w-3.5 text-accent" />
-            Em crise, você não está sozinho · CVV 188 · SAMU 192
+            <LifeBuoy className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+            Em crise, você não está sozinho <span aria-hidden="true">·</span> CVV 188 <span aria-hidden="true">·</span> SAMU 192
           </p>
           <div className="mt-4 flex items-center justify-center gap-5 text-xs">
             <Link href="/privacy" className="text-noir-text-dim transition-colors hover:text-foreground">Privacidade</Link>
