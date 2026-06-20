@@ -96,6 +96,7 @@ public class TokenService(IConfiguration config)
             new Claim(JwtRegisteredClaimNames.Email, user.Email),
             new Claim("name", user.Nome),
             new Claim("role", user.Role),
+            new Claim("tv", user.TokenVersion.ToString()),  // T1-7: versão de sessão (revogação)
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 

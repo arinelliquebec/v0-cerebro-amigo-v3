@@ -115,6 +115,48 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             NameClaimType = "sub",
             RoleClaimType = "role",
         };
+
+        // T1-7: revogação de sessão por token_version. Após assinatura/lifetime válidos,
+        // confere o claim `tv` contra usuarios/pacientes_credenciais.token_version e
+        // rejeita o token se a senha foi trocada/redefinida desde a emissão.
+        options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async context =>
+            {
+                var principal = context.Principal;
+                var tvClaim = principal?.FindFirst("tv")?.Value;
+                // Token sem `tv` = emitido antes do deploy → passa (transição graciosa,
+                // sem logout em massa); vira revogável no próximo login.
+                if (string.IsNullOrEmpty(tvClaim)) return;
+                if (!int.TryParse(tvClaim, out var tv)) { context.Fail("tv_invalido"); return; }
+
+                var sub = principal!.FindFirst("sub")?.Value;
+                var role = principal.FindFirst("role")?.Value;
+                if (!Guid.TryParse(sub, out var id)) { context.Fail("sub_invalido"); return; }
+
+                var sp = context.HttpContext.RequestServices;
+                var db = sp.GetRequiredService<AppDbContext>();
+                try
+                {
+                    var atual = role == "paciente"
+                        ? await db.Database.ExecuteScalarAsync<int?>(
+                            "SELECT token_version FROM pacientes_credenciais WHERE paciente_id = {0}", id)
+                        : await db.Database.ExecuteScalarAsync<int?>(
+                            "SELECT token_version FROM usuarios WHERE id = {0}", id);
+                    // atual == null: credencial inexistente (ex.: paciente sem senha) → sem revogação aplicável.
+                    if (atual is not null && atual.Value != tv)
+                        context.Fail("sessao_revogada");
+                }
+                catch (Exception ex)
+                {
+                    // Fail-open: um hiccup do DB não derruba todas as sessões. A request real
+                    // depende do DB e falhará no endpoint se ele estiver fora.
+                    sp.GetRequiredService<ILoggerFactory>()
+                      .CreateLogger("Auth.TokenVersion")
+                      .LogWarning(ex, "token_version check falhou (fail-open)");
+                }
+            }
+        };
     });
 
 builder.Services.AddAuthorization(options =>

@@ -110,19 +110,37 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
         return client;
     }
 
-    private static string MintToken(Guid sub, string role)
+    // T1-7: médico/paciente com (ou sem) o claim `tv` de versão de sessão.
+    public HttpClient ClientForMedicoTv(Guid usuarioId, int? tv)
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", MintToken(usuarioId, "medico", tv, "dashboard"));
+        return client;
+    }
+
+    public HttpClient ClientForPacienteTv(Guid pacienteId, int? tv)
+    {
+        var client = _factory.CreateClient();
+        client.DefaultRequestHeaders.Authorization =
+            new AuthenticationHeaderValue("Bearer", MintToken(pacienteId, "paciente", tv, "portal-paciente"));
+        return client;
+    }
+
+    private static string MintToken(Guid sub, string role, int? tv = null, string audience = "dashboard")
     {
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(JwtSecret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var claims = new[]
+        var claims = new List<Claim>
         {
-            new Claim(JwtRegisteredClaimNames.Sub, sub.ToString()),
-            new Claim("role", role),
-            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+            new(JwtRegisteredClaimNames.Sub, sub.ToString()),
+            new("role", role),
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
         };
+        if (tv is not null) claims.Add(new Claim("tv", tv.Value.ToString()));  // T1-7
         var token = new JwtSecurityToken(
             issuer: "cerebro-amigo",
-            audience: "dashboard",
+            audience: audience,
             claims: claims,
             expires: DateTime.UtcNow.AddHours(1),
             signingCredentials: creds);
