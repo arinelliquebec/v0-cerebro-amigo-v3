@@ -18,6 +18,14 @@ echo "Smoke checkup @ $BASE"
 [ "$(code "$BASE/api/health")" = 200 ] && ok "health" || bad "health"
 [ "$(code "$BASE/")" = 200 ] && ok "home" || bad "home"
 
+# Headers de segurança (P1 hardening) — presentes em toda resposta (next.config headers()).
+hdrs=$(curl -sI --max-time 25 "$BASE/")
+if echo "$hdrs" | grep -qi "^content-security-policy:" && echo "$hdrs" | grep -qi "^strict-transport-security:"; then
+  ok "security headers (CSP+HSTS)"
+else
+  bad "security headers (CSP/HSTS ausentes)"
+fi
+
 for p in depressao ansiedade tdah-adulto bipolaridade borderline alcool tabagismo drogas; do
   [ "$(code "$BASE/$p")" = 200 ] && ok "landing /$p" || bad "landing /$p"
 done
