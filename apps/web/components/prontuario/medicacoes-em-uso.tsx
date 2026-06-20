@@ -12,7 +12,11 @@ import { Card, CardContent } from "@/components/ui/card"
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter,
 } from "@/components/ui/dialog"
-import { Pill, Plus, X, Loader2, Search, Info } from "lucide-react"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { baixarCsv } from "@/lib/csv"
+import { Pill, Plus, X, Loader2, Search, Info, Printer, FileSpreadsheet, Download } from "lucide-react"
 
 interface MedicacaoEmUso {
   id: string
@@ -29,6 +33,26 @@ interface CatalogoItem {
   nomeGenerico: string
   classeTerapeutica: string
   indicacoesResumo: string | null
+}
+
+// Escapa string ao injetar no HTML do documento de impressão (dado do médico, mas
+// nunca confiar em conteúdo livre ao montar markup).
+function escHtml(s: string) {
+  return s.replace(
+    /[&<>"']/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  )
+}
+// Slug simples p/ nome de arquivo (sem acento, só alfanumérico).
+function slug(s: string) {
+  return (
+    s
+      .normalize("NFD")
+      .replace(/\p{Diacritic}/gu, "")
+      .replace(/[^a-zA-Z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .toLowerCase() || "paciente"
+  )
 }
 
 export function MedicacoesEmUso({ pacienteId }: { pacienteId: string }) {
@@ -114,6 +138,85 @@ export function MedicacoesEmUso({ pacienteId }: { pacienteId: string }) {
     } catch { setLista(anterior) }
   }
 
+  // Nome do paciente p/ cabeçalho do export (fetch lazy; só ao exportar). Fallback "—".
+  async function buscarNomePaciente(): Promise<string> {
+    try {
+      const r = await fetch(`/api/pacientes/${pacienteId}`)
+      if (!r.ok) return "—"
+      const p = await r.json()
+      return typeof p?.nome === "string" && p.nome.trim() ? p.nome.trim() : "—"
+    } catch {
+      return "—"
+    }
+  }
+
+  // Exporta a lista atual como CSV (abre no Excel PT-BR com acentos/colunas corretos).
+  async function exportarCsv() {
+    if (lista.length === 0) return
+    const nomePaciente = await buscarNomePaciente()
+    baixarCsv(
+      `medicacoes-em-uso-${slug(nomePaciente)}.csv`,
+      ["Medicamento", "Classe", "Posologia", "Fonte", "Observações", "Registrado em"],
+      lista.map((m) => [
+        m.medicamento,
+        m.classe ?? "",
+        m.posologia ?? "",
+        m.fonte ?? "",
+        m.observacoes ?? "",
+        new Date(m.criadoEm).toLocaleDateString("pt-BR"),
+      ]),
+    )
+  }
+
+  // Abre um documento limpo em nova janela e chama print() — o médico imprime ou salva
+  // como PDF. NÃO é receita (registro de reconciliação, ADR-062).
+  async function imprimir() {
+    if (lista.length === 0) return
+    // Abrir a janela ANTES do await preserva o gesto do clique (evita bloqueio de popup).
+    const win = window.open("", "_blank", "width=820,height=640")
+    if (!win) return
+    win.document.write(
+      "<!doctype html><meta charset='utf-8'><title>Gerando…</title>" +
+        "<p style='font-family:system-ui,sans-serif;margin:32px'>Gerando documento…</p>",
+    )
+    const nomePaciente = await buscarNomePaciente()
+    const hoje = new Date().toLocaleDateString("pt-BR")
+    const linhas = lista
+      .map(
+        (m) => `<tr>
+          <td>${escHtml(m.medicamento)}</td>
+          <td>${escHtml(m.classe ?? "—")}</td>
+          <td>${escHtml(m.posologia ?? "—")}</td>
+          <td>${escHtml(m.fonte ?? "—")}</td>
+        </tr>`,
+      )
+      .join("")
+    win.document.open()
+    win.document.write(
+      `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8" />
+        <title>Medicações em uso — ${escHtml(nomePaciente)}</title>
+        <style>
+          body{font-family:system-ui,-apple-system,Arial,sans-serif;color:#111;margin:32px}
+          h1{font-size:18px;margin:0 0 4px}
+          .sub{color:#555;font-size:12px;margin:0 0 18px}
+          table{width:100%;border-collapse:collapse;font-size:13px}
+          th,td{text-align:left;border-bottom:1px solid #ddd;padding:8px 6px;vertical-align:top}
+          th{background:#f4f4f5;font-weight:600}
+          .foot{margin-top:24px;color:#777;font-size:11px;line-height:1.4}
+          @media print{body{margin:14mm}}
+        </style></head><body>
+        <h1>Medicações em uso</h1>
+        <p class="sub">Paciente: ${escHtml(nomePaciente)} · Emitido em ${hoje}</p>
+        <table><thead><tr><th>Medicamento</th><th>Classe</th><th>Posologia</th><th>Fonte</th></tr></thead>
+        <tbody>${linhas}</tbody></table>
+        <p class="foot">Registro do que o paciente já toma (qualquer prescritor). <strong>Não é receita médica.</strong> Documento gerado pelo Cérebro Amigo.</p>
+        </body></html>`,
+    )
+    win.document.close()
+    win.focus()
+    win.print()
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -121,6 +224,22 @@ export function MedicacoesEmUso({ pacienteId }: { pacienteId: string }) {
           <Info className="h-3.5 w-3.5 shrink-0" />
           Registro do que o paciente já toma (qualquer prescritor). Também listado na aba <strong>Prescrições</strong>.
         </p>
+        <div className="flex shrink-0 items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline" className="gap-1.5" disabled={lista.length === 0}>
+                <Download className="h-4 w-4" /> Exportar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => void imprimir()}>
+                <Printer className="mr-2 h-4 w-4" /> Imprimir / PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => void exportarCsv()}>
+                <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar CSV (Excel)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         <Dialog open={aberto} onOpenChange={(o) => { setAberto(o); if (!o) resetForm() }}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-1.5"><Plus className="h-4 w-4" /> Adicionar</Button>
@@ -165,6 +284,7 @@ export function MedicacoesEmUso({ pacienteId }: { pacienteId: string }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       {loading ? (
