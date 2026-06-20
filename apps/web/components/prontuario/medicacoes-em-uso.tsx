@@ -119,7 +119,7 @@ export function MedicacoesEmUso({ pacienteId }: { pacienteId: string }) {
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <Info className="h-3.5 w-3.5 shrink-0" />
-          Registro do que o paciente já toma (qualquer prescritor). <strong>Não é receita</strong> — prescrição é pelo MEMED.
+          Registro do que o paciente já toma (qualquer prescritor). Também listado na aba <strong>Prescrições</strong>.
         </p>
         <Dialog open={aberto} onOpenChange={(o) => { setAberto(o); if (!o) resetForm() }}>
           <DialogTrigger asChild>
