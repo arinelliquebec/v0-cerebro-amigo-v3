@@ -16,10 +16,18 @@ export function useLogout() {
     if (isLoggingOut) return
     setIsLoggingOut(true)
     try {
-      await fetch("/api/auth/logout", { method: "POST" })
-    } finally {
-      router.push("/login")
+      const res = await fetch("/api/auth/logout", { method: "POST" })
+      // Cookie httpOnly só é limpo server-side: só navega se o logout confirmou (2xx).
+      // Falha (403 origem inválida / rede) NÃO redireciona — senão a sessão segue
+      // válida e o usuário pensaria que saiu (logout silencioso).
+      if (res.ok) {
+        router.push("/login")
+        return
+      }
+    } catch {
+      /* rede fora do ar: cai no reset abaixo, sem fingir logout */
     }
+    setIsLoggingOut(false)
   }
 
   return { logout, isLoggingOut }
