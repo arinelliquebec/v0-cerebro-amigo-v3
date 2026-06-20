@@ -195,6 +195,56 @@ curl -sI https://cerebroamigo.com.br/ | head -1     # 301 -> www
 
 ---
 
+## Atualizar o stack quando o template muda (ex.: HealthCheckPath → /api/health)
+
+O CI (`deploy-web`) só faz `put-parameter image-tag` + instance refresh — **não** roda
+`cloudformation deploy`. Qualquer mudança no `web-asg-alb.yaml` (TargetGroup, ALB, ASG,
+LaunchTemplate) só entra em produção com um `cloudformation deploy` **manual** do stack
+`cerebro-web`, por quem tem perfil admin (o CI user não tem IAM de cloudformation/elbv2
+— ver `project-ci-iam-path-scoped`).
+
+**⚠️ Gotcha de ordem (inverter = OUTAGE):** o path `/api/health` só existe na imagem
+nova. Se flipar o `HealthCheckPath` ANTES de a imagem nova estar viva em TODAS as
+instâncias, o ALB sonda `/api/health` na imagem velha → **404** (fora do matcher
+`200-399`) → todos os targets unhealthy → **site fora**.
+
+Ordem correta (zero-downtime):
+
+1. **Imagem nova viva PRIMEIRO.** Mergear o código (`apps/web/app/api/health/route.ts`
+   + patch do `Dockerfile`) em `main`. O `deploy-web` builda e faz o instance refresh;
+   o ALB ainda sonda `/` (config atual do TG), então fica healthy o tempo todo.
+   Confirmar que TODAS as instâncias servem `/api/health` (Session Manager numa
+   instância de cada AZ):
+   ```bash
+   aws ssm start-session --target <instance-id> --region sa-east-1
+   curl -s localhost:3000/api/health -o /dev/null -w "%{http_code}\n"   # 200 (ou 503->200 no boot)
+   ```
+
+2. **SÓ ENTÃO flipar o HealthCheckPath** (cloudformation deploy manual). Reusa o ACM
+   ARN atual do stack (não tem default → tem que passar):
+   ```bash
+   ARN=$(aws cloudformation describe-stacks --region sa-east-1 --stack-name cerebro-web \
+     --query "Stacks[0].Parameters[?ParameterKey=='AcmCertificateArn'].ParameterValue | [0]" --output text)
+   aws cloudformation deploy --region sa-east-1 \
+     --template-file infra/aws/web-asg-alb.yaml \
+     --stack-name cerebro-web --capabilities CAPABILITY_NAMED_IAM \
+     --parameter-overrides AcmCertificateArn="$ARN"
+   # acompanhar o TG migrar p/ /api/health e seguir healthy:
+   TG=$(aws elbv2 describe-target-groups --region sa-east-1 \
+     --query "TargetGroups[?starts_with(TargetGroupName,'cerebro-web')].TargetGroupArn | [0]" --output text)
+   aws elbv2 describe-target-health --region sa-east-1 --target-group-arn "$TG" \
+     --query 'TargetHealthDescriptions[].TargetHealth.State'   # ["healthy", ...]
+   ```
+   (Update do `HealthCheckPath` é in-place no TG — sem re-registro de target, sem gap;
+   as instâncias respondem `/` E `/api/health` durante a troca de path.)
+
+**Rollback:** se os targets ficarem unhealthy após o flip, reverter o `HealthCheckPath`
+p/ `/` no yaml + `cloudformation deploy` de novo (emergência: `aws elbv2
+modify-target-group --health-check-path / --target-group-arn "$TG"`, mas isso dá drift
+do stack — corrigir no yaml depois).
+
+---
+
 ## Rollback geral
 
 - **Antes da Fase 6:** nada em produção mudou — é só não virar o DNS. Stack fica
