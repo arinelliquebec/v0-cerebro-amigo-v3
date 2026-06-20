@@ -133,18 +133,19 @@ export default function EscribaRevisaoPage() {
   function montarConteudo(): string {
     const bloco = (titulo: string, itens: string[]) =>
       itens.length ? `${titulo}:\n${itens.map((i) => `- ${i}`).join("\n")}\n\n` : ""
-    const itensObjetivo = arr(objetivo)
-    return (
-      `S — SUBJETIVO (assistido por IA, revisado pelo médico)\n${resumo || "—"}\n\n` +
-      bloco("Queixas relatadas", arr(queixas)) +
-      bloco("Fatos relatados", arr(fatos)) +
-      bloco("Medicações mencionadas", arr(medicacoes)) +
-      (arr(temas).length ? `Temas: ${arr(temas).join(", ")}\n\n` : "") +
-      `O — OBJETIVO (dados ditos na consulta)\n` +
-      (itensObjetivo.length ? `${itensObjetivo.map((i) => `- ${i}`).join("\n")}\n\n` : "—\n\n") +
-      `A — AVALIAÇÃO (médico)\n${avaliacao || "—"}\n\n` +
-      `P — PLANO / CONDUTA (médico)\n${plano || "—"}`
-    )
+    const lista = (itens: string[]) => (itens.length ? itens.map((i) => `- ${i}`).join("\n") : "—")
+    const temasLinha = (itens: string[]) => (itens.length ? `Temas: ${itens.join(", ")}\n\n` : "")
+    const ouTraco = (v: string) => v || "—"
+    return [
+      `S — SUBJETIVO (assistido por IA, revisado pelo médico)\n${ouTraco(resumo)}\n\n`,
+      bloco("Queixas relatadas", arr(queixas)),
+      bloco("Fatos relatados", arr(fatos)),
+      bloco("Medicações mencionadas", arr(medicacoes)),
+      temasLinha(arr(temas)),
+      `O — OBJETIVO (dados ditos na consulta)\n${lista(arr(objetivo))}\n\n`,
+      `A — AVALIAÇÃO (médico)\n${ouTraco(avaliacao)}\n\n`,
+      `P — PLANO / CONDUTA (médico)\n${ouTraco(plano)}`,
+    ].join("")
   }
 
   async function aprovar() {
