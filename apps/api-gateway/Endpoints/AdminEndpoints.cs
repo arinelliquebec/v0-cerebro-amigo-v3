@@ -519,7 +519,8 @@ public static class AdminEndpoints
 
             var hash = hasher.Hash(req.NovaSenha);
             var ok = await db.Database.ExecuteSqlRawAsync(
-                "UPDATE usuarios SET senha_hash = {0} WHERE id = {1}", hash, id);
+                // T1-7: reset manual pelo admin revoga JWTs ativos do usuário (token_version++).
+                "UPDATE usuarios SET senha_hash = {0}, token_version = token_version + 1 WHERE id = {1}", hash, id);
             return ok == 0 ? Results.NotFound() : Results.NoContent();
         });
 

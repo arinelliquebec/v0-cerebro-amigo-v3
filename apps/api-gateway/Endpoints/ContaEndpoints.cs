@@ -46,6 +46,7 @@ public static class ContaEndpoints
             }
 
             u.SenhaHash = hasher.Hash(req.NovaSenha);
+            u.TokenVersion++;   // T1-7: revoga JWTs ativos emitidos antes da troca
             await db.SaveChangesAsync();
             await rateLimiter.RecordSuccessAsync(rlKey);
             await RegistrarEventoContaAsync(db, userId, null, "senha_alterada", ctx);
@@ -118,7 +119,9 @@ public static class ContaEndpoints
             if (row.ExpiraEm < DateTime.UtcNow) return Results.StatusCode(410);
 
             await db.Database.ExecuteSqlRawAsync(
-                "UPDATE usuarios SET senha_hash = {0} WHERE id = {1}::uuid", hasher.Hash(req.NovaSenha), row.UsuarioId);
+                // T1-7: reset de senha revoga JWTs ativos (token_version++).
+                "UPDATE usuarios SET senha_hash = {0}, token_version = token_version + 1 WHERE id = {1}::uuid",
+                hasher.Hash(req.NovaSenha), row.UsuarioId);
             await db.Database.ExecuteSqlRawAsync(
                 "UPDATE medico_invite_tokens SET usado_em = NOW() WHERE token_hash = {0}", hash);
 

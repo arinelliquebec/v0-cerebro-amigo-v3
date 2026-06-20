@@ -161,7 +161,8 @@ public static class AuthEndpoints
 
             var senhaHash = hasher.Hash(req.Senha);
             await db.Database.ExecuteSqlRawAsync(
-                "UPDATE usuarios SET senha_hash = {0} WHERE id = {1}::uuid",
+                // T1-7: define senha + token_version++ (sem sessão ativa ainda; uniforme).
+                "UPDATE usuarios SET senha_hash = {0}, token_version = token_version + 1 WHERE id = {1}::uuid",
                 senhaHash, row.UsuarioId);
             await db.Database.ExecuteSqlRawAsync(
                 "UPDATE medico_invite_tokens SET usado_em = NOW() WHERE token_hash = {0}",

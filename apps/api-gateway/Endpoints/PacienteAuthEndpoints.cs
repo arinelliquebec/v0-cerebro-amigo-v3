@@ -115,7 +115,8 @@ public static class PacienteAuthEndpoints
                         email = EXCLUDED.email,
                         senha_definida_em = NOW(),
                         falhas_seguidas = 0,
-                        bloqueado_ate = NULL",
+                        bloqueado_ate = NULL,
+                        token_version = pacientes_credenciais.token_version + 1",
                     link.PacienteId, senhaHash);
             }
 
@@ -125,8 +126,12 @@ public static class PacienteAuthEndpoints
 
             await RegistrarAcesso(db, link.PacienteId, "magic_link_usado", ctx);
 
-            // Gera token de sessão imediatamente
-            var (access, _) = GerarTokensSessao(link.PacienteId, config);
+            // Gera token de sessão imediatamente, já com a token_version atual (T1-7).
+            // Sem credencial (magic puro, sem senha) → null → 1; OnTokenValidated pula o
+            // check quando não há linha em pacientes_credenciais.
+            var tv = await db.Database.ExecuteScalarAsync<int?>(
+                "SELECT token_version FROM pacientes_credenciais WHERE paciente_id = {0}", link.PacienteId) ?? 1;
+            var (access, _) = GerarTokensSessao(link.PacienteId, tv, config);
             return Results.Ok(new { token = access });
         })
         .AllowAnonymous();
@@ -147,7 +152,7 @@ public static class PacienteAuthEndpoints
             var cred = await db.Database.SqlQueryRaw<CredencialRow>(@"
                 SELECT pc.paciente_id, pc.senha_hash,
                        pc.bloqueado_ate, pc.falhas_seguidas,
-                       pc.senha_temporaria
+                       pc.senha_temporaria, pc.token_version
                 FROM pacientes_credenciais pc
                 LEFT JOIN clientes c ON c.id = pc.paciente_id
                 WHERE pc.email = {0} OR c.email = {0}
@@ -202,7 +207,8 @@ public static class PacienteAuthEndpoints
 
             await RegistrarAcesso(db, cred.PacienteId, "login", ctx);
 
-            var (access, _) = GerarTokensSessao(cred.PacienteId, config);
+            // token_version atual (o rehash acima NÃO a altera → não revoga no login). T1-7.
+            var (access, _) = GerarTokensSessao(cred.PacienteId, cred.TokenVersion, config);
             // `senhaTemporaria` sinaliza pro frontend redirecionar à tela de
             // troca obrigatória de senha. Veio do médico via cadastro em
             // consultório (fluxo `senha_provisoria`).
@@ -233,7 +239,8 @@ public static class PacienteAuthEndpoints
                 UPDATE pacientes_credenciais
                 SET senha_hash = {0},
                     senha_definida_em = NOW(),
-                    senha_temporaria = FALSE
+                    senha_temporaria = FALSE,
+                    token_version = token_version + 1
                 WHERE paciente_id = {1}", hasher.Hash(req.NovaSenha), pid.Value);
 
             await RegistrarAcesso(db, pid.Value, "senha_alterada", ctx);
@@ -251,7 +258,7 @@ public static class PacienteAuthEndpoints
     }
 
     private static (string accessToken, string refreshToken) GerarTokensSessao(
-        Guid pacienteId, IConfiguration config)
+        Guid pacienteId, int tokenVersion, IConfiguration config)
     {
         var secret = config["Jwt:Secret"] is { Length: > 0 } s ? s : config["JWT_SECRET"]
                      ?? throw new InvalidOperationException("Jwt:Secret / JWT_SECRET obrigatório");
@@ -262,6 +269,7 @@ public static class PacienteAuthEndpoints
         {
             new Claim(JwtRegisteredClaimNames.Sub, pacienteId.ToString()),
             new Claim("role", "paciente"),
+            new Claim("tv", tokenVersion.ToString()),  // T1-7: versão de sessão (revogação)
             new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
@@ -303,4 +311,4 @@ internal record MagicLinkPacienteDto(Guid Id, string Email, string? Nome);
 internal record MagicLinkRow(Guid Id, Guid PacienteId, string Proposito,
     DateTime ExpiraEm, DateTime? UsadoEm);
 internal record CredencialRow(Guid PacienteId, string? SenhaHash,
-    DateTime? BloqueadoAte, int FalhasSeguidas, bool SenhaTemporaria);
+    DateTime? BloqueadoAte, int FalhasSeguidas, bool SenhaTemporaria, int TokenVersion);

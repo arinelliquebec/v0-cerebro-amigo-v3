@@ -26,6 +26,8 @@ public class Usuario
     public DateTime CriadoEm { get; set; }
     public DateTime? UltimoLogin { get; set; }
     public DateTime? DesativadoEm { get; set; }
+    // T1-7: versão de sessão. Bump na troca/reset de senha revoga JWTs antigos (claim `tv`).
+    public int TokenVersion { get; set; } = 1;
 }
 
 public class Medico
