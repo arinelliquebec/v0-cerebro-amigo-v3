@@ -39,6 +39,13 @@ interface EscribaData {
 const linhas = (a?: string[]) => (a ?? []).join("\n")
 const arr = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean)
 
+// Helpers da nota SOAP (puros, em escopo de módulo p/ manter montarConteudo simples).
+const bloco = (titulo: string, itens: string[]) =>
+  itens.length ? `${titulo}:\n${itens.map((i) => `- ${i}`).join("\n")}\n\n` : ""
+const listaTraco = (itens: string[]) => (itens.length ? itens.map((i) => `- ${i}`).join("\n") : "—")
+const temasLinha = (itens: string[]) => (itens.length ? `Temas: ${itens.join(", ")}\n\n` : "")
+const ouTraco = (v: string) => v || "—"
+
 export default function EscribaRevisaoPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -131,18 +138,13 @@ export default function EscribaRevisaoPage() {
   // Nota final em formato SOAP. S/O = factual (assistido por IA); A/P = do médico.
   // observacoes_para_revisao_medica é auxílio de revisão e NÃO entra na nota.
   function montarConteudo(): string {
-    const bloco = (titulo: string, itens: string[]) =>
-      itens.length ? `${titulo}:\n${itens.map((i) => `- ${i}`).join("\n")}\n\n` : ""
-    const lista = (itens: string[]) => (itens.length ? itens.map((i) => `- ${i}`).join("\n") : "—")
-    const temasLinha = (itens: string[]) => (itens.length ? `Temas: ${itens.join(", ")}\n\n` : "")
-    const ouTraco = (v: string) => v || "—"
     return [
       `S — SUBJETIVO (assistido por IA, revisado pelo médico)\n${ouTraco(resumo)}\n\n`,
       bloco("Queixas relatadas", arr(queixas)),
       bloco("Fatos relatados", arr(fatos)),
       bloco("Medicações mencionadas", arr(medicacoes)),
       temasLinha(arr(temas)),
-      `O — OBJETIVO (dados ditos na consulta)\n${lista(arr(objetivo))}\n\n`,
+      `O — OBJETIVO (dados ditos na consulta)\n${listaTraco(arr(objetivo))}\n\n`,
       `A — AVALIAÇÃO (médico)\n${ouTraco(avaliacao)}\n\n`,
       `P — PLANO / CONDUTA (médico)\n${ouTraco(plano)}`,
     ].join("")
