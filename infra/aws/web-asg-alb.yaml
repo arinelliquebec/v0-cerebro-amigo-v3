@@ -151,9 +151,10 @@ Resources:
       Port: 3000
       Protocol: HTTP
       TargetType: instance
-      # Raiz "/" = landing publica (SSR leve, 200). Recomendado: criar Route Handler
-      # cheap em app/api/health/route.ts e apontar aqui (menos render por probe).
-      HealthCheckPath: /
+      # /api/health = probe barato + gated por readiness (app/api/health/route.ts):
+      # devolve 200 so depois do warmup das rotas publicas, entao a instancia so vira
+      # InService quando quente (anti-cold-start). 503 enquanto aquece (fora do 200-399).
+      HealthCheckPath: /api/health
       HealthCheckIntervalSeconds: 15
       HealthCheckTimeoutSeconds: 5
       HealthyThresholdCount: 2
