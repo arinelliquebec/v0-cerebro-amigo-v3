@@ -7,11 +7,8 @@ import { useRouter } from "next/navigation"
  * Logout do médico: limpa o cookie httpOnly via BFF e volta pro /login.
  * Trava duplo-clique (`isLoggingOut`) p/ evitar POST e evento de auditoria duplicados.
  * Compartilhado por sidebar e header (antes era copiado nos dois).
- *
- * skipcq JS-0117 abaixo: export de ES module (module scope), não global —
- * `no-implicit-globals` não vale p/ módulos (falso-positivo de arquivo novo).
  */
-export function useLogout() { // skipcq: JS-0117
+export function useLogout() {
   const router = useRouter()
   const [isLoggingOut, setIsLoggingOut] = useState(false)
 
