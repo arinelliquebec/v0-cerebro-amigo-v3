@@ -32,6 +32,7 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
 
     public const string JwtSecret = "test-secret-tenant-isolation-0123456789-abcdefghij";
     public const string InternalToken = "test-internal-token";
+    public const string AsaasWebhookToken = "test-asaas-webhook-token";
 
     private WebApplicationFactory<Program> _factory = default!;
     // Conexão de admin (superuser do container) — migrations, seed e asserts.
@@ -79,6 +80,7 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
         Environment.SetEnvironmentVariable("Jwt__Issuer", "cerebro-amigo");
         Environment.SetEnvironmentVariable("Jwt__Audience", "dashboard");
         Environment.SetEnvironmentVariable("INTERNAL_API_TOKEN", InternalToken);
+        Environment.SetEnvironmentVariable("ASAAS_WEBHOOK_TOKEN", AsaasWebhookToken);
         Environment.SetEnvironmentVariable("EXPOSE_ERROR_DETAILS", "true");
         // RESEND_API_KEY: o POST /pacientes injeta ResendClient (resolvido pelo DI ANTES
         // do handler); sem a key o app estoura 500 antes mesmo do cap/validação rodarem.

@@ -3,6 +3,8 @@ using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 
 namespace ApiGateway.Endpoints;
@@ -284,7 +286,16 @@ public static class CobrancasEndpoints
                     statusCode: 503);
             }
             var recebido = http.Headers["asaas-access-token"].ToString();
-            if (recebido != esperado) return Results.Unauthorized();
+            // Asaas NÃO assina o corpo (sem HMAC tipo Stripe; confirmado nos docs oficiais
+            // 2026-06-20) — o access-token é a ÚNICA camada de auth deste endpoint anônimo
+            // que altera estado financeiro. Comparação constante-time (timing-attack safe),
+            // espelhando o INTERNAL_API_TOKEN (Program.cs). O token vem de env, nunca é logado.
+            // Forja exige o token + um asaas_id válido; os UPDATE são escopados por asaas_id
+            // (no-op se não casar) e o pagamento é idempotente (ON CONFLICT asaas_payment_id);
+            // a reconciliação (/admin/asaas/reconciliacao) é o backstop contra divergência.
+            if (!CryptographicOperations.FixedTimeEquals(
+                    Encoding.UTF8.GetBytes(recebido), Encoding.UTF8.GetBytes(esperado)))
+                return Results.Unauthorized();
 
             using var doc = await JsonDocument.ParseAsync(http.Body);
             var root = doc.RootElement;
