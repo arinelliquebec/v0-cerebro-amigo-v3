@@ -1,5 +1,6 @@
 using ApiGateway.Auth;
 using ApiGateway.Data;
+using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -96,6 +97,56 @@ public static class ConsultasEndpoints
 
             return Results.Ok(rows);
         });
+
+        // Hub de briefings pré-consulta (/dashboard/briefings). Próximas consultas
+        // agendadas/confirmadas no intervalo [de, ate) + o ÚLTIMO resumo de IA do
+        // paciente (insights/agente='resumo_pre_consulta', não-descartado) numa só
+        // query (LEFT JOIN LATERAL). Mesma semântica do GET por-paciente em
+        // PacientesPsiqEndpoints (último por paciente, não amarrado à consulta).
+        // Tenant escopado pelo filtro explícito de médico (1ª cláusula) + RLS.
+        // Default: hoje .. +2 dias. Feature-gated (ADR-059): só planos pagos.
+        g.MapGet("/briefings", async (
+            AppDbContext db, ClaimsPrincipal user,
+            [FromQuery] string? de, [FromQuery] string? ate) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            var inicio = DateTime.TryParse(de, out var d) ? d.Date : DateTime.UtcNow.Date;
+            var fim = DateTime.TryParse(ate, out var a) ? a.Date.AddDays(1) : inicio.AddDays(2);
+
+            var rows = await db.Database.SqlQueryRaw<ConsultaBriefingRow>(@"
+                SELECT co.id AS consulta_id, co.paciente_id, cl.nome AS paciente_nome,
+                       co.inicia_em, co.duracao_min, co.modalidade, co.status,
+                       b.id AS briefing_id, b.severidade AS briefing_severidade,
+                       b.criado_em AS briefing_criado_em
+                FROM consultas co
+                JOIN clientes cl ON cl.id = co.paciente_id
+                JOIN pacientes p ON p.cliente_id = co.paciente_id
+                LEFT JOIN LATERAL (
+                    SELECT i.id, i.severidade, i.criado_em
+                    FROM insights i
+                    WHERE i.paciente_id = co.paciente_id
+                      AND i.agente = 'resumo_pre_consulta'
+                      AND i.descartado_em IS NULL
+                    ORDER BY i.criado_em DESC
+                    LIMIT 1
+                ) b ON TRUE
+                WHERE p.medico_responsavel_id = {0}
+                  AND co.inicia_em >= {1} AND co.inicia_em < {2}
+                  AND co.status IN ('agendada', 'confirmada')
+                ORDER BY co.inicia_em",
+                medicoId.Value, inicio, fim).ToListAsync();
+
+            var itens = rows.Select(r => new ConsultaBriefingItem(
+                r.ConsultaId, r.PacienteId, r.PacienteNome,
+                r.IniciaEm, r.DuracaoMin, r.Modalidade, r.Status,
+                r.BriefingId is Guid bid
+                    ? new BriefingResumo(bid, r.BriefingSeveridade ?? "info", r.BriefingCriadoEm!.Value)
+                    : null));
+
+            return Results.Ok(itens);
+        }).RequireFeature(FeatureKeys.BriefingIa); // ADR-059: briefing IA (planos pagos; bloqueia plano nulo/legado)
 
         // Detalhe de uma consulta (resolve paciente — usado pelo briefing).
         g.MapGet("/{id:guid}", async (Guid id, AppDbContext db, ClaimsPrincipal user) =>
@@ -406,3 +457,18 @@ public record ConsultaOcupada(DateTime IniciaEm, int DuracaoMin);
 public record LembreteItem(
     Guid Id, string? PacienteNome, DateTime IniciaEm, string Status,
     bool LembreteDia, bool LembreteHora);
+
+// Linha crua do hub de briefings (flat — SqlQueryRaw não materializa aninhado).
+// `public record` de propósito: `file record` quebra EF SqlQueryRaw em runtime.
+public record ConsultaBriefingRow(
+    Guid ConsultaId, Guid PacienteId, string? PacienteNome,
+    DateTime IniciaEm, int DuracaoMin, string Modalidade, string Status,
+    Guid? BriefingId, string? BriefingSeveridade, DateTime? BriefingCriadoEm);
+
+// Item do hub de briefings exposto pro BFF (briefing aninhado = null quando pendente).
+public record ConsultaBriefingItem(
+    Guid ConsultaId, Guid PacienteId, string? PacienteNome,
+    DateTime IniciaEm, int DuracaoMin, string Modalidade, string Status,
+    BriefingResumo? Briefing);
+
+public record BriefingResumo(Guid Id, string Severidade, DateTime CriadoEm);
