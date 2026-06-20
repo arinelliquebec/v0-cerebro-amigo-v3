@@ -80,12 +80,12 @@ done
 c=$(curl -s -o /dev/null -w "%{http_code}" --max-time 35 -X POST "$BASE/api/email-report" \
   -H "Content-Type: application/json" \
   -d '{"sessionId":"00000000-0000-0000-0000-000000000000","email":"smoke@example.com","scale":"audit","score":12,"band":"moderate","label":"x","crisis":false}')
-{ [ "$c" = 502 ] || [ "$c" = 200 ]; } && ok "email-report fail-closed/ok ($c)" || bad "email-report (http=$c)"
+if [ "$c" = 502 ] || [ "$c" = 200 ]; then ok "email-report fail-closed/ok ($c)"; else bad "email-report (http=$c)"; fi
 
 # Input inválido → 400 (Zod), sem tocar no envio.
 c=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 -X POST "$BASE/api/email-report" \
   -H "Content-Type: application/json" -d '{"email":"not-an-email"}')
-[ "$c" = 400 ] && ok "email-report valida input (400)" || bad "email-report input (http=$c)"
+if [ "$c" = 400 ]; then ok "email-report valida input (400)"; else bad "email-report input (http=$c)"; fi
 
 if [ "$fail" = 0 ]; then echo "SMOKE OK"; else echo "SMOKE FAILED"; fi
 exit "$fail"

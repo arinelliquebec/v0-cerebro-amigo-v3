@@ -189,9 +189,10 @@ function ResultContent() {
       .then((r) => {
         setEmailState(r.ok ? "done" : "error");
         // Sinal de aquisição (engajou a ponto de querer o PDF). Sem PII: só sessão +
-        // escala, NUNCA o e-mail. Não-bloqueante. Cockpit ADR-050 conta por event_type.
+        // escala, NUNCA o e-mail. Não-bloqueante (void = fire-and-forget intencional).
+        // Cockpit ADR-050 conta por event_type.
         if (r.ok)
-          fetch("/api/events", {
+          void fetch("/api/events", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ event: "email_report_sent", sessionId: sid, scaleId: scale }),
