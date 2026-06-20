@@ -65,3 +65,31 @@ ADR-026 dizia "nunca grava". Passa a permitir gravação **apenas** quando:
   do browser em vez de base64 via gateway) para áudios longos; revisão clínica do prompt factual.
 - Fase 2 possível: legenda ao vivo (streaming Transcribe) e captura em consulta presencial
   (app grava o ambiente) — fora deste ADR.
+
+## Adendo 2026-06-20 — reorganização SOAP factual
+
+Pedido recorrente de organizar o rascunho em **SOAP**. Reafirmando a decisão original: o
+esqueleto SOAP é adotado **apenas nas partes factuais** (S e O); **A e P continuam do médico**.
+
+- **S — Subjetivo (IA, factual):** reusa os campos existentes `resumo_factual`,
+  `queixas_relatadas`, `fatos_relatados`.
+- **O — Objetivo (IA, factual — NOVO campo `objetivo`):** só dados objetivos **ditos
+  explicitamente** na consulta (escalas com escore mencionado, exames/resultados citados, sinais
+  vitais citados). **Proibido** incluir exame do estado mental ou qualquer inferência.
+- **A — Avaliação / P — Plano:** continuam **campos do médico** na UI; a IA não preenche.
+- Campos factuais adicionais: `sinais_de_alerta` (citações factuais de risco, complementa o flag
+  `mencao_risco`) e `observacoes_para_revisao_medica` (contradições/ambiguidades da transcrição;
+  é auxílio de revisão e **não** entra na nota final).
+
+**Rejeitado de novo (regra #1):** a versão do prompt que pedia à IA gerar `cid10_sugeridos`,
+`avaliacao` e `plano`. IA não emite CID/diagnóstico/conduta — nem como "sugestão para o médico
+aprovar". Reabrir isso exige um ADR próprio que supersede o `clinical-safety` + revisão do Adonai.
+
+- **Sem migration / sem mudança no gateway:** o rascunho é JSON em coluna de texto cifrada e o
+  gateway o trata como opaco; os campos novos (default vazio no Pydantic) são retrocompatíveis.
+- **Prompt mantido inline** em `agents-py` (não na tabela `prompts` editável): consistente com
+  ADR-035, que trava prompts de salvaguarda contra edição via admin.
+- **Trava de regressão:** teste estrutural em `tests/test_escriba.py` falha se o schema
+  `RascunhoFactualOutput` ganhar campo diagnóstico/conduta (`cid`/`avaliacao`/`plano`/…).
+- Arquivos: `apps/agents-py/app/services/escriba.py`,
+  `apps/web/app/dashboard/consultas/[id]/escriba/page.tsx`.

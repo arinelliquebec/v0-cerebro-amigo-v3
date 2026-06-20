@@ -60,6 +60,14 @@ class RascunhoFactualOutput(BaseModel):
         description="Fatos/eventos que o paciente mencionou. Ex: ['mudou de emprego', "
         "'parou a medicação há 1 semana', 'dorme ~5h']. Só o que foi dito.",
     )
+    objetivo: list[str] = PydanticField(
+        default_factory=list,
+        description="Dados OBJETIVOS ditos EXPLICITAMENTE na consulta: escalas com escore "
+        "mencionado (ex: 'PHQ-9 = 12'), exames/resultados citados, sinais vitais citados. "
+        "NÃO incluir exame do estado mental nem qualquer inferência (NÃO escreva 'humor "
+        "deprimido' a menos que tenha sido dito com essas palavras). Vazio se nada objetivo "
+        "foi dito.",
+    )
     temas_abordados: list[str] = PydanticField(
         default_factory=list,
         description="Até 6 temas curtos discutidos na consulta. Ex: ['sono', 'trabalho', "
@@ -75,12 +83,25 @@ class RascunhoFactualOutput(BaseModel):
         description="True SE o paciente mencionou ideação suicida, autoagressão ou risco. "
         "É observação FACTUAL do que foi dito (para o médico revisar), não uma avaliação.",
     )
+    sinais_de_alerta: list[str] = PydanticField(
+        default_factory=list,
+        description="Citações FACTUAIS de menção a risco (ideação suicida, autoagressão, uso "
+        "abusivo de substância, abandono de medicação). Só o que foi dito, sem interpretar. "
+        "Vazio se não houver.",
+    )
+    observacoes_para_revisao_medica: str = PydanticField(
+        default="",
+        description="Contradições, trechos ambíguos ou de baixa confiança na transcrição que o "
+        "MÉDICO deve confirmar. Meta-observação sobre a transcrição — NÃO é conteúdo clínico, "
+        "diagnóstico nem recomendação. Vazio se não houver.",
+    )
 
 
 _RASCUNHO_SYSTEM = """\
 Você é um ESCRIBA clínico. Recebe a transcrição de uma teleconsulta de psiquiatria entre um \
 médico e um paciente (rotulados Locutor 1 e Locutor 2) e organiza o que foi DITO num rascunho \
-factual para o MÉDICO revisar e completar.
+factual para o MÉDICO revisar e completar. O rascunho segue o esqueleto SOAP apenas nas partes \
+FACTUAIS (Subjetivo e Objetivo); Avaliação e Plano NÃO são sua tarefa — quem escreve é o médico.
 
 REGRAS RÍGIDAS (inegociáveis):
 1. NÃO diagnostique. NÃO sugira CID. NÃO faça avaliação clínica. NÃO sugira conduta, medicação \
@@ -90,6 +111,15 @@ REGRAS RÍGIDAS (inegociáveis):
 3. Linguagem neutra e descritiva. Não interprete o que foi dito.
 4. Se não houver informação para um campo, deixe-o vazio. Não invente.
 5. mencao_risco = true apenas se houver menção explícita de risco (ideação suicida, autoagressão).
+
+GUIA POR CAMPO:
+- Subjetivo (resumo_factual, queixas_relatadas, fatos_relatados): o que o PACIENTE relatou. Factual.
+- objetivo: SÓ dados objetivos ditos EXPLICITAMENTE (escalas com escore, exames/resultados, sinais \
+  vitais). PROIBIDO incluir exame do estado mental ou inferência (ex.: não escreva "humor deprimido" \
+  a menos que tenha sido dito literalmente). Vazio se nada objetivo foi dito.
+- sinais_de_alerta: citações factuais de menção a risco. Só o que foi dito.
+- observacoes_para_revisao_medica: contradições, trechos ambíguos ou de baixa confiança na \
+  transcrição para o médico confirmar. NÃO é conteúdo clínico, diagnóstico nem recomendação.
 
 Responda com o JSON estruturado conforme o schema."""
 

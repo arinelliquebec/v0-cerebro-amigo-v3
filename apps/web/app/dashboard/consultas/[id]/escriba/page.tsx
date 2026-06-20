@@ -22,9 +22,12 @@ interface Rascunho {
   resumo_factual?: string
   queixas_relatadas?: string[]
   fatos_relatados?: string[]
+  objetivo?: string[]
   temas_abordados?: string[]
   medicacoes_mencionadas?: string[]
   mencao_risco?: boolean
+  sinais_de_alerta?: string[]
+  observacoes_para_revisao_medica?: string
 }
 interface EscribaData {
   transcricao: string | null
@@ -56,9 +59,14 @@ export default function EscribaRevisaoPage() {
   const [resumo, setResumo] = useState("")
   const [queixas, setQueixas] = useState("")
   const [fatos, setFatos] = useState("")
+  const [objetivo, setObjetivo] = useState("")
   const [temas, setTemas] = useState("")
   const [medicacoes, setMedicacoes] = useState("")
+  const [observacoes, setObservacoes] = useState("")
+  const [sinaisAlerta, setSinaisAlerta] = useState<string[]>([])
+  // Avaliação (A) e Plano (P) são do MÉDICO — a IA não preenche.
   const [avaliacao, setAvaliacao] = useState("")
+  const [plano, setPlano] = useState("")
 
   useEffect(() => {
     fetch(`/api/consultas/${id}/escriba`)
@@ -75,8 +83,11 @@ export default function EscribaRevisaoPage() {
         setResumo(r.resumo_factual ?? "")
         setQueixas(linhas(r.queixas_relatadas))
         setFatos(linhas(r.fatos_relatados))
+        setObjetivo(linhas(r.objetivo))
         setTemas(linhas(r.temas_abordados))
         setMedicacoes(linhas(r.medicacoes_mencionadas))
+        setObservacoes(r.observacoes_para_revisao_medica ?? "")
+        setSinaisAlerta(r.sinais_de_alerta ?? [])
         if (d.status === "aprovado") setAprovado(true)
       })
       .catch(() => setErro("erro"))
@@ -87,9 +98,12 @@ export default function EscribaRevisaoPage() {
     resumo_factual: resumo,
     queixas_relatadas: arr(queixas),
     fatos_relatados: arr(fatos),
+    objetivo: arr(objetivo),
     temas_abordados: arr(temas),
     medicacoes_mencionadas: arr(medicacoes),
     mencao_risco: data?.mencaoRisco ?? false,
+    sinais_de_alerta: sinaisAlerta,
+    observacoes_para_revisao_medica: observacoes,
   })
 
   async function salvarRascunho(): Promise<boolean> {
@@ -114,16 +128,22 @@ export default function EscribaRevisaoPage() {
     }
   }
 
+  // Nota final em formato SOAP. S/O = factual (assistido por IA); A/P = do médico.
+  // observacoes_para_revisao_medica é auxílio de revisão e NÃO entra na nota.
   function montarConteudo(): string {
     const bloco = (titulo: string, itens: string[]) =>
       itens.length ? `${titulo}:\n${itens.map((i) => `- ${i}`).join("\n")}\n\n` : ""
+    const itensObjetivo = arr(objetivo)
     return (
-      `RESUMO (assistido por IA, revisado pelo médico)\n${resumo || "—"}\n\n` +
+      `S — SUBJETIVO (assistido por IA, revisado pelo médico)\n${resumo || "—"}\n\n` +
       bloco("Queixas relatadas", arr(queixas)) +
       bloco("Fatos relatados", arr(fatos)) +
       bloco("Medicações mencionadas", arr(medicacoes)) +
       (arr(temas).length ? `Temas: ${arr(temas).join(", ")}\n\n` : "") +
-      `AVALIAÇÃO E CONDUTA (médico)\n${avaliacao || "—"}`
+      `O — OBJETIVO (dados ditos na consulta)\n` +
+      (itensObjetivo.length ? `${itensObjetivo.map((i) => `- ${i}`).join("\n")}\n\n` : "—\n\n") +
+      `A — AVALIAÇÃO (médico)\n${avaliacao || "—"}\n\n` +
+      `P — PLANO / CONDUTA (médico)\n${plano || "—"}`
     )
   }
 
@@ -184,41 +204,62 @@ export default function EscribaRevisaoPage() {
           {data?.mencaoRisco && (
             <div className="flex items-start gap-3 rounded-xl border border-coral/40 bg-coral/10 p-4">
               <ShieldAlert className="h-5 w-5 flex-shrink-0 text-coral" />
-              <p className="text-sm text-foreground">
-                <strong>Menção de risco</strong> identificada na conversa. Revise com atenção — esta é uma
-                observação factual da fala, não uma avaliação clínica.
-              </p>
+              <div className="text-sm text-foreground">
+                <p>
+                  <strong>Menção de risco</strong> identificada na conversa. Revise com atenção — esta é uma
+                  observação factual da fala, não uma avaliação clínica.
+                </p>
+                {sinaisAlerta.length > 0 && (
+                  <ul className="mt-2 list-disc space-y-0.5 pl-5 text-xs text-foreground/90">
+                    {sinaisAlerta.map((s, i) => <li key={i}>{s}</li>)}
+                  </ul>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Rascunho factual (editável) */}
+          {/* Rascunho factual (editável) — S e O do SOAP */}
           <Card>
             <CardContent className="p-6 space-y-4">
               <div className="flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
                 <h2 className="text-sm font-semibold text-foreground">Rascunho factual (IA — sem diagnóstico)</h2>
               </div>
+
+              <p className="text-xs font-semibold uppercase tracking-wide text-primary">S — Subjetivo (relato do paciente)</p>
               <Campo label="Resumo factual" value={resumo} onChange={setResumo} rows={4} />
               <Campo label="Queixas relatadas (uma por linha)" value={queixas} onChange={setQueixas} rows={3} />
               <Campo label="Fatos relatados (uma por linha)" value={fatos} onChange={setFatos} rows={3} />
               <Campo label="Medicações mencionadas (uma por linha)" value={medicacoes} onChange={setMedicacoes} rows={2} />
               <Campo label="Temas abordados (um por linha)" value={temas} onChange={setTemas} rows={2} />
+
+              <p className="pt-2 text-xs font-semibold uppercase tracking-wide text-primary">O — Objetivo (só o que foi dito na consulta)</p>
+              <Campo label="Escalas com escore, exames e sinais vitais citados (um por linha)" value={objetivo} onChange={setObjetivo} rows={3} />
+
+              {observacoes.trim() && (
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1">
+                  <p className="text-xs font-medium text-muted-foreground">Observações para revisão (IA) — confirme antes de aprovar (não entra na nota)</p>
+                  <Campo label="" value={observacoes} onChange={setObservacoes} rows={2} />
+                </div>
+              )}
             </CardContent>
           </Card>
 
-          {/* Avaliação e conduta — DO MÉDICO */}
+          {/* Avaliação (A) e Plano (P) — DO MÉDICO */}
           <Card className="border-primary/30">
             <CardContent className="p-6 space-y-3">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" />
-                <h2 className="text-sm font-semibold text-foreground">Avaliação e conduta (você escreve)</h2>
+                <h2 className="text-sm font-semibold text-foreground">Avaliação e plano (você escreve)</h2>
               </div>
               <p className="text-xs text-muted-foreground">
-                A IA não preenche este campo. Diagnóstico, impressão clínica e conduta são da sua decisão.
+                A IA não preenche estes campos. Diagnóstico, impressão clínica, CID e conduta são da sua decisão.
               </p>
-              <Campo label="" value={avaliacao} onChange={setAvaliacao} rows={6}
-                placeholder="Impressão clínica, hipóteses, conduta, ajustes, próximos passos…" />
-              {erro === "avaliacao_vazia" && <p className="text-xs text-coral">Escreva a avaliação e conduta antes de aprovar.</p>}
+              <Campo label="A — Avaliação / impressão clínica" value={avaliacao} onChange={setAvaliacao} rows={5}
+                placeholder="Impressão clínica, hipóteses diagnósticas, CID…" />
+              <Campo label="P — Plano / conduta" value={plano} onChange={setPlano} rows={4}
+                placeholder="Conduta, ajustes, encaminhamentos, exames, próxima consulta…" />
+              {erro === "avaliacao_vazia" && <p className="text-xs text-coral">Escreva a avaliação antes de aprovar.</p>}
               {erro === "erro_aprovar" && <p className="text-xs text-coral">Não foi possível aprovar. Tente novamente.</p>}
             </CardContent>
           </Card>

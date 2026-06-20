@@ -114,6 +114,49 @@ def test_schema_mencao_risco_default_false():
     assert RascunhoFactualOutput(resumo_factual="x").mencao_risco is False
 
 
+def test_prompt_proibe_avaliacao_plano_e_inferencia():
+    # SOAP factual: a IA preenche S/O; Avaliação e Plano são do médico, e o Objetivo
+    # não pode inferir estado mental. Se alguém relaxar o prompt, isto quebra.
+    assert "NÃO escreva plano terapêutico" in _RASCUNHO_SYSTEM
+    assert "Avaliação e Plano NÃO são sua tarefa" in _RASCUNHO_SYSTEM
+    assert "exame do estado mental" in _RASCUNHO_SYSTEM
+
+
+def test_schema_nao_tem_campos_de_decisao_clinica():
+    # Trava estrutural (regra #1): a saída da IA NUNCA pode ganhar campo diagnóstico/
+    # conduta. Adicionar cid/avaliacao/plano ao schema quebra este teste de propósito.
+    campos = set(RascunhoFactualOutput.model_fields)
+    proibidos = {
+        "cid", "cid10", "cid10_sugeridos", "diagnostico", "diagnostico_sugerido",
+        "avaliacao", "plano", "conduta", "prescricao", "dose",
+    }
+    assert campos.isdisjoint(proibidos), f"campo de decisão clínica no schema: {campos & proibidos}"
+
+
+def test_schema_campos_factuais_novos_com_default():
+    # objetivo/sinais_de_alerta/observações são factuais e opcionais (default vazio).
+    r = RascunhoFactualOutput(resumo_factual="x")
+    assert r.objetivo == []
+    assert r.sinais_de_alerta == []
+    assert r.observacoes_para_revisao_medica == ""
+
+
+def test_schema_aceita_rascunho_antigo_sem_campos_novos():
+    # Retrocompat: rascunho gravado antes da mudança (sem objetivo/sinais/observações)
+    # ainda parseia, caindo nos defaults — nenhuma migration necessária.
+    antigo = {
+        "resumo_factual": "Paciente relatou insônia.",
+        "queixas_relatadas": ["insônia"],
+        "fatos_relatados": [],
+        "temas_abordados": ["sono"],
+        "medicacoes_mencionadas": ["Escitalopram"],
+        "mencao_risco": False,
+    }
+    r = RascunhoFactualOutput(**antigo)
+    assert r.objetivo == []
+    assert r.observacoes_para_revisao_medica == ""
+
+
 # ─── gerar_rascunho_consulta (pipeline com mocks) ────────────────────────────
 
 
