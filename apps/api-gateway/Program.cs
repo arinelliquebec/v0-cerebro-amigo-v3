@@ -263,6 +263,11 @@ builder.Services.AddHttpClient<TurnstileVerifier>();
 // cargo do fluxo (1 cobrança por chamada do médico).
 builder.Services.AddHttpClient<AsaasClient>();
 
+// AsaasReconcileService: reconciliação agendada DETECT-ONLY (ADR-055 Fase E) — loga
+// divergência local×Asaas (webhook perdido) sem escrever em `assinaturas`. Gate:
+// ASAAS_API_KEY setada + ASAAS_RECONCILE_INTERVAL_HORAS > 0 (default 24h).
+builder.Services.AddHostedService<AsaasReconcileService>();
+
 // OrchestratorStreamClient — proxy SSE para o orchestrator-py
 builder.Services.AddOrchestratorStreamClient(builder.Configuration);
 

@@ -89,6 +89,19 @@ const nextConfig = {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
+          {
+            /* HSTS: força HTTPS no browser (prod serve atrás do ALB com TLS).
+               2 anos + includeSubDomains; sem `preload` (não submetido à lista). */
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains",
+          },
+          {
+            /* Permissions-Policy: trava recursos não usados. ATENÇÃO: câmera e
+               microfone ficam liberados p/ `self` — a teleconsulta (WebRTC, ADR-026)
+               depende deles; lockar quebraria o vídeo. Geolocalização e FLoC off. */
+            key: "Permissions-Policy",
+            value: "camera=(self), microphone=(self), geolocation=(), interest-cohort=()",
+          },
         ],
       },
     ]
