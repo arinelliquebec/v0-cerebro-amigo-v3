@@ -9,7 +9,7 @@ import { CTASection } from "@/components/landing/cta-section"
 import { FooterSection } from "@/components/landing/footer-section"
 import { Eyebrow } from "@/components/landing/eyebrow"
 import { Reveal } from "@/components/landing/reveal"
-import { Schema, softwareSchema, websiteSchema } from "@/components/seo/schema"
+import { Schema, softwareSchema, websiteSchema, breadcrumb } from "@/components/seo/schema"
 import { CheckupQrBanner } from "@/components/landing/checkup-qr-banner"
 
 export const metadata = {
@@ -30,6 +30,7 @@ export default function MedicoLandingPage() {
     <main className="theme-noir min-h-screen bg-background text-foreground antialiased">
       <Schema data={softwareSchema} />
       <Schema data={websiteSchema} />
+      <Schema data={breadcrumb([{ name: "Início", path: "/" }, { name: "Para Psiquiatras", path: "/medico" }])} />
       <NavHeader />
       <Suspense fallback={null}>
         <CheckupQrBanner />

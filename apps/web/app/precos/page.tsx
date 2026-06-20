@@ -5,7 +5,7 @@ import { AuroraBackdrop } from "@/components/landing/aurora-backdrop"
 import { Eyebrow } from "@/components/landing/eyebrow"
 import { Reveal, RevealGroup, RevealItem } from "@/components/landing/reveal"
 import { FooterSection } from "@/components/landing/footer-section"
-import { Schema } from "@/components/seo/schema"
+import { Schema, breadcrumb } from "@/components/seo/schema"
 import {
   Check, ArrowRight, ShieldCheck, Lock, Zap, Users, Brain, ChevronDown, ChevronUp, Star,
 } from "lucide-react"
@@ -141,6 +141,7 @@ export default function PrecosPage() {
   return (
     <main className="theme-noir min-h-screen bg-background text-foreground antialiased">
       <Schema data={faqSchema} />
+      <Schema data={breadcrumb([{ name: "Início", path: "/" }, { name: "Preços", path: "/precos" }])} />
 
       {/* Nav */}
       <header className="sticky top-0 z-50">

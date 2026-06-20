@@ -12,6 +12,8 @@ import { CheckCircle } from "lucide-react"
 export const metadata = {
   title: "Entrar — Cérebro Amigo",
   description: "Acesse sua conta do Cérebro Amigo",
+  // Login não deve ranquear (já em robots disallow); reforça com noindex.
+  robots: { index: false, follow: false },
 }
 
 const props = [

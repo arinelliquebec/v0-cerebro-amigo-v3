@@ -13,10 +13,20 @@ const ORG_NAME = "Cérebro Amigo"
 
 export const orgSchema = {
   "@context": "https://schema.org",
+  // SaaS p/ psiquiatras — NÃO é provedor médico; manter Organization (não
+  // MedicalBusiness/MedicalOrganization) p/ não overclaim de autoridade clínica.
   "@type": "Organization",
   name: ORG_NAME,
   url: SITE,
   logo: `${SITE}/brain-logo.png`,
+  slogan: "O CRM que trabalha entre consultas.",
+  areaServed: "BR",
+  knowsAbout: [
+    "Psiquiatria",
+    "Saúde mental",
+    "Acompanhamento entre consultas",
+    "LGPD em saúde",
+  ],
   sameAs: [],
   contactPoint: {
     "@type": "ContactPoint",
@@ -24,6 +34,20 @@ export const orgSchema = {
     contactType: "customer support",
     availableLanguage: "Portuguese",
   },
+}
+
+/** BreadcrumbList p/ rich result de navegação. items na ordem raiz→atual. */
+export function breadcrumb(items: { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((it, i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name: it.name,
+      item: `${SITE}${it.path}`,
+    })),
+  }
 }
 
 export const softwareSchema = {

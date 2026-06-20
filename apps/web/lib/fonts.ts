@@ -11,7 +11,7 @@ export const playfair = Playfair_Display({
   variable: "--font-playfair",
   display: "swap",
   weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
+  style: ["normal"], // italic não usado em serif → −4 arquivos de fonte
 })
 
 // Mono — eyebrows/labels/dados na estética Neural Noir (landing).
