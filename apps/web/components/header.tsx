@@ -35,8 +35,12 @@ export function Header({ title, subtitle }: HeaderProps) {
   const router = useRouter()
   const me = useMe()
   const [busca, setBusca] = useState("")
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [fotoErro, setFotoErro] = useState(false)
 
   async function handleLogout() {
+    if (isLoggingOut) return // trava duplo-clique: evita POST duplicado + evento de auditoria duplicado
+    setIsLoggingOut(true)
     try {
       await fetch("/api/auth/logout", { method: "POST" })
     } finally {
@@ -105,7 +109,9 @@ export function Header({ title, subtitle }: HeaderProps) {
                 className="rounded-full outline-none transition-all duration-200 hover:opacity-90 focus-visible:ring-2 focus-visible:ring-primary/30"
               >
                 <Avatar className="h-9 w-9 shadow-sm">
-                  {me?.fotoUrl ? <AvatarImage src={me.fotoUrl} alt="" /> : null}
+                  {me?.fotoUrl && !fotoErro ? (
+                    <AvatarImage src={me.fotoUrl} alt="" onError={() => setFotoErro(true)} />
+                  ) : null}
                   <AvatarFallback className="bg-gradient-to-br from-primary to-purple-dark text-xs font-semibold text-primary-foreground">
                     {iniciais(me?.nome)}
                   </AvatarFallback>
@@ -113,29 +119,25 @@ export function Header({ title, subtitle }: HeaderProps) {
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel className="flex flex-col gap-0.5">
-                <span className="truncate text-sm font-semibold text-foreground">{me?.nome ?? "Minha conta"}</span>
-                {me?.email && (
-                  <span className="truncate text-xs font-normal text-muted-foreground">{me.email}</span>
-                )}
-              </DropdownMenuLabel>
+              <DropdownMenuLabel className="truncate">{me?.nome ?? "Minha conta"}</DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/conta" className="cursor-pointer gap-2">
-                  <UserCircle className="h-4 w-4" /> Minha conta
+                <Link href="/dashboard/conta">
+                  <UserCircle className="h-4 w-4" aria-hidden="true" /> Minha conta
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/financeiro" className="cursor-pointer gap-2">
-                  <Wallet className="h-4 w-4" /> Pagamentos &amp; 2ª via
+                <Link href="/dashboard/financeiro">
+                  <Wallet className="h-4 w-4" aria-hidden="true" /> Pagamentos &amp; 2ª via
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={handleLogout}
-                className="cursor-pointer gap-2 text-destructive focus:bg-destructive/10 focus:text-destructive"
+                disabled={isLoggingOut}
+                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
               >
-                <LogOut className="h-4 w-4" /> Sair
+                <LogOut className="h-4 w-4" aria-hidden="true" /> {isLoggingOut ? "Saindo…" : "Sair"}
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
