@@ -21,6 +21,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ─── Trivy: vulnerabilidades de dependência (P2 hardening) ───────────────
+  # Escaneia os manifests dos 7 serviços (pnpm/nuget/pip) por CVE com correção.
+  # GATE em CRITICAL (hoje = 0, não quebra; pega futuros); HIGH é reportado sem
+  # bloquear (baseline 2026-06-20: drizzle-orm SQLi 0.44.7→0.45.2 + xlsx — follow-up
+  # de bump). ignore-unfixed = só CVE acionável (com versão corrigida disponível).
+  trivy:
+    name: Trivy — vulnerabilidades de dependência
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Trivy
+        run: |
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+            | sh -s -- -b /usr/local/bin
+          trivy --version
+
+      # Visibilidade: tabela com CRITICAL+HIGH no log (não bloqueia).
+      - name: Trivy report (CRITICAL + HIGH)
+        run: |
+          trivy fs --scanners vuln --ignore-unfixed --no-progress \
+            --skip-dirs node_modules,bin,obj,_v2-ref \
+            --severity CRITICAL,HIGH --exit-code 0 .
+
+      # Gate: falha o CI SÓ em CRITICAL com correção. Flipar p/ incluir HIGH quando
+      # os 3 HIGH do baseline forem corrigidos (bump de drizzle-orm/xlsx no checkup/web).
+      - name: Trivy gate (CRITICAL)
+        run: |
+          trivy fs --scanners vuln --ignore-unfixed --no-progress \
+            --skip-dirs node_modules,bin,obj,_v2-ref \
+            --severity CRITICAL --exit-code 1 .
+
   python:
     name: Python services — lint + tests
     runs-on: ubuntu-latest
