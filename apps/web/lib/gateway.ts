@@ -6,6 +6,7 @@
 
 import { cookies } from "next/headers"
 import { NextResponse } from "next/server"
+import { decodeJwtRole } from "@/lib/jwt"
 
 const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 
@@ -25,6 +26,14 @@ async function request<T>(
 ): Promise<T> {
   const cookieStore = await cookies()
   const bearer = token ?? cookieStore.get("auth_token")?.value
+
+  // Defesa em profundidade (T1-10): este cliente serve só médico/admin. Um token de
+  // paciente injetado no cookie auth_token nunca deve ser repassado como Bearer médico.
+  // O gateway .NET segue como autoridade (assinatura + policies por role); aqui só
+  // barramos o caso explícito. role=null (token legado sem claim) passa — fail-open.
+  if (token === undefined && bearer && decodeJwtRole(bearer) === "paciente") {
+    throw new GatewayError(401, { error: "sessao_invalida" })
+  }
 
   const res = await fetch(`${GATEWAY}${path}`, {
     ...init,

@@ -110,6 +110,9 @@ export async function trocarSenha(
 }
 
 // ─── Logout ────────────────────────────────────────────────────────────────
+// CSRF (T1-9): é um Server Action — o Next já valida Origin × Host nativamente e
+// rejeita POST cross-site, então não precisa do guard manual do Route Handler do
+// médico (lib/same-origin.ts). O lado paciente fica coberto pela proteção do framework.
 export async function sairPaciente(): Promise<void> {
   ;(await cookies()).set(COOKIE_NAME, "", { ...COOKIE_OPTS, maxAge: 0 })
   redirect("/p/entrar")

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { decodeJwtRole } from "@/lib/jwt"
 
 /**
  * proxy.ts — Next.js 16 replacement for middleware.ts (Node.js runtime).
@@ -11,16 +12,6 @@ import { NextRequest, NextResponse } from "next/server"
  * 5. Expose the pathname as `x-pathname` so server layouts can decide chrome
  *    (ex.: portal esconde a bottom-nav em /p/entrar).
  */
-
-function decodeJwtRole(token: string): string | null {
-  try {
-    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")
-    const data = JSON.parse(atob(payload))
-    return (data?.role as string) ?? null
-  } catch {
-    return null
-  }
-}
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
