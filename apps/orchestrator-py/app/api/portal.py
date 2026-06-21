@@ -23,6 +23,8 @@ Idempotência: a tabela `inbound_messages` registra cada
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
 from uuid import UUID
 
@@ -37,6 +39,12 @@ from app.db import acquire
 
 logger = structlog.get_logger(__name__)
 router = APIRouter(prefix="/internal/portal", tags=["portal"])
+
+# Heartbeat de transporte do SSE da conversa: comentario SSE (`: ping`) a cada N s
+# enquanto o LLM processa. Inerte — EventSource ignora comentario; nao altera
+# evento/conteudo, nao toca crise/auditoria/PII. Sobrevive a proxy/LB/CloudFront que
+# derrubam SSE ocioso (>60s sem byte).
+_SSE_HEARTBEAT_SECS = 20
 
 
 # ─── Auth ──────────────────────────────────────────────────────────────────
@@ -142,20 +150,48 @@ def _sse_format(event: str, data: dict) -> bytes:
 async def portal_conversation_message(req: PortalMessageRequest):
     await _claim_message(req)
 
+    # Padrao queue+task de proposito: o `wait_for` so expira no queue.get, nunca
+    # cancela o passo em-voo do grafo (cancelar __anext__ corromperia o stream do
+    # LangGraph). Heartbeat (`: ping`) emitido nos gaps. Ver _SSE_HEARTBEAT_SECS.
     async def event_generator():
         final_status = "failed"
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def _pump():
+            try:
+                async for ev in stream_conversation(
+                    paciente_id=req.paciente_id,
+                    mensagem=req.mensagem,
+                    idempotency_key=req.idempotency_key,
+                    canal=req.canal,
+                ):
+                    await queue.put(("event", ev))
+            except Exception as exc:  # pragma: no cover
+                await queue.put(("exc", exc))
+            finally:
+                await queue.put(("done", None))
+
+        pump_task = asyncio.create_task(_pump())
         try:
-            async for ev in stream_conversation(
-                paciente_id=req.paciente_id,
-                mensagem=req.mensagem,
-                idempotency_key=req.idempotency_key,
-                canal=req.canal,
-            ):
-                yield _sse_format(ev["event"], ev["data"])
-                if ev["event"] == "complete":
-                    final_status = "completed"
-                elif ev["event"] == "error":
-                    final_status = "failed"
+            while True:
+                try:
+                    kind, payload = await asyncio.wait_for(
+                        queue.get(), timeout=_SSE_HEARTBEAT_SECS
+                    )
+                except TimeoutError:
+                    yield ": ping\n\n"  # keepalive inerte; sem dado/PII
+                    continue
+                if kind == "event":
+                    ev = payload
+                    yield _sse_format(ev["event"], ev["data"])
+                    if ev["event"] == "complete":
+                        final_status = "completed"
+                    elif ev["event"] == "error":
+                        final_status = "failed"
+                elif kind == "exc":
+                    raise payload
+                else:  # done
+                    break
         except Exception as exc:  # pragma: no cover
             logger.exception(
                 "portal.stream.failed",
@@ -174,6 +210,9 @@ async def portal_conversation_message(req: PortalMessageRequest):
             )
             final_status = "failed"
         finally:
+            pump_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await pump_task
             await _mark_status(req.idempotency_key, final_status)
 
     return StreamingResponse(
