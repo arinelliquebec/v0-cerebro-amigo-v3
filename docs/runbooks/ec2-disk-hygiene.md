@@ -37,6 +37,12 @@ docker image prune -af || true   # remove imagens do(s) SHA(s) anterior(es)
 `cerebro-amigo/{web,api-gateway,api-gateway-scala,orchestrator-py,agents-py,notifier-py,checkup}`.
 IaC em `infra/aws/setup-ecr.sh` (os 6 clínicos no array `SERVICES`; `checkup` no `EXTRA_LIFECYCLE_REPOS`, pois o repo é criado pelo setup do ASG do checkup, não por esse script).
 
+### 4. Box NUNCA builda (guarda `--no-build`)
+Build é **100% no CI**: o job `build-clinical` (`docker/bake-action`, cache GHA) builda as 6 imagens e empurra pro ECR. O box só `docker compose pull` + `docker compose up -d --no-build`.
+- O `compose` tem `build:` em cada serviço **só para dev local** (`docker compose up --build`). Em prod isso é uma armadilha: sem `--build` explícito, `compose up` **builda localmente se a imagem faltar** (default do compose) → `sbt stage`/dotnet/next na EC2 = explosão de memória (origem provável dos 11 GB de build cache históricos).
+- **`--no-build` é a guarda**: imagem ausente → o deploy **falha alto** em vez de compilar no box. O Scala (`sbt stage`) roda no stage de build do Dockerfile = dentro do CI; a imagem de runtime é só JRE.
+- Efeito: o build cache do box **não volta a crescer** (nada compila lá). O `builder prune` pré-pull é só rede de segurança.
+
 ## Recuperação manual (quando já encheu)
 
 Via SSM (não precisa SSH). Rodar do laptop com AWS CLI:

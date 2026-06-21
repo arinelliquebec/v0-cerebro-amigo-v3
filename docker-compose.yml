@@ -5,7 +5,9 @@
 # para infra própria (ALB + ASG, ADR-045) — deploy dele via `deploy-checkup` no CI.
 #
 # image: → ECR em produção (tag = IMAGE_TAG=$GITHUB_SHA, definido pelo CI).
-# build: → mantido para dev local; "docker compose up --build" constrói localmente.
+# build: → SÓ dev local; "docker compose up --build" constrói localmente.
+#   PROD NUNCA builda: o deploy (deploy.yml) usa `up -d --no-build` → box só dá pull
+#   do ECR; build é 100% no CI (build-clinical/bake). Ver docs/runbooks/ec2-disk-hygiene.md.
 # IMAGE_TAG não setado em dev → usa tag "latest" (construa local antes: docker compose build).
 #
 # ─── Isolamento de recurso (ADR-009 PR 1) ────────────────────────────────────

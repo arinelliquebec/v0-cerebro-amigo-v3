@@ -22,6 +22,12 @@ env:
 #   • CLÍNICO  (web, api-gateway, 3 py) → box EC2 i-057860cd97edafefb via SSM compose.
 #   • CHECKUP  (apps/checkup)           → ASG `cerebro-checkup-asg` via instance refresh.
 #
+# BUILD = 100% NO CI. As 6 imagens clínicas são buildadas pelo job `build-clinical`
+# (docker/bake-action, cache GHA) e empurradas pro ECR. O box SÓ faz `pull` + `up -d
+# --no-build` — nunca compila (sbt/dotnet/next ficam no CI). O `--no-build` é a guarda:
+# sem ele, `compose up` cairia pro `build:` local (dev-only) se um pull falhasse →
+# sbt/assembly na EC2 = explosão de memória. Com ele, falta de imagem falha alto.
+#
 # ─── Rollback ──────────────────────────────────────────────────────────────
 # Clínico: SSM na EC2 → IMAGE_TAG=<sha-anterior>; docker compose pull && up -d --remove-orphans.
 # Checkup: SSM put /cerebro-amigo/checkup/image-tag=<sha-anterior> + start-instance-refresh do ASG.
@@ -251,7 +257,7 @@ jobs:
               "docker image prune -af",
               "docker builder prune -af || true",
               "docker compose pull",
-              "docker compose up -d --remove-orphans",
+              "docker compose up -d --no-build --remove-orphans",
               "for i in $(seq 1 30); do curl -sf http://localhost:5050/health | grep -q ok && curl -sf http://localhost:5050/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo api-gateway nao saudavel; exit 1; }; done && echo api-gateway ok",
               "for i in $(seq 1 30); do curl -sf http://localhost:8081/health | grep -q ok && curl -sf http://localhost:8081/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo orchestrator-py nao saudavel; exit 1; }; done && echo orchestrator-py ok",
               "for i in $(seq 1 30); do curl -sf http://localhost:8082/health | grep -q ok && curl -sf http://localhost:8082/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo agents-py nao saudavel; exit 1; }; done && echo agents-py ok",
