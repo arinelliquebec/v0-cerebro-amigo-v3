@@ -26,11 +26,11 @@ variable "NEXT_PUBLIC_MANUAL_PAGAMENTO_URL" { default = "" }
 //   "checkup"  → ASG cerebro-checkup-asg (instance refresh)
 //   "default"  → os 6 (build completo manual)
 group "default" {
-  targets = ["web", "api-gateway", "api-gateway-scala", "orchestrator-py", "agents-py", "notifier-py", "checkup"]
+  targets = ["web", "api-gateway", "orchestrator-py", "agents-py", "notifier-py", "checkup"]
 }
 
 group "clinical" {
-  targets = ["web", "api-gateway", "api-gateway-scala", "orchestrator-py", "agents-py", "notifier-py"]
+  targets = ["web", "api-gateway", "orchestrator-py", "agents-py", "notifier-py"]
 }
 
 group "checkup" {
@@ -59,14 +59,9 @@ target "api-gateway" {
   platforms  = ["linux/amd64"]
 }
 
-// Fatia strangler do gateway (ADR-067). Build via `sbt stage` (multi-stage no
-// Dockerfile do módulo). Coexiste com o target api-gateway (.NET).
-target "api-gateway-scala" {
-  context    = "apps/api-gateway-scala"
-  dockerfile = "Dockerfile"
-  tags       = ["${ECR}/cerebro-amigo/api-gateway-scala:${TAG}"]
-  platforms  = ["linux/amd64"]
-}
+// target "api-gateway-scala" REMOVIDO — ADR-067 PAUSADO (2026-06-21). Não buildado
+// no CI. Source em apps/api-gateway-scala/ + imagem antiga no ECR (recuperável).
+// Reativar = restaurar este target + religar nos groups default/clinical.
 
 target "orchestrator-py" {
   context    = "apps/orchestrator-py"

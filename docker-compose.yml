@@ -84,35 +84,11 @@ services:
       retries: 5
       start_period: 15s
 
-  # api-gateway-scala — fatia strangler do gateway (ADR-067). Coexiste com o
-  # api-gateway (.NET); o BFF (web) AINDA aponta pro .NET — este sobe ao lado,
-  # servindo só /health + /api/v1/auth/me, até paridade + flip por endpoint.
-  # NÃO está no caminho de crise ainda → mem_limit + cpu_shares baixos (plano batch):
-  # um bug aqui nunca pressiona o orchestrator/crise. Revisar p/ plano interativo
-  # quando assumir tráfego real. Lê POSTGRES_DSN (Npgsql→JDBC) + JWT_SECRET do .env,
-  # mesmo role cerebro_gateway (NOBYPASSRLS) do gateway .NET.
-  api-gateway-scala:
-    image: 004177894935.dkr.ecr.sa-east-1.amazonaws.com/cerebro-amigo/api-gateway-scala:${IMAGE_TAG:-latest}
-    restart: unless-stopped
-    build:
-      context: ./apps/api-gateway-scala
-    mem_limit: 768m
-    mem_reservation: 256m
-    cpus: "1.0"
-    cpu_shares: 256
-    ports:
-      - "5001:5001"
-    env_file: .env
-    environment:
-      # Cap de heap p/ caber no mem_limit (review #2): 70% de 768m ≈ 538m heap,
-      # resto p/ metaspace/netty/offheap. Pool Hikari enxuto (10) no Database.scala.
-      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70.0"
-    healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:5001/health"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 30s
+  # api-gateway-scala REMOVIDO do box — ADR-067 PAUSADO (2026-06-21). O strangler
+  # parou em 1/62 rotas (só /api/v1/auth/me, nunca flipado no BFF → ocioso em prod).
+  # Coexistência custava JVM ~192MB + travava o rightsizing da EC2, sem ganho. Source
+  # segue em apps/api-gateway-scala/ + imagem no ECR (recuperável). Reativar = restaurar
+  # este bloco + religar o target no bake/deploy.yml. Ver ADR-067 (Paused).
 
   orchestrator-py:
     image: 004177894935.dkr.ecr.sa-east-1.amazonaws.com/cerebro-amigo/orchestrator-py:${IMAGE_TAG:-latest}
