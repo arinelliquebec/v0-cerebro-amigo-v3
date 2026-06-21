@@ -1,5 +1,6 @@
 using ApiGateway.Auth;
 using ApiGateway.Data;
+using ApiGateway.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -30,6 +31,8 @@ public static class PacienteAuthEndpoints
             AppDbContext db,
             IConfiguration config,
             LoginRateLimiter rateLimiter,
+            ResendClient resend,
+            ILogger<Program> logger,
             ClaimsPrincipal user) =>
         {
             if (string.IsNullOrWhiteSpace(req.Email))
@@ -69,6 +72,11 @@ public static class PacienteAuthEndpoints
                 .Replace("+", "-").Replace("/", "_").Replace("=", "");
             var hash = SHA256(token);
 
+            // Um link de recuperação ativo por vez: invalida os anteriores ainda válidos.
+            await db.Database.ExecuteSqlRawAsync(
+                "UPDATE magic_links SET usado_em = NOW() WHERE paciente_id = {0} AND proposito = {1} AND usado_em IS NULL",
+                paciente.Id, req.Proposito);
+
             await db.Database.ExecuteSqlRawAsync(@"
                 INSERT INTO magic_links (paciente_id, token_hash, proposito, expira_em)
                 VALUES ({0}, {1}, {2}, NOW() + INTERVAL '1 hour')",
@@ -78,9 +86,102 @@ public static class PacienteAuthEndpoints
             var url = $"{portalBase}/p/entrar?token={token}";
 
             await rateLimiter.RecordFailureAsync(emailNorm); // conta tentativa (mesmo sucesso) — previne spam
-            return Results.Ok(new { url, expiraEm = DateTime.UtcNow.AddHours(1) });
+
+            // Entrega POR E-MAIL ao próprio paciente — o médico NÃO recebe a URL
+            // (preserva a credencial: só o paciente define a própria senha). best-effort:
+            // se o Resend falhar, devolve a URL como fallback pro médico repassar.
+            var (htmlBody, textBody) = MontarEmailRecuperacao(NomePrimeiro(paciente.Nome), url);
+            string? emailErro = null;
+            try
+            {
+                var r = await resend.SendAsync(
+                    to: paciente.Email,
+                    subject: "Redefinir senha — Cérebro Amigo",
+                    htmlBody: htmlBody,
+                    textBody: textBody);
+                if (!r.Success) emailErro = r.Error;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "falha ao enviar magic link de recuperação ao paciente");
+                emailErro = ex.Message;
+            }
+
+            var enviado = emailErro is null;
+            return Results.Ok(new
+            {
+                enviado,
+                email = paciente.Email,
+                emailErro,
+                url = enviado ? null : url, // fallback só quando o e-mail falhou
+                expiraEm = DateTime.UtcNow.AddHours(1),
+            });
         })
         .RequireAuthorization(); // só médico ou serviço interno
+
+        // "Esqueci minha senha" — self-service do PACIENTE (anônimo).
+        // Anti-enumeração: SEMPRE responde 202, exista ou não a conta — nunca revela
+        // se o e-mail pertence a um paciente. Se pertencer, envia magic link de
+        // recuperação (proposito='recuperacao', 1h) ao próprio e-mail.
+        g.MapPost("/esqueci-senha", async (
+            [FromBody] EsqueciSenhaPacienteRequest req,
+            AppDbContext db,
+            IConfiguration config,
+            ResendClient resend,
+            LoginRateLimiter rateLimiter,
+            ILogger<Program> logger) =>
+        {
+            var emailNorm = (req.Email ?? "").Trim().ToLowerInvariant();
+            if (string.IsNullOrWhiteSpace(emailNorm)) return Results.Accepted();
+
+            // Rate-limit por e-mail (anti email-bombing / abuso de cota Resend) — mesma
+            // política de login (5/15min). Bloqueado → 202 silencioso (anti-enum).
+            var rlKey = "reset-pac:" + emailNorm;
+            if (await rateLimiter.IsBlockedAsync(rlKey)) return Results.Accepted();
+            await rateLimiter.RecordFailureAsync(rlKey);
+
+            // Busca o paciente pelo e-mail SEM âncora de tenant — é o próprio paciente
+            // pedindo e o link vai só pro e-mail dele (não vaza dado a terceiros).
+            // LIMIT 1 espelha o /login (mesma resolução por e-mail).
+            var paciente = await db.Database.SqlQueryRaw<MagicLinkPacienteDto>(@"
+                SELECT c.id, COALESCE(c.email, '') AS email, c.nome
+                FROM clientes c
+                JOIN pacientes p ON p.cliente_id = c.id
+                WHERE LOWER(c.email) = {0}
+                LIMIT 1", emailNorm).FirstOrDefaultAsync();
+
+            if (paciente is not null)
+            {
+                // Um link de recuperação ativo por vez.
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE magic_links SET usado_em = NOW() WHERE paciente_id = {0} AND proposito = 'recuperacao' AND usado_em IS NULL",
+                    paciente.Id);
+
+                var tokenBytes = RandomNumberGenerator.GetBytes(32);
+                var token = Convert.ToBase64String(tokenBytes)
+                    .Replace("+", "-").Replace("/", "_").Replace("=", "");
+                await db.Database.ExecuteSqlRawAsync(@"
+                    INSERT INTO magic_links (paciente_id, token_hash, proposito, expira_em)
+                    VALUES ({0}, {1}, 'recuperacao', NOW() + INTERVAL '1 hour')",
+                    paciente.Id, SHA256(token));
+
+                var portalBase = config["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
+                var url = $"{portalBase}/p/entrar?token={token}";
+                var (htmlBody, textBody) = MontarEmailRecuperacao(NomePrimeiro(paciente.Nome), url);
+                try
+                {
+                    await resend.SendAsync(paciente.Email, "Redefinir senha — Cérebro Amigo", htmlBody, textBody);
+                }
+                catch (Exception ex)
+                {
+                    // best-effort: não revela falha ao cliente (anti-enum)
+                    logger.LogError(ex, "falha ao enviar reset de senha do paciente");
+                }
+            }
+
+            return Results.Accepted();
+        })
+        .AllowAnonymous();
 
         // Validar magic link e definir senha
         g.MapPost("/magic-validar", async (
@@ -300,9 +401,62 @@ public static class PacienteAuthEndpoints
         using var sha = System.Security.Cryptography.SHA256.Create();
         return Convert.ToBase64String(sha.ComputeHash(Encoding.UTF8.GetBytes(s)));
     }
+
+    private static string NomePrimeiro(string? nome)
+        => string.IsNullOrWhiteSpace(nome) ? "" : nome.Trim().Split(' ')[0];
+
+    /// <summary>
+    /// E-mail de recuperação de senha do paciente (HTML + texto). Conteúdo estático,
+    /// sem dado clínico — só o link de redefinição. O rodapé de segurança (CVV/SAMU)
+    /// é texto fixo, não o protocolo de crise (ADR-005).
+    /// </summary>
+    private static (string html, string text) MontarEmailRecuperacao(string primeiroNome, string url)
+    {
+        var saudacao = string.IsNullOrEmpty(primeiroNome) ? "Olá," : $"Olá {primeiroNome},";
+
+        var text = $"{saudacao}\n\n" +
+            "Recebemos um pedido para redefinir a senha do seu acesso ao Cérebro Amigo.\n\n" +
+            $"Para criar uma nova senha:\n{url}\n\n" +
+            "O link é válido por 1 hora e é só seu — não compartilhe.\n" +
+            "Se não foi você, pode ignorar este e-mail.\n\n" +
+            "Em momentos difíceis: CVV 188 (24h) · SAMU 192 · pronto-socorro mais próximo.\n\n" +
+            "Cérebro Amigo";
+
+        var html = $@"<!DOCTYPE html>
+<html><head><meta charset=""utf-8""></head>
+<body style=""font-family:system-ui,sans-serif;background:#f5f3ff;padding:24px;color:#27272a"">
+  <div style=""max-width:520px;margin:0 auto;background:#fff;border-radius:16px;padding:32px"">
+    <div style=""text-align:center;margin-bottom:24px"">
+      <span style=""font-size:32px;color:#5b3a8e"">✦</span>
+      <h1 style=""font-size:18px;color:#5b3a8e;margin:8px 0 0"">Cérebro Amigo</h1>
+    </div>
+    <p>{saudacao}</p>
+    <p>Recebemos um pedido para redefinir a senha do seu acesso ao
+       <strong>Cérebro Amigo</strong>.</p>
+    <p style=""text-align:center;margin:32px 0"">
+      <a href=""{url}""
+         style=""display:inline-block;background:#5b3a8e;color:#fff;padding:14px 28px;
+                border-radius:10px;text-decoration:none;font-weight:600"">
+        Criar nova senha
+      </a>
+    </p>
+    <p style=""font-size:13px;color:#71717a"">
+      O link é válido por 1 hora e é só seu — não compartilhe.<br/>
+      Se não foi você, pode ignorar este e-mail.
+    </p>
+    <hr style=""border:none;border-top:1px solid #e4e4e7;margin:24px 0""/>
+    <p style=""font-size:12px;color:#71717a"">
+      Em momentos difíceis: CVV 188 (24h) · SAMU 192 · pronto-socorro mais próximo.
+    </p>
+  </div>
+</body></html>";
+
+        return (html, text);
+    }
 }
 
 public record SolicitarMagicLinkRequest(string Email, string Proposito);
+public record EsqueciSenhaPacienteRequest(string Email);
 public record MagicValidarRequest(string Token, string NovaSenha);
 public record PacienteLoginRequest(string Email, string Senha);
 public record TrocarSenhaRequest(string SenhaAtual, string NovaSenha);
