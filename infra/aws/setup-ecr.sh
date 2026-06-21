@@ -72,6 +72,29 @@ for repo in "${SERVICES[@]}"; do
   echo "    lifecycle policy aplicada"
 done
 
+# Repos fora do array SERVICES que também precisam de lifecycle.
+# - cerebro-amigo/checkup: criado pelo setup do ASG do checkup (decoupled, ADR-045),
+#   não por este script. Sem lifecycle acumulava 100+ imagens. Só aplica a policy
+#   (NÃO cria o repo aqui).
+# Legados V2 (cerebro/api-gateway, cerebro/orchestrator) NÃO entram: são candidatos
+# a remoção, não a manter. Ver docs/runbooks/ec2-disk-hygiene.md.
+EXTRA_LIFECYCLE_REPOS=(
+  "cerebro-amigo/checkup"
+)
+for repo in "${EXTRA_LIFECYCLE_REPOS[@]}"; do
+  if aws ecr describe-repositories --repository-names "$repo" --region "$AWS_REGION" \
+      --output text >/dev/null 2>&1; then
+    aws ecr put-lifecycle-policy \
+      --repository-name "$repo" \
+      --region "$AWS_REGION" \
+      --lifecycle-policy-text "$LIFECYCLE_POLICY" \
+      --output text > /dev/null
+    echo "  $repo → lifecycle keep-last-10 aplicada (repo pré-existente)"
+  else
+    echo "  $repo → não existe ainda, pulando (criado pelo setup do ASG do checkup)"
+  fi
+done
+
 echo ""
 echo "=== Configurando permissões ECR pull na IAM role da EC2 ==="
 echo "  Role: $EC2_ROLE_NAME"

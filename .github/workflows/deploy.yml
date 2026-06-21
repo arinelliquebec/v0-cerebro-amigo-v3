@@ -257,6 +257,8 @@ jobs:
               "for i in $(seq 1 30); do curl -sf http://localhost:8082/health | grep -q ok && curl -sf http://localhost:8082/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo agents-py nao saudavel; exit 1; }; done && echo agents-py ok",
               "for i in $(seq 1 30); do curl -sf http://localhost:8083/health | grep -q ok && curl -sf http://localhost:8083/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo notifier-py nao saudavel; exit 1; }; done && echo notifier-py ok",
               "for i in $(seq 1 20); do if curl -sf http://localhost:5001/health 2>/dev/null | grep -q ok; then echo api-gateway-scala ok; break; fi; sleep 3; done; echo check-api-gateway-scala-nao-bloqueante-ADR-067",
+              "docker image prune -af || true",
+              "echo prune pos-deploy ok - imagens antigas removidas, rollback via ECR",
               "echo deploy ok"
             ]' \
             --timeout-seconds 1200 \
