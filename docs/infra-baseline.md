@@ -162,10 +162,10 @@ Savings Plan 6c71ed92-18d9-4de9-b376-f33abdd02258
 
 ---
 
-## 7. Ações sugeridas (em ordem, NENHUMA aplicada)
+## 7. Ações sugeridas (em ordem; ação 1 ✅ aplicada, resto pendente)
 
-1. **Disco (grátis, imediato):** ✅ **FEITO 2026-06-21** — `docker builder prune -af` no box → **83% → 45%** (build cache 11 GB → 0). Recorrência ✅ **automatizada**: `docker builder prune -af` adicionado ao `deploy-clinical` no `.github/workflows/deploy.yml` (pré-pull, todo deploy do clínico). `docker image prune -af` já existia lá. Restam ~2 GB de imagens reclamáveis (opcional).
-2. **Re-medir pós-flip ADR-067** (.NET fora) o pico real de deploy de memória.
+1. **Disco (grátis, imediato):** ✅ **FEITO 2026-06-21** — `docker builder prune -af` no box → **83% → 45%** (build cache 11 GB → 0). **Confirmado por CloudWatch:** `disk_used_percent` caiu **82,3% → 44,6% @ 18:35 BRT** (06-21). Recorrência ✅ **automatizada e em prod**: step `docker builder prune -af || true` + `docker image prune -af` no `deploy-clinical` do `.github/workflows/deploy.yml` (pré-pull, todo deploy do clínico) — mergeado via **PR #118** (`96f6fec`, deploy run = success). Roda a cada deploy clínico daqui pra frente. Restam ~2 GB de imagens reclamáveis (opcional).
+2. **Re-medir pós-flip ADR-067** (.NET fora) o pico real de deploy de memória. ⏸️ **BLOQUEADO 2026-06-21 — o flip não aconteceu.** O .NET segue primário (BFF aponta pro .NET; Scala só serve `/api/v1/auth/me`); os dois containers coexistem (~322 MB regime). Sem o .NET fora não há "pós-flip" pra medir. **Receita** (rodar na janela ±1h do 1º deploy clínico pós-flip; total 7823 MB): `aws cloudwatch get-metric-statistics --namespace CWAgent --metric-name mem_used_percent --dimensions Name=InstanceId,Value=i-057860cd97edafefb --start-time <t-1h> --end-time <t+1h> --period 60 --statistics Maximum --region sa-east-1` → `pico% × 78.23 = MB`. Gate ação 3: pico < ~3 GB (~38%) → liberar `t3.large → t3.medium`. **Notas (CloudWatch, 06-21):** (a) pico pré-flip de deploy confirmado **72,1% ≈ 5,8 GB @ 06-11 21:05** (cluster ~60-63% em 06-13); (b) deploy clínico é **esparso** — nos 7d anteriores (06-14→21) nenhum deploy tocou o box (pico só ~22% = regime), então a re-medição exige esperar/forçar 1 deploy pós-flip, não há amostra passiva.
 3. **Se pico < ~3 GB:** descer `t3.large → t3.medium` (in-family, **SP segue válido**). Ganho ~$39/mês, zero mexer em CI.
 4. **No vencimento do SP (2027-06-18):** avaliar Graviton `t4g.medium` + Compute/t4g SP + imagens ARM no CI.
 5. **RDS:** manter `db.t4g.small`. Decisão à parte sobre Multi-AZ→Single (HA × ~$38/mês) com o Patrick.
