@@ -23,6 +23,7 @@ import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { ImportarDialog } from "@/components/pacientes/importar-dialog"
 import { NovoPacienteDialog } from "@/components/pacientes/novo-paciente-dialog"
+import { ReenviarLinkButton } from "@/components/pacientes/reenviar-link-button"
 import { baixarModelo, exportarPacientes } from "@/lib/pacientes-xlsx"
 
 interface Paciente {
@@ -218,6 +219,9 @@ function PacientesContent() {
                         onClick={(e) => { e.stopPropagation(); irConversa(paciente.id) }}>
                         <MessageSquare className="h-4 w-4" />
                       </Button>
+                      {paciente.email && (
+                        <ReenviarLinkButton email={paciente.email} nome={paciente.nome} />
+                      )}
                       <Button variant="ghost" size="icon" title="Prontuário" aria-label="Prontuário"
                         className="h-8 w-8 text-muted-foreground hover:text-primary"
                         onClick={(e) => { e.stopPropagation(); irPront(paciente.id) }}>
