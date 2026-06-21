@@ -100,6 +100,13 @@ public sealed class TenantIsolationFixture : IAsyncLifetime
         await _pg.DisposeAsync();
     }
 
+    // Factory base (p/ testes que precisam derivar com ConfigureTestServices, ex.:
+    // stubar o handler HTTP do ResendClient e não enviar e-mail de verdade).
+    public WebApplicationFactory<Program> Factory => _factory;
+
+    // JWT de médico cru (p/ clientes criados a partir de um factory derivado).
+    public string TokenForMedico(Guid usuarioId) => MintToken(usuarioId, "medico");
+
     // ── HttpClient autenticado como um médico (JWT no formato do TokenService) ──
     public HttpClient ClientForMedico(Guid usuarioId) => ClientForRole("medico", usuarioId);
 

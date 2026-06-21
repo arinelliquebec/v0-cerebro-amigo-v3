@@ -52,6 +52,34 @@ export async function entrarComLink(
   redirect(destinoSeguro(formData.get("next")))
 }
 
+// ─── Esqueci minha senha (anônimo) ─────────────────────────────────────────
+// Anti-enumeração: SEMPRE devolve a mesma mensagem neutra, exista ou não a conta.
+// O gateway responde 202 sem revelar nada e dispara o e-mail só se for paciente.
+export interface EsqueciSenhaState {
+  ok: boolean
+  msg: string | null
+}
+
+const MSG_NEUTRA =
+  "Se houver uma conta com esse e-mail, enviamos um link para redefinir a senha. " +
+  "Verifique sua caixa de entrada (e o spam)."
+
+export async function esqueciSenha(
+  _prev: EsqueciSenhaState,
+  formData: FormData,
+): Promise<EsqueciSenhaState> {
+  const email = (formData.get("email") as string)?.trim()
+  if (!email) return { ok: false, msg: "Informe seu e-mail." }
+
+  try {
+    await gatewayPaciente.post("/api/v1/auth/paciente/esqueci-senha", { email })
+  } catch {
+    // Silencia qualquer erro (inclusive rede): não revela se o e-mail existe.
+  }
+  // Resposta sempre neutra — não vaza quem é paciente.
+  return { ok: true, msg: MSG_NEUTRA }
+}
+
 // ─── Login com email + senha ───────────────────────────────────────────────
 export async function entrarComSenha(
   _prev: PacienteAuthState,

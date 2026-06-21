@@ -1,20 +1,27 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { AlertCircle, Loader2, KeyRound, Mail } from "lucide-react"
 import { entrarComLink, entrarComSenha, type PacienteAuthState } from "./actions"
+import { EsqueciSenhaForm } from "./esqueci-senha-form"
 
 const inicial: PacienteAuthState = { error: null }
 
 export function EntrarForm({ token, next }: { token?: string; next: string }) {
   const modoConvite = Boolean(token)
+  const [esqueci, setEsqueci] = useState(false)
   const [state, action, pending] = useActionState(
     modoConvite ? entrarComLink : entrarComSenha,
     inicial,
   )
+
+  // Fluxo de recuperação de senha (só no modo login, sem token de convite).
+  if (!modoConvite && esqueci) {
+    return <EsqueciSenhaForm onVoltar={() => setEsqueci(false)} />
+  }
 
   return (
     <form action={action} className="space-y-4">
@@ -31,7 +38,7 @@ export function EntrarForm({ token, next }: { token?: string; next: string }) {
       {modoConvite ? (
         <>
           <p className="text-sm text-muted-foreground">
-            Bem-vindo(a)! Crie uma senha para acessar seu acompanhamento.
+            Defina uma senha para acessar seu acompanhamento.
           </p>
           <div className="space-y-2">
             <Label htmlFor="novaSenha">Crie sua senha</Label>
@@ -104,9 +111,18 @@ export function EntrarForm({ token, next }: { token?: string; next: string }) {
       </Button>
 
       {!modoConvite && (
-        <p className="text-center text-xs text-muted-foreground">
-          Recebeu um convite por e-mail? Abra o link da mensagem para criar sua senha.
-        </p>
+        <div className="space-y-2 text-center">
+          <button
+            type="button"
+            onClick={() => setEsqueci(true)}
+            className="text-xs text-primary underline-offset-2 hover:underline"
+          >
+            Esqueci minha senha
+          </button>
+          <p className="text-xs text-muted-foreground">
+            Recebeu um convite por e-mail? Abra o link da mensagem para criar sua senha.
+          </p>
+        </div>
       )}
     </form>
   )
