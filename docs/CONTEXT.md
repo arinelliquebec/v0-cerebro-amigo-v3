@@ -334,5 +334,6 @@ SCHEDULER_INTERVAL_SECONDS
 | [052](adrs/ADR-052-checkup-no-ec2-nao-vercel.md) | Check-up roda no EC2 (não na Vercel) | Accepted |
 | [067](adrs/ADR-067-gateway-scala-strangler.md) | Migração do gateway .NET→Scala via strangler | ❌ Superseded by 071 |
 | [071](adrs/ADR-071-manter-dotnet-remover-scala.md) | Manter gateway em .NET 10 e decomissionar o Scala | Accepted |
+| [072](adrs/ADR-072-deploy-gateway-stop-then-start.md) | Deploy: stop-then-start do gateway (downtime curto × footprint) | Accepted |
 
 > **Gateway transacional = .NET 10** (decisão final, ADR-071). A migração p/ Scala (ADR-067) foi abandonada e o serviço Scala removido do box. (053–070 não listados nesta tabela — ver `docs/adrs/`.)

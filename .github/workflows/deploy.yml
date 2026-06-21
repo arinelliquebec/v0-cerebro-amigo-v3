@@ -256,6 +256,7 @@ jobs:
               "docker image prune -af",
               "docker builder prune -af || true",
               "docker compose pull",
+              "docker compose stop api-gateway || true",
               "docker compose up -d --no-build --remove-orphans",
               "for i in $(seq 1 30); do curl -sf http://localhost:5050/health | grep -q ok && curl -sf http://localhost:5050/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo api-gateway nao saudavel; exit 1; }; done && echo api-gateway ok",
               "for i in $(seq 1 30); do curl -sf http://localhost:8081/health | grep -q ok && curl -sf http://localhost:8081/ready | grep -q ready && break; [ $i -lt 30 ] && sleep 3 || { echo orchestrator-py nao saudavel; exit 1; }; done && echo orchestrator-py ok",
