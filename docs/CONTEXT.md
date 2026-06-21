@@ -41,6 +41,8 @@ orchestrator-py  agents-py  notifier-py   PostgreSQL (RDS sa-east-1)
 **Azure: REMOVIDO.** Key Vault, OpenAI, Document Intelligence, Blob, Bicep — fora do V3.
 **`ANTHROPIC_API_KEY`: NÃO EXISTE.** Auth por IAM role. Resíduo V2 = bug.
 
+**Postura de infra — PILOTO (2026-06-21):** box clínico `i-057860cd97edafefb` = **`t3.medium`** (era `t3.large`; right-size pós-decomission do Scala + stop-then-start, pico de deploy 5,8→1,27 GB — ver `docs/infra-baseline.md`). RDS `cerebro-postgres-enc` = **`db.t4g.small` Single-AZ** (era Multi-AZ; revertido p/ piloto — backups 7d/PITR/encryption/deletion-protection mantidos; gatilho p/ religar Multi-AZ = 1º paciente pagante ou crédito Founders Hub — ver **ADR-043 Adendo**). EIP `18.229.175.231` (gateway público). Savings Plan EC2Instance t3 cobre o box (in-family).
+
 ---
 
 ## Regra de fronteira
@@ -322,7 +324,7 @@ SCHEDULER_INTERVAL_SECONDS
 | [040](adrs/ADR-040-escriba-teleconsulta.md) | Escriba clínico (Ambient Scribe) na teleconsulta | Accepted |
 | [041](adrs/ADR-041-entrega-garantida-alerta-crise.md) | Entrega garantida e escalonamento do alerta de crise | Accepted |
 | [042](adrs/ADR-042-rls-isolamento-tenant.md) | Isolamento de tenant — least-privilege + RLS | Accepted |
-| [043](adrs/ADR-043-ha-spof-plano.md) | Alta disponibilidade e fim do SPOF — plano | Proposed |
+| [043](adrs/ADR-043-ha-spof-plano.md) | HA e fim do SPOF — plano (+ Adendo 2026-06-21: RDS Single-AZ piloto) | Em andamento |
 | [044](adrs/ADR-044-llm-anthropic-api-direta.md) | LLM via Anthropic API direta (vigente); Bedrock suspenso | Accepted |
 | [045](adrs/ADR-045-checkup-decouple-asg-alb.md) | Desacoplar o Check-up para infra própria (ALB + ASG) | Accepted |
 | [046](adrs/ADR-046-signup-externo-medico-atribuicao-checkup.md) | Signup externo de médico + atribuição do Check-up | Accepted |

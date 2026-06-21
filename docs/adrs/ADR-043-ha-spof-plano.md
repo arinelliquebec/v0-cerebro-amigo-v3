@@ -1,12 +1,24 @@
 # ADR-043: Alta disponibilidade e fim do SPOF — plano
 
 **Status:** Em andamento. Observabilidade (Sentry, watchdog) e **alarme de backup
-(item E)** feitos; **Multi-AZ (item A) ATIVO desde 2026-06-14**; **right-size
-`db.t4g.medium` → `db.t4g.small` em 2026-06-17** (Multi-AZ mantido). Falta: redundância
-de EC2 (item B) e RDS Proxy (item D).
-**Data:** 2026-06-09
+(item E)** feitos; **right-size `db.t4g.medium` → `db.t4g.small` em 2026-06-17**.
+**Item A (Multi-AZ): ATIVADO 2026-06-14 → REVERTIDO p/ Single-AZ em 2026-06-21
+(postura de piloto — ver Adendo).** Falta: redundância de EC2 (item B) e RDS Proxy (item D).
+**Data:** 2026-06-09 · **Adendo Single-AZ:** 2026-06-21
 **Decisores:** Rafael Arinelli (responsável / decisão de custo)
 **Categoria:** Infra / disponibilidade
+
+## Adendo 2026-06-21 — Single-AZ é decisão deliberada de piloto
+
+Com a plataforma em **piloto (~1 usuário, sem paciente pagante ainda)**, o failover automático do Multi-AZ não se paga: ~$38/mês + penalidade de latência de escrita (replicação síncrona: ~10,7 ms vs ~1-2 ms Single-AZ). **Decisão: RDS `cerebro-postgres-enc` revertido p/ Single-AZ** (`--no-multi-az`, classe segue `db.t4g.small`).
+
+**Resiliência mantida (não é "sem rede"):** backups automáticos **7 dias + PITR**, **storage encryption** (KMS), **deletion protection LIGADO** (estava off — ativado neste change), instância **não-pública**. Snapshot manual pré-change: `cerebro-postgres-enc-pre-singleaz-2026-06-21`.
+
+**O que se perde:** standby síncrono → sem failover automático de AZ/instância. Recuperação passa a ser restore (PITR/snapshot), não failover. RPO ~5 min (PITR), RTO de minutos (restore).
+
+**🔔 Gatilho para RELIGAR Multi-AZ** (`--multi-az`): **o primeiro entre** — (a) **primeiro paciente pagante** (dado clínico de paciente real em produção paga); ou (b) **ativação do crédito Founders Hub / AWS Activate** (Multi-AZ deixa de pesar no caixa). Religar é online (`aws rds modify-db-instance --db-instance-identifier cerebro-postgres-enc --multi-az --apply-immediately`), reversível.
+
+Aplicado via AWS CLI (RDS não está em IaC; `infra/aws/rds-backup-alarm.yaml` é só alarme de backup, não define o DBInstance).
 
 ## Contexto
 
