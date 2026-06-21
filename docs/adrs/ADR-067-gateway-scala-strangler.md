@@ -1,15 +1,17 @@
 # ADR-067: Migração do api-gateway de .NET 10 para Scala (JVM) via strangler
 
-**Status:** ⏸️ **Paused** (era Accepted 2026-06-18)
-**Data:** 2026-06-18 · **Pausado:** 2026-06-21
+**Status:** ❌ **Superseded by [ADR-071](ADR-071-manter-dotnet-remover-scala.md)** (era Accepted 2026-06-18 → Paused 2026-06-21 → Superseded 2026-06-21)
+**Data:** 2026-06-18 · **Superseded:** 2026-06-21
 **Decisores:** Rafael Arinelli, Adonai Arinelli
 **Categoria:** Stack / Arquitetura
 **Supersede:** ADR-007 (gateway = .NET 10, não Go) — **suspenso enquanto pausado: o gateway segue .NET 10 em prod**
 **Relaciona:** ADR-042 (RLS de tenant), ADR-035 (trava server-side de prompts), ADR-018 (cifragem em repouso), ADR-041 (entrega garantida do alerta de crise)
 
-> ## ⏸️ PAUSA (2026-06-21)
+> ## ❌ SUPERSEDED por ADR-071 (2026-06-21)
 >
-> Migração **pausada** após avaliação de custo/benefício. O strangler chegou a **1 de 62 famílias de rota** (só `GET /api/v1/auth/me`, e mesmo essa **nunca foi flipada** no BFF — produção 100% no .NET). Conclusão: alto esforço (61 rotas restantes, cada clínica/dinheiro exige revisão `clinical-safety`) + alto risco (sistema vivo, cobrando) + valor de negócio imediato ~zero. O gateway .NET funciona, está testado, com RLS e dinheiro fluindo — não é gargalo do lançamento.
+> Decisão final: **manter o gateway em .NET 10 e decomissionar o Scala** — ver **[ADR-071](ADR-071-manter-dotnet-remover-scala.md)**. O que estava como "pausa" virou decisão formal de não migrar. O texto abaixo fica como registro histórico do plano do strangler.
+>
+> Migração **abandonada** após avaliação de custo/benefício. O strangler chegou a **1 de 62 famílias de rota** (só `GET /api/v1/auth/me`, e mesmo essa **nunca foi flipada** no BFF — produção 100% no .NET). Conclusão: alto esforço (61 rotas restantes, cada clínica/dinheiro exige revisão `clinical-safety`) + alto risco (sistema vivo, cobrando) + valor de negócio imediato ~zero. O gateway .NET funciona, está testado, com RLS e dinheiro fluindo — não é gargalo do lançamento.
 >
 > **Decisão:** **opção B** — o serviço `api-gateway-scala` foi **removido do box** (docker-compose), do pipeline (docker-bake/deploy.yml) e parou de ser buildado. Libera ~192 MB de JVM ociosa e **destrava o rightsizing da EC2** (a coexistência impedia descer de `t3.large`). A **source fica em `apps/api-gateway-scala/`** e a imagem antiga no ECR — **recuperável**.
 >
