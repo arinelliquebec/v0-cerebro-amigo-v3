@@ -27,7 +27,7 @@ Avaliação em 2026-06-21, com o sistema **vivo, multi-tenant e já cobrando (MR
 1. O `api-gateway` (.NET 10, ASP.NET Core) é o **gateway primário e único** em produção. Já estava na porta pública (`API_GATEWAY_URL` sempre apontou para ele) — não há promoção a fazer.
 2. **Paridade:** verificado que **nada existe só no Scala**. Rotas: .NET = 62 famílias, Scala = 1 (`auth/me`), e a versão .NET é superset (mais rica). Middlewares/regras de segurança (JWT, tenant/GUC, RLS, cifragem) já vivem no .NET — o Scala os **portou a partir** do .NET, nunca o inverso. **Zero lacunas a implementar no .NET.**
 3. **Remoção do Scala** do `docker-compose.yml`, do `docker-bake.hcl` e do `deploy.yml` (executado no PR #122). O container ocioso sai do box no deploy clínico (`up -d --remove-orphans`) e a imagem é limpa pelo prune pós-deploy.
-4. A **source** `apps/api-gateway-scala/` é preservada no histórico do git e a **imagem antiga no ECR** segue com lifecycle keep-last-10 (não recebe mais push). Decomissionamento é da execução, não apagamento forçado de histórico.
+4. A **source** `apps/api-gateway-scala/` é preservada no histórico do git. O **repo ECR `cerebro-amigo/api-gateway-scala` foi DELETADO** (`aws ecr delete-repository --force`, 21 imagens) — recuperável apenas reconstruindo a imagem a partir da source. Decomissionamento permanente da execução; o histórico de código fica no git.
 
 ## Racional
 
