@@ -16,6 +16,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { baixarCsv } from "@/lib/csv"
+import { MedicamentoPickerClasse } from "@/components/medicamentos/picker-classe"
 import { Pill, Plus, X, Loader2, Search, Info, Printer, FileSpreadsheet, Download } from "lucide-react"
 
 interface MedicacaoEmUso {
@@ -261,6 +262,47 @@ export function MedicacoesEmUso({ pacienteId }: { pacienteId: string }) {
                   <Input value={nome} onChange={(e) => onNome(e.target.value)}
                     placeholder="Busque no catálogo ou digite livremente" className="pl-9" autoComplete="off" />
                 </div>
+                <MedicamentoPickerClasse
+                  triggerLabel="Escolher do catálogo por classe"
+                  confirmarLabel="Adicionar selecionados"
+                  onConfirmar={(nomes) => {
+                    if (nomes.length === 0) return
+                    if (nomes.length === 1) {
+                      // 1 selecionado → preenche o form p/ o médico completar posologia/fonte
+                      setNome(nomes[0]); setGenerico(nomes[0]); setSugestoes([])
+                      fetch(`/api/medicamentos?q=${encodeURIComponent(nomes[0])}`)
+                        .then((r) => (r.ok ? r.json() : []))
+                        .then((rows: CatalogoItem[]) => {
+                          const match = rows.find((r) => r.nomeGenerico === nomes[0])
+                          if (match) setClasse(match.classeTerapeutica)
+                        })
+                        .catch(() => {})
+                    } else {
+                      // vários → adiciona todos direto (sem posologia/fonte; pode editar depois)
+                      setSalvando(true); setErro(null)
+                      Promise.all(
+                        nomes.map((n) =>
+                          fetch(`/api/pacientes/${pacienteId}/medicacoes-em-uso`, {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ medicamento: n, generico: n, classe: null, posologia: null, fonte: null }),
+                          }).then((r) => r.ok ? r.json() as Promise<{ id: string }> : null),
+                        ),
+                      ).then((results) => {
+                        const novos = results
+                          .map((res, i) => res ? {
+                            id: res.id, medicamento: nomes[i], generico: nomes[i],
+                            classe: null, posologia: null, fonte: null, observacoes: null,
+                            criadoEm: new Date().toISOString(),
+                          } : null)
+                          .filter(Boolean) as MedicacaoEmUso[]
+                        setLista((prev) => [...prev, ...novos])
+                        resetForm(); setAberto(false)
+                      }).catch(() => setErro("Erro ao adicionar medicações em lote."))
+                        .finally(() => setSalvando(false))
+                    }
+                  }}
+                />
                 {classe && <p className="text-xs text-muted-foreground">Classe: {classe}</p>}
                 {sugestoes.length > 0 && (
                   <div className="rounded-lg border border-border/60 divide-y divide-border/40 max-h-48 overflow-y-auto">
