@@ -25,7 +25,8 @@ interface Node {
  *  - SSR-safe: renderiza só <canvas> determinístico; toda leitura de window/dpr
  *    fica no useEffect → sem mismatch de hidratação.
  *  - prefers-reduced-motion → desenha 1 frame estático, sem rAF.
- *  - mobile (<768px) → não anima (a aurora CSS do .noir-backdrop cobre o espaço).
+ *  - mobile (<768px) → versão leve: ~⅓ dos nós + throttle a 30fps + sem glow
+ *    (shadowBlur), por cima da aurora CSS. Corta O(n²)/repaint p/ poupar bateria.
  *  - cleanup total de rAF/listeners/observer.
  *  - cores via CSS vars do .theme-noir (--noir-line/--noir-node/--noir-node-active/--coral).
  */
@@ -41,8 +42,9 @@ export function NeuralField({ className }: { className?: string }) {
     const cx = cv.getContext("2d");
     if (!cx) return;
 
-    // Mobile: não anima (aurora CSS cobre). Evita drenar bateria/jank de scroll.
-    if (window.matchMedia("(max-width: 767px)").matches) return;
+    // Mobile: versão leve (menos nós + throttle + sem glow). Não retorna — anima
+    // esparso por cima da aurora CSS, que segue por baixo.
+    const isMobile = window.matchMedia("(max-width: 767px)").matches;
 
     const cs = getComputedStyle(cv);
     const colLine = cs.getPropertyValue("--noir-line").trim() || "#2A2A3D";
@@ -64,7 +66,9 @@ export function NeuralField({ className }: { className?: string }) {
       cv.height = Math.floor(height * dpr);
       cx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-      const target = Math.min(70, Math.round((width * height) / 19000));
+      const target = isMobile
+        ? Math.min(24, Math.round((width * height) / 22000))
+        : Math.min(70, Math.round((width * height) / 19000));
       const nodes: Node[] = [];
       for (let i = 0; i < target; i++) {
         nodes.push({
@@ -137,7 +141,7 @@ export function NeuralField({ className }: { className?: string }) {
           p.active && (n.x - p.x) ** 2 + (n.y - p.y) ** 2 < CURSOR_RADIUS * CURSOR_RADIUS;
         const pulse = 0.6 + 0.4 * Math.sin(t * 0.0011 + n.phase);
         cx.globalAlpha = near ? 1 : 0.5 + pulse * 0.3;
-        if (near) {
+        if (near && !isMobile) {
           cx.shadowBlur = 12;
           cx.shadowColor = colActive;
         } else {
@@ -152,8 +156,14 @@ export function NeuralField({ className }: { className?: string }) {
       cx.shadowBlur = 0;
     };
 
+    // Desktop: desenha todo frame (FRAME_MS=0). Mobile: ~30fps → ~metade do draw.
+    const FRAME_MS = isMobile ? 1000 / 30 : 0;
+    let lastDraw = 0;
     const loop = (t: number) => {
-      draw(t);
+      if (t - lastDraw >= FRAME_MS) {
+        draw(t);
+        lastDraw = t;
+      }
       rafRef.current = requestAnimationFrame(loop);
     };
 
