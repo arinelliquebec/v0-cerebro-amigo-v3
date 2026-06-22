@@ -84,6 +84,8 @@
 
   /* átomos do noir */
   --noir-line: #2A2A3D;
+  --noir-node: #6E5FB0;           /* nós do campo neural (canvas) — mesmo token do site principal */
+  --noir-node-active: #B3A6DA;    /* nó/sinapse sob o cursor */
   --noir-glow-purple: rgba(148, 134, 201, 0.45);
   --noir-aurora-1: rgba(110, 95, 176, 0.22);
   --noir-aurora-2: rgba(229, 115, 115, 0.12);

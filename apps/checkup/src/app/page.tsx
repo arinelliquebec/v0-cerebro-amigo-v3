@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Activity, ArrowRight, Cigarette, CloudRain, Heart, Lock, Pill, ShieldCheck, Timer, Wind, Wine, Zap } from "lucide-react";
 import { ComoFunciona } from "@/components/landing-blocks";
 import { Logo } from "@/components/logo";
+import { NeuralField } from "@/components/neural-field";
 
 export const metadata: Metadata = {
   title: "Check-up Mental Gratuito — Triagem de Saúde Mental",
@@ -102,6 +103,18 @@ const CONFIANCA = [
 export default function HomePage() {
   return (
     <main className="landing-aurora relative mx-auto w-full max-w-2xl px-4 pb-20 pt-16 sm:px-6 sm:pt-24">
+      {/* Campo neural (canvas 2D) — mesmo efeito de fundo da página de login do
+          site principal (apps/web). Camada fixa cobrindo a viewport, atrás do
+          conteúdo e sobre a aurora/grid (.noir-backdrop/.noir-grid, z -10).
+          Cursor-reativo no desktop; mobile cai na aurora CSS. */}
+      <div
+        className="pointer-events-none fixed inset-0 opacity-60"
+        style={{ zIndex: -5 }}
+        aria-hidden
+      >
+        <NeuralField />
+      </div>
+
       {/* Hero */}
       <div className="mb-12 text-center">
         <p className="eyebrow reveal mb-4">Check-up Mental · gratuito e anônimo</p>
