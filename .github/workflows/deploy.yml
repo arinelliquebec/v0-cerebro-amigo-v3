@@ -169,9 +169,9 @@ jobs:
         with:
           registry-type: private
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build and push (clinical)
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         env:
           TAG: ${{ github.sha }}
           # NEXT_PUBLIC_* do web → build-args (inlined no bundle). GitHub Secrets.
@@ -211,9 +211,9 @@ jobs:
         with:
           registry-type: private
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
       - name: Build and push (checkup)
-        uses: docker/bake-action@v6
+        uses: docker/bake-action@v7
         env:
           TAG: ${{ github.sha }}
         with:
