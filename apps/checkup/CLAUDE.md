@@ -95,7 +95,11 @@ Função de negócio: é o motor de aquisição do lançamento do Cérebro Amigo
 - **Decisão do dono (2026-06-12): tema Neural Noir IDÊNTICO ao site principal**
   (sobrepõe a direção "calma/clara" anterior). Bloco `.theme-noir` no `globals.css`
   do app (tokens copiados do web), aplicado no `<body>`; `glass-noir` nos cards;
-  aurora **só CSS** (sem canvas/partículas — NeuralField fica fora). Header/footer
+  aurora **CSS** no fundo global (`.noir-backdrop` + `.noir-grid`); a **home**
+  (`src/app/page.tsx`) também monta o **NeuralField** (canvas 2D, cópia verbatim
+  do site principal — mesmo efeito de fundo da página de login; decisão do dono
+  2026-06-22, sobrepõe o "canvas-free / NeuralField fica fora" anterior) como
+  camada fixa atrás do conteúdo. Demais páginas seguem só-CSS. Header/footer
   com logo do Cérebro Amigo + link para `www.cerebroamigo.com.br` + atribuição
   "Cérebro Amigo by Arinelli · © 2026".
 - **Exceções deliberadas (clinical-safety, não regredir):** `/crise` e os callouts
