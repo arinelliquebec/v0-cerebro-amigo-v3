@@ -139,9 +139,13 @@ export default function AgendaPacientePage() {
     }
   }
 
-  const futuras = consultas.filter(
-    (c) => new Date(c.iniciaEm) > new Date() && c.status !== "cancelada",
-  )
+  const agora = new Date()
+  const futuras = consultas
+    .filter((c) => new Date(c.iniciaEm) > agora && c.status !== "cancelada")
+    .sort((a, b) => new Date(a.iniciaEm).getTime() - new Date(b.iniciaEm).getTime())
+  const anteriores = consultas
+    .filter((c) => new Date(c.iniciaEm) <= agora && c.status !== "cancelada")
+    .sort((a, b) => new Date(b.iniciaEm).getTime() - new Date(a.iniciaEm).getTime())
 
   return (
     <div className="p-4 pt-8 space-y-6">
@@ -217,7 +221,7 @@ export default function AgendaPacientePage() {
           </div>
         ) : futuras.length === 0 ? (
           <p className="rounded-2xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
-            Você não tem consultas futuras.
+            Você não tem consultas futuras agendadas.
           </p>
         ) : (
           futuras.map((c) => {
@@ -255,6 +259,25 @@ export default function AgendaPacientePage() {
           })
         )}
       </section>
+
+      {/* Anteriores */}
+      {!loading && anteriores.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-sm font-semibold text-foreground">Consultas anteriores</h2>
+          {anteriores.map((c) => {
+            const st = STATUS[c.status] ?? STATUS.agendada
+            return (
+              <div key={c.id} className="rounded-2xl border border-border/60 bg-card/50 p-4 opacity-80">
+                <p className="text-sm font-medium capitalize text-foreground">{quando(c.iniciaEm)}</p>
+                <p className="mt-0.5 text-xs capitalize text-muted-foreground">{c.modalidade}</p>
+                <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${st.cls}`}>
+                  {st.rotulo}
+                </span>
+              </div>
+            )
+          })}
+        </section>
+      )}
     </div>
   )
 }
