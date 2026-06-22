@@ -121,7 +121,9 @@ export function MedicacoesEmUso({ pacienteId }: { pacienteId: string }) {
         }),
       })
       if (!r.ok) { setErro("Não foi possível registrar agora. Tente novamente."); return }
-      resetForm(); setAberto(false); carregar()
+      const nova = await r.json() as MedicacaoEmUso
+      setLista((prev) => [...prev, nova])
+      resetForm(); setAberto(false)
     } catch {
       setErro("Erro de conexão.")
     } finally {

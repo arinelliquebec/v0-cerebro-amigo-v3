@@ -80,6 +80,6 @@ export const gateway = {
     request<T>(path, { method: "PUT", body: JSON.stringify(body) }, token),
   patch: <T>(path: string, body: unknown, token?: string) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }, token),
-  get: <T>(path: string) => request<T>(path, { method: "GET" }),
+  get: <T>(path: string) => request<T>(path, { method: "GET", cache: "no-store" }),
   delete: <T>(path: string) => request<T>(path, { method: "DELETE" }),
 }
