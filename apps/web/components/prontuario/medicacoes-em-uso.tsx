@@ -107,32 +107,27 @@ export function MedicacoesEmUso({ pacienteId }: { pacienteId: string }) {
   }
 
   async function registrar() {
-    const medicamento = nome.trim()
-    if (!medicamento) { setErro("Informe o nome do medicamento."); return }
+    // Snapshot síncrono antes de qualquer await — evita closure stale com state do React.
+    const snap = {
+      medicamento: nome.trim(),
+      generico,
+      classe,
+      posologia: posologia.trim() || null,
+      fonte: fonte.trim() || null,
+    }
+    if (!snap.medicamento) { setErro("Informe o nome do medicamento."); return }
     setSalvando(true); setErro(null)
     try {
       const r = await fetch(`/api/pacientes/${pacienteId}/medicacoes-em-uso`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          medicamento, generico, classe,
-          posologia: posologia.trim() || null,
-          fonte: fonte.trim() || null,
-        }),
+        body: JSON.stringify(snap),
       })
       if (!r.ok) { setErro("Não foi possível registrar agora. Tente novamente."); return }
       const { id: novaId } = await r.json() as { id: string }
-      const nova: MedicacaoEmUso = {
-        id: novaId,
-        medicamento,
-        generico,
-        classe,
-        posologia: posologia.trim() || null,
-        fonte: fonte.trim() || null,
-        observacoes: null,
-        criadoEm: new Date().toISOString(),
-      }
-      setLista((prev) => [...prev, nova])
+      setLista((prev) => [...prev, {
+        id: novaId, ...snap, observacoes: null, criadoEm: new Date().toISOString(),
+      }])
       resetForm(); setAberto(false)
     } catch {
       setErro("Erro de conexão.")
