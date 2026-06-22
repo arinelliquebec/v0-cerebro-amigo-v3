@@ -529,7 +529,15 @@ export default function AgendaPage() {
                 </ToggleGroup>
                 <NovaConsultaDialog
                   diaInicial={ymd(anchor)}
-                  onCriada={() => carregar(vista, anchor)}
+                  // Navega pra o dia agendado (muda anchor → useEffect recarrega):
+                  // sem isto, agendar p/ outro dia parecia "nada acontece" (consulta
+                  // criada mas fora da vista atual).
+                  onCriada={(iniciaEm) => {
+                    const d = new Date(iniciaEm)
+                    d.setHours(0, 0, 0, 0)
+                    setMiniMes(d)
+                    setAnchor(d)
+                  }}
                   pacienteInicial={pacienteInicial}
                 />
               </div>

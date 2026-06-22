@@ -38,7 +38,7 @@ export function NovaConsultaDialog({
   pacienteInicial,
 }: {
   diaInicial: string // YYYY-MM-DD
-  onCriada: () => void
+  onCriada: (iniciaEm: string) => void // ISO do horário agendado → agenda navega pro dia
   pacienteInicial?: string // deep-link da lista de pacientes (?paciente=<id>): pré-abre + pré-seleciona
 }) {
   const [aberto, setAberto] = useState(false)
@@ -118,7 +118,7 @@ export function NovaConsultaDialog({
         }
         return
       }
-      onCriada()
+      onCriada(slot)
       setAberto(false)
     } catch {
       setErro("Erro de conexão. Tente novamente.")
