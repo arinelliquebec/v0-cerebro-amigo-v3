@@ -11,6 +11,8 @@ interface Medicacao {
   horarios: string[] // TimeOnly[] serializado "HH:mm:ss"
   inicioEm: string
   observacoes: string | null
+  fonte: string | null // só medicações em uso (ADR-062): "outro psiquiatra", etc.
+  origem: string // "prescricao" (MEMED, tem tomada) | "em_uso" (reconciliação, sem tomada)
 }
 
 function horaCurta(t: string) {
@@ -60,7 +62,7 @@ export default function MedicacoesPage() {
         <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
           <Pill className="h-6 w-6 text-primary" /> Medicações
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Suas prescrições ativas</p>
+        <p className="text-sm text-muted-foreground mt-0.5">Suas medicações</p>
       </div>
 
       {loading ? (
@@ -79,24 +81,35 @@ export default function MedicacoesPage() {
                 <div>
                   <p className="font-medium text-foreground">{m.medicamento}</p>
                   <p className="text-sm text-muted-foreground">{m.doseDescricao}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant={feito[m.id] ? "outline" : "default"}
-                  className={feito[m.id] ? "text-success border-success/40" : "bg-primary hover:bg-purple-dark text-primary-foreground"}
-                  disabled={confirmando === m.id || feito[m.id]}
-                  onClick={() => confirmar(m.id)}
-                >
-                  {confirmando === m.id ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : feito[m.id] ? (
-                    <>
-                      <Check className="mr-1 h-4 w-4" /> Tomada
-                    </>
-                  ) : (
-                    "Confirmar"
+                  {m.fonte && (
+                    <p className="text-xs text-muted-foreground mt-0.5">Fonte: {m.fonte}</p>
                   )}
-                </Button>
+                </div>
+                {/* Só prescrições da plataforma têm tomada/check-in p/ confirmar.
+                    Medicação "em uso" (reconciliação) é informativa — sem botão. */}
+                {m.origem === "prescricao" ? (
+                  <Button
+                    size="sm"
+                    variant={feito[m.id] ? "outline" : "default"}
+                    className={feito[m.id] ? "text-success border-success/40" : "bg-primary hover:bg-purple-dark text-primary-foreground"}
+                    disabled={confirmando === m.id || feito[m.id]}
+                    onClick={() => confirmar(m.id)}
+                  >
+                    {confirmando === m.id ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : feito[m.id] ? (
+                      <>
+                        <Check className="mr-1 h-4 w-4" /> Tomada
+                      </>
+                    ) : (
+                      "Confirmar"
+                    )}
+                  </Button>
+                ) : (
+                  <span className="shrink-0 rounded-full bg-secondary px-2.5 py-1 text-xs text-muted-foreground">
+                    em uso
+                  </span>
+                )}
               </div>
               {m.horarios?.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">

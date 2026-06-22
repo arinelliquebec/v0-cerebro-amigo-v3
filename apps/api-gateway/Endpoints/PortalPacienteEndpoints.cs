@@ -341,11 +341,21 @@ public static class PortalPacienteEndpoints
             var pid = PacienteAuthEndpoints.GetPacienteId(user);
             if (pid is null) return Results.Unauthorized();
 
+            // União das prescrições da plataforma (MEMED) com as medicações EM USO
+            // (reconciliação, ADR-062). O paciente lê as próprias linhas de
+            // medicacoes_em_uso via RLS app.current_paciente (migration 0057).
+            // `origem` permite o portal distinguir: só prescrições têm tomada/horários
+            // (check-in), então o botão "Confirmar" aparece só p/ origem='prescricao'.
             var meds = await db.Database.SqlQueryRaw<MedicacaoPaciente>(@"
-                SELECT id, medicamento,
-                       dose_descricao, horarios,
-                       inicio_em, observacoes
+                SELECT id, medicamento, dose_descricao, horarios, inicio_em, observacoes,
+                       NULL::text AS fonte, 'prescricao' AS origem
                 FROM prescricoes
+                WHERE paciente_id = {0} AND ativa = TRUE
+                UNION ALL
+                SELECT id, medicamento, COALESCE(posologia, '') AS dose_descricao,
+                       '{}'::time[] AS horarios, criado_em::date AS inicio_em, observacoes,
+                       fonte, 'em_uso' AS origem
+                FROM medicacoes_em_uso
                 WHERE paciente_id = {0} AND ativa = TRUE
                 ORDER BY medicamento", pid.Value).ToListAsync();
             return Results.Ok(meds);
@@ -528,7 +538,7 @@ public record RegistrarHumorRequest(int Humor, int? Ansiedade,
     decimal? SonoHoras, int? Energia, string? Nota);
 
 public record MedicacaoPaciente(Guid Id, string Medicamento, string DoseDescricao,
-    TimeOnly[] Horarios, DateTime InicioEm, string? Observacoes);
+    TimeOnly[] Horarios, DateTime InicioEm, string? Observacoes, string? Fonte, string Origem);
 
 public record ConfirmarTomadaRequest(string Status, string? Nota);
 

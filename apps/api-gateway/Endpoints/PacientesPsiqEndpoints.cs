@@ -44,7 +44,10 @@ public static class PacientesPsiqEndpoints
                 )
                 SELECT n.numero, c.id, c.wa_id, c.nome, c.email,
                        p.cpf, p.data_nascimento, p.consentimento_lgpd_em,
-                       (SELECT COUNT(*) FROM prescricoes pr WHERE pr.paciente_id = c.id AND pr.ativa) AS prescricoes_ativas,
+                       -- medicações ativas = prescrições (MEMED) + medicações em uso (reconciliação, ADR-062);
+                       -- contexto médico (app.current_medico) → RLS de medicacoes_em_uso libera as do tenant.
+                       ((SELECT COUNT(*) FROM prescricoes pr WHERE pr.paciente_id = c.id AND pr.ativa)
+                        + (SELECT COUNT(*) FROM medicacoes_em_uso mu WHERE mu.paciente_id = c.id AND mu.ativa)) AS prescricoes_ativas,
                        (SELECT MAX(m.criada_em) FROM mensagens m
                         JOIN conversas conv ON conv.id = m.conversa_id
                         WHERE conv.cliente_id = c.id) AS ultima_msg
@@ -79,7 +82,10 @@ public static class PacientesPsiqEndpoints
                 )
                 SELECT n.numero, c.id, c.wa_id, c.nome, c.email,
                        p.cpf, p.data_nascimento, p.consentimento_lgpd_em,
-                       (SELECT COUNT(*) FROM prescricoes pr WHERE pr.paciente_id = c.id AND pr.ativa) AS prescricoes_ativas,
+                       -- medicações ativas = prescrições (MEMED) + medicações em uso (reconciliação, ADR-062);
+                       -- contexto médico (app.current_medico) → RLS de medicacoes_em_uso libera as do tenant.
+                       ((SELECT COUNT(*) FROM prescricoes pr WHERE pr.paciente_id = c.id AND pr.ativa)
+                        + (SELECT COUNT(*) FROM medicacoes_em_uso mu WHERE mu.paciente_id = c.id AND mu.ativa)) AS prescricoes_ativas,
                        (SELECT MAX(m.criada_em) FROM mensagens m
                         JOIN conversas conv ON conv.id = m.conversa_id
                         WHERE conv.cliente_id = c.id) AS ultima_msg

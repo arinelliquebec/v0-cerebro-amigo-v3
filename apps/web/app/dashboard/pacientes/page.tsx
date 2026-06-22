@@ -133,7 +133,7 @@ function PacientesContent() {
           </Card>
           <Card className="border-border/50">
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Com prescrição ativa</p>
+              <p className="text-sm text-muted-foreground">Com medicação</p>
               <p className="text-2xl font-bold text-success">
                 {pacientes.filter((p) => p.prescricoesAtivas > 0).length}
               </p>
@@ -141,7 +141,7 @@ function PacientesContent() {
           </Card>
           <Card className="border-border/50">
             <CardContent className="p-4">
-              <p className="text-sm text-muted-foreground">Sem prescrição</p>
+              <p className="text-sm text-muted-foreground">Sem medicação</p>
               <p className="text-2xl font-bold text-primary">
                 {pacientes.filter((p) => p.prescricoesAtivas === 0).length}
               </p>
@@ -194,7 +194,7 @@ function PacientesContent() {
                         )}
                         <span className="flex items-center gap-1">
                           <Pill className="h-3 w-3" />
-                          {paciente.prescricoesAtivas} prescrições ativas
+                          {paciente.prescricoesAtivas} medicações
                         </span>
                       </div>
                     </div>
