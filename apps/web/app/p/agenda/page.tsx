@@ -67,16 +67,36 @@ export default function AgendaPacientePage() {
   const [enviando, setEnviando] = useState(false)
   const [msg, setMsg] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null)
 
-  const carregar = useCallback(() => {
-    setLoading(true)
-    fetch("/api/paciente/agenda")
+  // silencioso: refresh em background (poll/foco) não acende o spinner da lista,
+  // pra não piscar a cada atualização automática.
+  const carregar = useCallback((silencioso = false) => {
+    if (!silencioso) setLoading(true)
+    fetch("/api/paciente/agenda", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : []))
       .then((rows) => setConsultas(Array.isArray(rows) ? rows : []))
       .catch(() => setConsultas([]))
-      .finally(() => setLoading(false))
+      .finally(() => {
+        if (!silencioso) setLoading(false)
+      })
   }, [])
 
-  useEffect(() => carregar(), [carregar])
+  // Atualiza sozinho: o médico pode confirmar/criar/remarcar/cancelar consultas do
+  // lado dele e o paciente não deve precisar dar reload na mão. Poll a cada 30s
+  // enquanto a aba está visível + refetch ao voltar o foco/visibilidade (volta pro PWA).
+  useEffect(() => {
+    carregar()
+    const refrescarSeVisivel = () => {
+      if (document.visibilityState === "visible") carregar(true)
+    }
+    const id = setInterval(refrescarSeVisivel, 30000)
+    document.addEventListener("visibilitychange", refrescarSeVisivel)
+    window.addEventListener("focus", refrescarSeVisivel)
+    return () => {
+      clearInterval(id)
+      document.removeEventListener("visibilitychange", refrescarSeVisivel)
+      window.removeEventListener("focus", refrescarSeVisivel)
+    }
+  }, [carregar])
 
   useEffect(() => {
     if (!data) return
