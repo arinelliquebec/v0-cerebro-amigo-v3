@@ -59,6 +59,11 @@ self.addEventListener('fetch', (event) => {
   // Ignora requests não-GET e non-HTTP(S)
   if (request.method !== 'GET') return
 
+  // 0. SSE / streaming (EventSource): NUNCA interceptar. cache.put(clone) num
+  //    stream infinito trava a conexão → EventSource reconecta em loop (~3s) e a
+  //    sinalização da teleconsulta nunca completa. Deixa passar direto pra rede.
+  if (request.headers.get('accept')?.includes('text/event-stream')) return
+
   // 1. API calls → stale-while-revalidate (cache em background)
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(staleWhileRevalidate(request))

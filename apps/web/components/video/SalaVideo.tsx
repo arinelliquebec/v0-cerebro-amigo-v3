@@ -5,7 +5,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import {
   Mic, MicOff, Video as VideoIcon, VideoOff, PhoneOff,
-  Loader2, AlertCircle, ShieldCheck, UserRound, CircleDot,
+  Loader2, AlertCircle, ShieldCheck, UserRound, CircleDot, Copy, Check,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -69,6 +69,7 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
   const [peerOnline, setPeerOnline] = useState(false)
   const [micOn, setMicOn] = useState(true)
   const [camOn, setCamOn] = useState(true)
+  const [linkCopiado, setLinkCopiado] = useState(false)
 
   // Escriba (ADR-040): paciente consente a gravação; médico grava o áudio (mix
   // local+remoto) e, ao encerrar, envia para transcrição → rascunho factual.
@@ -86,6 +87,7 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
 
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
+  const previewVideoRef = useRef<HTMLVideoElement>(null)
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const localStreamRef = useRef<MediaStream | null>(null)
   const remoteStreamRef = useRef<MediaStream | null>(null)
@@ -225,15 +227,18 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
       try { await fetch(`${escribaBase}/consentir`, { method: "POST" }) } catch { /* opcional */ }
     }
 
-    let stream: MediaStream
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-    } catch {
-      setErro("Câmera/microfone não permitidos. Verifique as permissões do navegador.")
-      setFase("erro")
-      return
+    // Reaproveita o stream do lobby (preview) se já houver — sem 2º prompt.
+    let stream = localStreamRef.current
+    if (!stream) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      } catch {
+        setErro("Câmera/microfone não permitidos. Verifique as permissões do navegador.")
+        setFase("erro")
+        return
+      }
+      localStreamRef.current = stream
     }
-    localStreamRef.current = stream
     if (localVideoRef.current) localVideoRef.current.srcObject = stream
 
     try {
@@ -339,6 +344,30 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
     if (t) { t.enabled = !t.enabled; setCamOn(t.enabled) }
   }
 
+  // Médico: copia o link do paciente (mesma consulta) p/ compartilhar no lobby.
+  const copiarLink = useCallback(async () => {
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/p/consulta/${consultaId}`)
+      setLinkCopiado(true)
+      setTimeout(() => setLinkCopiado(false), 2000)
+    } catch { /* clipboard pode falhar sem https/permissão */ }
+  }, [consultaId])
+
+  // Lobby: liga câmera/mic p/ preview assim que a tela abre (antes de entrar);
+  // iniciar() reaproveita esse stream → sem segundo prompt de permissão.
+  useEffect(() => {
+    if (fase !== "consentimento" || localStreamRef.current) return
+    let cancelado = false
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then((stream) => {
+        if (cancelado) { stream.getTracks().forEach((t) => t.stop()); return }
+        localStreamRef.current = stream
+        if (previewVideoRef.current) previewVideoRef.current.srcObject = stream
+      })
+      .catch(() => { /* preview é opcional; iniciar() pede a permissão de novo */ })
+    return () => { cancelado = true }
+  }, [fase])
+
   // ─── Limpeza ao desmontar ──────────────────────────────────────────────────
   useEffect(() => () => {
     esRef.current?.close()
@@ -350,6 +379,8 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
   // consentimento esses elementos ainda não existem, então a atribuição
   // feita no getUserMedia/ontrack não encontra o ref.
   useEffect(() => {
+    if (previewVideoRef.current && localStreamRef.current && !previewVideoRef.current.srcObject)
+      previewVideoRef.current.srcObject = localStreamRef.current
     if (localVideoRef.current && localStreamRef.current && !localVideoRef.current.srcObject)
       localVideoRef.current.srcObject = localStreamRef.current
     if (remoteVideoRef.current && remoteStreamRef.current && !remoteVideoRef.current.srcObject)
@@ -368,9 +399,65 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
           <h1 className="text-xl font-semibold text-foreground">Teleconsulta por vídeo</h1>
           <p className="text-sm text-muted-foreground">
             A conversa é privada e <strong>criptografada de ponta a ponta</strong> entre você
-            e o {outro}. Ao entrar, você autoriza o uso da câmera e do microfone durante a consulta.
+            e o {outro}. Confira sua câmera e microfone antes de entrar.
           </p>
         </div>
+
+        {/* Preview da câmera + controles de mic/câmera (lobby) */}
+        <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-navy">
+          <video
+            ref={previewVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className={cn("h-full w-full object-cover", !camOn && "opacity-0")}
+          />
+          {!camOn && (
+            <div className="absolute inset-0 flex items-center justify-center text-white/50">
+              <VideoOff className="h-8 w-8" />
+            </div>
+          )}
+          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-2">
+            <Button
+              type="button"
+              size="icon"
+              variant={micOn ? "secondary" : "destructive"}
+              onClick={toggleMic}
+              aria-label={micOn ? "Desligar microfone" : "Ligar microfone"}
+            >
+              {micOn ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}
+            </Button>
+            <Button
+              type="button"
+              size="icon"
+              variant={camOn ? "secondary" : "destructive"}
+              onClick={toggleCam}
+              aria-label={camOn ? "Desligar câmera" : "Ligar câmera"}
+            >
+              {camOn ? <VideoIcon className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}
+            </Button>
+          </div>
+        </div>
+
+        {/* Médico: link do paciente p/ compartilhar ANTES de entrar na sala. */}
+        {papel === "medico" && (
+          <div className="w-full rounded-lg border border-primary/20 bg-primary/5 p-3 text-left">
+            <p className="mb-2 text-xs text-muted-foreground">
+              Envie este link ao paciente para ele entrar na mesma sala:
+            </p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={copiarLink}
+              className="w-full gap-1.5"
+            >
+              {linkCopiado ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+              {linkCopiado ? "Link copiado" : "Copiar link do paciente"}
+            </Button>
+          </div>
+        )}
+
         {papel === "paciente" && (
           <label className="flex items-start gap-2 rounded-lg border border-border/70 bg-secondary/20 p-3 text-left text-xs text-muted-foreground">
             <input
