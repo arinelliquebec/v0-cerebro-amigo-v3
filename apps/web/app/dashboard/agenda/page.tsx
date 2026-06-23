@@ -37,6 +37,7 @@ import {
   UserCheck,
   ExternalLink,
   Save,
+  VideoOff,
 } from "lucide-react"
 import { NovaConsultaDialog } from "@/components/agenda/nova-consulta-dialog"
 import { SemanaView } from "@/components/agenda/semana-view"
@@ -143,6 +144,8 @@ function PainelDetalhe({
   )
   const [salvando, setSalvando] = useState(false)
   const [erroAcao, setErroAcao] = useState<string | null>(null)
+  const [finalizando, setFinalizando] = useState(false)
+  const [videoAviso, setVideoAviso] = useState<string | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   async function patchConsulta(body: Record<string, string>) {
@@ -182,10 +185,31 @@ function PainelDetalhe({
     }
   }
 
+  // Finaliza a teleconsulta: agenda a expiração do link (vale +15min de graça,
+  // cap de 120min após o fim previsto). Não derruba quem está na sala.
+  async function finalizarVideo() {
+    setFinalizando(true)
+    setErroAcao(null)
+    setVideoAviso(null)
+    try {
+      const r = await fetch(`/api/consultas/${consulta.id}/video/finalizar`, { method: "POST" })
+      if (!r.ok) throw new Error("falha")
+      setVideoAviso("Teleconsulta finalizada. O link expira em ~15 min — a reentrada é bloqueada depois disso.")
+    } catch {
+      setErroAcao("Não foi possível finalizar a teleconsulta. Tente novamente.")
+    } finally {
+      setFinalizando(false)
+    }
+  }
+
   const dataHora = new Date(consulta.iniciaEm)
   const noShow = ehNoShow(consulta)
   const cancelada = consulta.status === "cancelada"
   const realizada = consulta.status === "realizada"
+  // Só após o horário de início — finalizar uma consulta futura expiraria o link
+  // antes da hora ("sempre o menor"). O gateway reforça (inicia_em <= NOW).
+  const teleconsultaIniciada =
+    consulta.modalidade === "teleconsulta" && !cancelada && dataHora.getTime() <= Date.now()
 
   return (
     <div className="flex flex-col h-full">
@@ -311,6 +335,13 @@ function PainelDetalhe({
           </div>
         )}
 
+        {/* Aviso de teleconsulta finalizada */}
+        {videoAviso && (
+          <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/10 p-3 text-xs text-primary">
+            <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> {videoAviso}
+          </div>
+        )}
+
         {/* Links */}
         <div>
           <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide">Ações</p>
@@ -330,6 +361,17 @@ function PainelDetalhe({
                 <Link href={`/dashboard/consultas/${consulta.id}/teleconsulta`}>
                   <Video className="h-3.5 w-3.5" /> Iniciar vídeo
                 </Link>
+              </Button>
+            )}
+            {teleconsultaIniciada && (
+              <Button
+                size="sm" variant="outline"
+                className="gap-1.5 text-xs text-destructive border-destructive/30 hover:bg-destructive/10"
+                disabled={finalizando}
+                onClick={finalizarVideo}
+              >
+                {finalizando ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <VideoOff className="h-3.5 w-3.5" />}
+                Finalizar teleconsulta
               </Button>
             )}
           </div>

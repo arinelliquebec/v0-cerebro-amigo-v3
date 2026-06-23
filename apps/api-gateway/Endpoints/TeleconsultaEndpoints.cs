@@ -29,6 +29,16 @@ public static class TeleconsultaEndpoints
 {
     private static readonly HashSet<string> TiposSinal = ["offer", "answer", "candidate", "bye"];
 
+    // Expiração do link (migration 0058). Verdadeiro quando AGORA já passou do
+    // menor entre: a finalização manual (video_link_expira_em, NULL = nunca) e o
+    // cap implícito de 120 min após o fim previsto (inicia_em + duracao_min).
+    // Colunas SEM alias de propósito: resolvem para `consultas` tanto na query do
+    // médico (JOIN pacientes, que não tem essas colunas) quanto na do paciente.
+    private const string LinkExpiradoSql =
+        "(NOW() > LEAST(" +
+        "COALESCE(video_link_expira_em, 'infinity'::timestamptz), " +
+        "inicia_em + ((duracao_min + 120) * INTERVAL '1 minute')))";
+
     public static void Map(WebApplication app)
     {
         // ─── Médico ───────────────────────────────────────────────────────
@@ -45,7 +55,7 @@ public static class TeleconsultaEndpoints
             if (medicoId is null) return Results.Forbid();
 
             var row = await db.Database.SqlQueryRaw<VideoConsultaRow>(@"
-                SELECT co.modalidade, co.status
+                SELECT co.modalidade, co.status, " + LinkExpiradoSql + @" AS link_expirado
                 FROM consultas co
                 JOIN pacientes p ON p.cliente_id = co.paciente_id
                 WHERE co.id = {0} AND p.medico_responsavel_id = {1}",
@@ -79,6 +89,39 @@ public static class TeleconsultaEndpoints
             if (afetadas == 0) return Results.NotFound();
 
             await AuditarAsync(db, id, TeleconsultaSignalingHub.PapelMedico, "encerrou");
+            return Results.NoContent();
+        });
+
+        // Finalizar a teleconsulta a partir da agenda: agenda a EXPIRAÇÃO do link
+        // (não é o mesmo que /encerrar, que só finaliza a chamada ao vivo). Com
+        // graça anti-engano: o link vale até NOW()+15min, mas nunca além do cap de
+        // 120min após o fim previsto ("sempre o menor" via LEAST). Expirado, o
+        // /entrar passa a recusar (410) — quem está na sala não é derrubado.
+        // Só após o início previsto (inicia_em <= NOW): com "sempre o menor", clicar
+        // numa consulta futura mataria o link antes da hora.
+        med.MapPost("/finalizar", async (Guid id, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            var afetadas = await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE consultas
+                SET video_link_expira_em = LEAST(
+                        inicia_em + ((duracao_min + 120) * INTERVAL '1 minute'),
+                        NOW() + INTERVAL '15 minute'),
+                    video_status = 'encerrada',
+                    video_encerrada_em = COALESCE(video_encerrada_em, NOW())
+                WHERE id = {0}
+                  AND modalidade = 'teleconsulta'
+                  AND status <> 'cancelada'
+                  AND inicia_em <= NOW()
+                  AND paciente_id IN (
+                      SELECT cliente_id FROM pacientes WHERE medico_responsavel_id = {1}
+                  )",
+                id, medicoId.Value);
+            if (afetadas == 0) return Results.NotFound();
+
+            await AuditarAsync(db, id, TeleconsultaSignalingHub.PapelMedico, "finalizou");
             return Results.NoContent();
         });
 
@@ -118,7 +161,8 @@ public static class TeleconsultaEndpoints
             if (pid is null) return Results.Unauthorized();
 
             var row = await db.Database.SqlQueryRaw<VideoConsultaRow>(
-                "SELECT modalidade, status FROM consultas WHERE id = {0} AND paciente_id = {1}",
+                "SELECT modalidade, status, " + LinkExpiradoSql + @" AS link_expirado
+                 FROM consultas WHERE id = {0} AND paciente_id = {1}",
                 id, pid.Value).FirstOrDefaultAsync();
 
             var erro = ValidarEntrada(row);
@@ -165,6 +209,8 @@ public static class TeleconsultaEndpoints
             return Results.BadRequest(new { erro = "nao_e_teleconsulta" });
         if (row.Status == "cancelada")
             return Results.Conflict(new { erro = "consulta_cancelada" });
+        if (row.LinkExpirado)
+            return Results.Json(new { erro = "link_expirado" }, statusCode: StatusCodes.Status410Gone);
         return null;
     }
 
@@ -285,7 +331,7 @@ public static class TeleconsultaEndpoints
     }
 }
 
-public record VideoConsultaRow(string Modalidade, string Status);
+public record VideoConsultaRow(string Modalidade, string Status, bool LinkExpirado);
 
 public record EntrarResponse(
     Guid RoomId, string Papel, IReadOnlyList<TurnCredentialService.IceServer> IceServers);
