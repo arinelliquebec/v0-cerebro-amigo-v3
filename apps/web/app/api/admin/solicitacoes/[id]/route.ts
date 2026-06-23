@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 // Atualiza o status de uma solicitação de titular (atendida/recusada).
 export async function PATCH(req: NextRequest, { params }: Ctx) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { id } = await params
   const body = await req.json().catch(() => ({}))
   try {

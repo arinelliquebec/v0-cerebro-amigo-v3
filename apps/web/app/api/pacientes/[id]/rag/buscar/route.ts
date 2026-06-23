@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 // Busca semântica no prontuário do paciente (RAG, ADR-028). Retrieval-only:
 // devolve trechos citados, sem conduta gerada. O tenant (medico_id) é validado e
@@ -8,6 +9,10 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { id } = await params
   const body = await req.json().catch(() => null)
   const query = body?.query

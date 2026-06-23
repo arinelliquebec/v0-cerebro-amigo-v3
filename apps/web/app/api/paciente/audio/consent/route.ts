@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { isSameOrigin } from "@/lib/same-origin"
 
 const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 
@@ -18,7 +19,11 @@ export async function GET() {
 }
 
 // POST — registrar consentimento
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const token = await tok()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
   const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio/consent`, {

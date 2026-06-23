@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { isSameOrigin } from "@/lib/same-origin"
 
 const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 
@@ -24,6 +25,10 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const token = await getToken()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
 

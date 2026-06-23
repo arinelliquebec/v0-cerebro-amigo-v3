@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 // Espelho: receita emitida no MEMED → registra + clona meds em prescricoes.
 export async function POST(req: NextRequest) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const body = await req.json().catch(() => ({}))
   try {
     const data = await gateway.post("/api/v1/memed/receitas", body)

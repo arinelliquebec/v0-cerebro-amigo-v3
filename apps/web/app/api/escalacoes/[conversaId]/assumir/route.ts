@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 // Médico assume a conversa escalada e a devolve ao fluxo.
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ conversaId: string }> },
 ) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { conversaId } = await params
   try {
     await gateway.post(`/api/v1/escalacoes/${conversaId}/assumir`, {})

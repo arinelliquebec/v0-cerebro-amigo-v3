@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 // GET retorna o último resumo cacheado: { ultimo: ResumoPreConsultaDto | null }
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -19,7 +20,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 // POST dispara geração on-demand (agents-py). Pode demorar — deixa o gateway esperar.
-export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { id } = await params
   try {
     const data = await gateway.post(`/api/v1/pacientes/${id}/resumo-pre-consulta`, {})

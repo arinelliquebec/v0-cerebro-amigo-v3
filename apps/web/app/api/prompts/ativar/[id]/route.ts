@@ -1,13 +1,18 @@
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 // Ativa uma versão de prompt. 'ativar' é segmento ESTÁTICO (antes de [id]) para
 // não criar dois slugs dinâmicos irmãos sob /api/prompts ([agente] vs [id]),
 // que o Next.js proíbe e fazia o app inteiro retornar 500.
 export async function POST(
-  _req: Request,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   try {
     const { id } = await params
     const data = await gateway.post(`/api/v1/prompts/${encodeURIComponent(id)}/ativar`, {})

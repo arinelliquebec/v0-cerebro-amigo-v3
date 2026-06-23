@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -18,6 +19,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 // Atualiza status/horário/modalidade/notas.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { id } = await params
   const body = await req.json().catch(() => ({}))
   try {
