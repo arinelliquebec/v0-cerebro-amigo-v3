@@ -1,6 +1,7 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
 import { proxySinalSSE, proxySinalPOST } from "@/lib/teleconsulta-proxy"
+import { isSameOrigin } from "@/lib/same-origin"
 
 // SSE + cookies() já tornam estas rotas dinâmicas (sob cacheComponents não se
 // usa `export const dynamic`). GET = recebe (SSE); POST = envia (offer/answer/ICE).
@@ -11,6 +12,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { id } = await params
   const token = (await cookies()).get("paciente_token")?.value
   return proxySinalPOST(`/api/v1/portal/paciente/agenda/${id}/video/sinal`, token, await req.text())

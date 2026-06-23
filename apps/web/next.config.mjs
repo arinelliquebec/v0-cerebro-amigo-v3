@@ -1,3 +1,30 @@
+/* CSP em Report-Only (hardening LGPD). DELIBERADAMENTE não-enforcing: o dashboard usa
+   React Compiler + bootstrap inline do Next (script e style inline) e o `eval` que alguns
+   chunks do Next/Turbopack ainda emitem — uma CSP enforcing com nonce exigiria render
+   dinâmico e quebraria o modelo SSG/PPR + cacheComponents. Report-Only NÃO bloqueia nada,
+   só mede violações; usamos p/ apertar depois (mover de Report-Only p/ enforcing + nonce
+   quando o inventário de inline/eval estiver fechado). Espelha a policy do checkup
+   (apps/checkup/next.config.ts), adaptada às chamadas reais do front web:
+     - script-src: 'unsafe-inline'/'unsafe-eval' p/ Next/React Compiler + Turnstile (ADR-055,
+       script de challenges.cloudflare.com).
+     - frame-src: Turnstile renderiza o desafio num iframe de challenges.cloudflare.com.
+     - connect-src: 'self' + viacep.com.br (busca de CEP no /p/perfil, fetch client-side).
+     - img-src data:/blob: p/ ícones inline, QR e previews.
+   Sem report-uri por ora (sem coletor de relatórios); adicionar ao apertar. */
+const CSP_REPORT_ONLY = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://viacep.com.br",
+  "frame-src https://challenges.cloudflare.com",
+].join("; ");
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   /* Standalone output só para Docker; Vercel ignora/usa seu próprio modelo */
@@ -101,6 +128,13 @@ const nextConfig = {
                depende deles; lockar quebraria o vídeo. Geolocalização e FLoC off. */
             key: "Permissions-Policy",
             value: "camera=(self), microphone=(self), geolocation=(), interest-cohort=()",
+          },
+          {
+            /* CSP em Report-Only: mede violações sem bloquear (ver CSP_REPORT_ONLY acima).
+               Não usar a versão enforcing aqui sem antes fechar o inventário de inline/eval
+               do dashboard — caso contrário quebra React Compiler + bootstrap do Next. */
+            key: "Content-Security-Policy-Report-Only",
+            value: CSP_REPORT_ONLY,
           },
         ],
       },

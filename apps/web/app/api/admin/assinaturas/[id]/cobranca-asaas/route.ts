@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 type Ctx = { params: Promise<{ id: string }> }
 
 // Ativa cobrança recorrente do médico no Asaas (Fluxo A, ADR-034).
-export async function POST(_req: NextRequest, { params }: Ctx) {
+export async function POST(req: NextRequest, { params }: Ctx) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { id } = await params
   try {
     const data = await gateway.post(`/api/v1/admin/assinaturas/${id}/cobranca-asaas`, {})
@@ -23,7 +28,11 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
 }
 
 // Cancela a cobrança recorrente.
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { id } = await params
   try {
     await gateway.delete(`/api/v1/admin/assinaturas/${id}/cobranca-asaas`)

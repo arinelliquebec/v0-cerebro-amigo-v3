@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 interface GatewayLoginResponse {
   token: string
@@ -8,6 +9,10 @@ interface GatewayLoginResponse {
 }
 
 export async function POST(req: NextRequest) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const body = await req.json().catch(() => null)
   if (!body?.email || !body?.senha) {
     return NextResponse.json({ error: "email e senha obrigatórios" }, { status: 400 })

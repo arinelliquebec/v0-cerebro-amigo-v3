@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, gatewayErrorResponse } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 // Escriba (médico): lê o rascunho factual, envia áudio para transcrição, edita o rascunho.
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -13,6 +14,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 // Recebe { audioBase64, contentType } → gateway → agents-py (transcreve + rascunho).
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { id } = await params
   const body = await req.json().catch(() => ({}))
   try {
@@ -24,6 +29,10 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
 // Médico edita o rascunho factual antes de aprovar.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const { id } = await params
   const body = await req.json().catch(() => ({}))
   try {

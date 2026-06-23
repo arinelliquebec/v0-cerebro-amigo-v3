@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { gateway, GatewayError } from "@/lib/gateway"
+import { isSameOrigin } from "@/lib/same-origin"
 
 // Re-emite o magic link de acesso do paciente (fluxo médico de recuperação).
 // Proxia pro gateway, que ANCORA no médico do JWT (tenant — 404 se não for paciente
@@ -7,6 +8,10 @@ import { gateway, GatewayError } from "@/lib/gateway"
 // Retorna { enviado, email, url? } — `url` só vem como fallback se o e-mail falhar.
 // O paciente abre a URL e define a própria senha em /p/entrar (hash + auditoria).
 export async function POST(req: NextRequest) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const body = await req.json().catch(() => null)
   const email = typeof body?.email === "string" ? body.email.trim() : ""
   if (!email) return NextResponse.json({ error: "email obrigatório" }, { status: 400 })

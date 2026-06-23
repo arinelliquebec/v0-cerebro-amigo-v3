@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { cookies } from "next/headers"
+import { isSameOrigin } from "@/lib/same-origin"
 
 const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 
@@ -7,6 +8,10 @@ const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 // (nunca do body). Repassa o stream sem bufferizar. NÃO loga o conteúdo da
 // mensagem (LGPD — dado clínico cru não vai pra log).
 export async function POST(req: NextRequest) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const token = (await cookies()).get("paciente_token")?.value
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
 

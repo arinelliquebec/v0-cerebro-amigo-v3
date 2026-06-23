@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { isSameOrigin } from "@/lib/same-origin"
 
 // BFF do auto-cadastro de médico externo (ADR-046). Repassa p/ o gateway
 // POST /api/v1/auth/medico/signup. Anônimo (sem cookie). Encaminha o IP real do
@@ -7,6 +8,10 @@ import { NextRequest, NextResponse } from "next/server"
 const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 
 export async function POST(req: NextRequest) {
+  // CSRF (T1-9): cookie de sessão é sameSite=lax e não barra POST cross-site.
+  if (!isSameOrigin(req)) {
+    return NextResponse.json({ erro: "origem inválida" }, { status: 403 })
+  }
   const body = await req.json().catch(() => null)
   // ADR-065: CPF obrigatório no signup (identidade forte + self-checkout Asaas).
   if (!body?.nome || !body?.email || !body?.crm || !body?.crmUf || !body?.cpf) {
