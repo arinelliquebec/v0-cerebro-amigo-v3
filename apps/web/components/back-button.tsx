@@ -1,6 +1,5 @@
 "use client"
 
-import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
@@ -20,10 +19,10 @@ export function BackButton({ label = "Voltar", className, href, fallbackHref = "
   if (href) {
     return (
       <Button variant="ghost" size="sm" asChild className={className}>
-        <Link href={href}>
+        <a href={href}>
           <ArrowLeft className="h-4 w-4" />
           {label}
-        </Link>
+        </a>
       </Button>
     )
   }
