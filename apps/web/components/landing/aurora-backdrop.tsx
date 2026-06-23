@@ -23,7 +23,7 @@ export function AuroraBackdrop({
   intensity?: number
 }) {
   return (
-    <div className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)} aria-hidden>
+    <div className={cn("pointer-events-none absolute inset-0 z-0 overflow-hidden", className)} aria-hidden>
       <div className="aurora absolute inset-0" />
       {shader && <AuroraShader className="absolute inset-0" intensity={intensity} />}
       {grid && <div className="grid-noir absolute inset-0" />}

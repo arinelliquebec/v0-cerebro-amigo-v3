@@ -1,12 +1,23 @@
 "use client"
 
 import { useRef, useState, useEffect } from "react"
-import { Send, Loader2, LifeBuoy, Phone } from "lucide-react"
+import { Send, LifeBuoy, Phone } from "lucide-react"
+import {
+  IndicadorCuidado,
+  avancarEtapa,
+  etapaDeNode,
+  type EtapaCuidado,
+} from "@/components/portal/indicador-cuidado"
 
 type Papel = "user" | "assistant" | "crise" | "sistema"
 interface Msg {
   papel: Papel
   texto: string
+}
+
+interface NodePayload {
+  name?: string
+  status?: string
 }
 
 // Evento final do grafo (orchestrator) — front renderiza só o que vem daqui.
@@ -23,22 +34,22 @@ const SAUDACAO =
 export default function ConversaPage() {
   const [msgs, setMsgs] = useState<Msg[]>([{ papel: "assistant", texto: SAUDACAO }])
   const [input, setInput] = useState("")
-  const [status, setStatus] = useState<"idle" | "pensando" | "digitando">("idle")
-  const [pausado, setPausado] = useState(false) // após crise/escalada: automação pausada
+  const [etapa, setEtapa] = useState<EtapaCuidado | null>(null)
+  const [pausado, setPausado] = useState(false)
   const fimRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     fimRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [msgs, status])
+  }, [msgs, etapa])
 
   async function enviar(e: React.FormEvent) {
     e.preventDefault()
     const texto = input.trim()
-    if (!texto || status !== "idle" || pausado) return
+    if (!texto || etapa !== null || pausado) return
 
     setMsgs((m) => [...m, { papel: "user", texto }])
     setInput("")
-    setStatus("pensando")
+    setEtapa("lendo")
 
     try {
       const res = await fetch("/api/paciente/conversation", {
@@ -52,9 +63,6 @@ export default function ConversaPage() {
         return
       }
 
-      // Lê o SSE. Por segurança clínica (auditoria antes do paciente ver), NÃO
-      // revelamos os tokens em streaming — só mostramos "digitando" e revelamos
-      // a mensagem final (já auditada) no evento `complete`.
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buf = ""
@@ -75,11 +83,10 @@ export default function ConversaPage() {
     } catch {
       finalizarSistema("Erro de conexão. Tente novamente.")
     } finally {
-      setStatus("idle")
+      setEtapa(null)
     }
   }
 
-  // Retorna true quando recebeu o evento final (complete/error).
   function tratarEvento(bloco: string): boolean {
     let evento = ""
     let data = ""
@@ -88,14 +95,30 @@ export default function ConversaPage() {
       else if (linha.startsWith("data:")) data += linha.slice(5).trim()
     }
 
-    if (evento === "node" || evento === "token") {
-      setStatus("digitando")
+    if (evento === "node") {
+      try {
+        const payload = JSON.parse(data) as NodePayload
+        if (payload.name && payload.status) {
+          const nova = etapaDeNode(payload.name, payload.status)
+          if (nova) setEtapa((atual) => avancarEtapa(atual, nova))
+        }
+      } catch {
+        /* ignora */
+      }
       return false
     }
+
+    if (evento === "token") {
+      // Tokens não são exibidos ao paciente; só avança a etapa visual.
+      setEtapa((atual) => avancarEtapa(atual, "organizando"))
+      return false
+    }
+
     if (evento === "error") {
       finalizarSistema("Tive um problema para responder. Sua psiquiatra pode ser acionada se necessário.")
       return true
     }
+
     if (evento === "complete") {
       let payload: CompletePayload = {}
       try {
@@ -106,10 +129,10 @@ export default function ConversaPage() {
       revelarFinal(payload)
       return true
     }
+
     return false
   }
 
-  // Mostra a mensagem AUTORITATIVA (texto vem do backend; front nunca inventa).
   function revelarFinal(p: CompletePayload) {
     if (p.crise?.detectada && p.resposta_final) {
       setMsgs((m) => [...m, { papel: "crise", texto: p.resposta_final as string }])
@@ -120,7 +143,6 @@ export default function ConversaPage() {
       setMsgs((m) => [...m, { papel: "assistant", texto: p.resposta_final as string }])
       return
     }
-    // resposta_final nula → foi escalado/bloqueado para humano (rule #3).
     setMsgs((m) => [
       ...m,
       { papel: "sistema", texto: "Sua mensagem foi encaminhada à sua psiquiatra. Ela vai te responder." },
@@ -145,12 +167,7 @@ export default function ConversaPage() {
         {msgs.map((m, i) => (
           <Bolha key={i} msg={m} />
         ))}
-        {status !== "idle" && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            {status === "pensando" ? "lendo sua mensagem…" : "escrevendo…"}
-          </div>
-        )}
+        {etapa && <IndicadorCuidado etapa={etapa} />}
         <div ref={fimRef} />
       </div>
 
@@ -171,11 +188,12 @@ export default function ConversaPage() {
             }}
             rows={1}
             placeholder="Escreva como você está…"
-            className="flex-1 resize-none rounded-xl border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 max-h-32"
+            disabled={etapa !== null}
+            className="flex-1 resize-none rounded-xl border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 max-h-32 disabled:opacity-60"
           />
           <button
             type="submit"
-            disabled={status !== "idle" || !input.trim()}
+            disabled={etapa !== null || !input.trim()}
             className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40"
             aria-label="Enviar"
           >

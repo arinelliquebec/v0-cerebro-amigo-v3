@@ -38,7 +38,7 @@ export default function ChooserPage() {
     <main className="theme-noir relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-5 py-14 text-foreground antialiased">
       <AuroraBackdrop grid shader intensity={0.7} />
 
-      <div className="relative w-full max-w-3xl">
+      <div className="relative z-10 w-full max-w-3xl">
         <Reveal className="mb-10 text-center">
           <div className="mb-6 flex justify-center">
             <Logo size="lg" variant="light" />

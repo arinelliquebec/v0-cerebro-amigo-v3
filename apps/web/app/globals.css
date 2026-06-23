@@ -463,6 +463,24 @@
 
 @media (prefers-reduced-motion: reduce) {
   .text-noir-shimmer { animation: none; }
+  .quiz-step-in,
+  .quiz-opt-in { animation: none; }
+}
+
+/* Portal — ritmo conversacional dos questionários PHQ-9/GAD-7 (uma pergunta/tela). */
+@keyframes quiz-step-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.quiz-step-in {
+  animation: quiz-step-in 0.32s ease-out both;
+}
+@keyframes quiz-opt-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.quiz-opt-in {
+  animation: quiz-opt-in 0.3s ease-out both;
 }
 
 /* Scrollbar — agora roxo */

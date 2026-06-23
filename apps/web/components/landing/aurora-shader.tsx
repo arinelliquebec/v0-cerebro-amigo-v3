@@ -81,10 +81,16 @@ function parseColor(input: string, fallback: [number, number, number]): [number,
       return [parts[0] / 255, parts[1] / 255, parts[2] / 255]
     }
   }
-  const hex = s.match(/^#([0-9a-f]{6})$/i)
-  if (hex) {
-    const int = parseInt(hex[1], 16)
+  const hex6 = s.match(/^#([0-9a-f]{6})$/i)
+  if (hex6) {
+    const int = parseInt(hex6[1], 16)
     return [((int >> 16) & 255) / 255, ((int >> 8) & 255) / 255, (int & 255) / 255]
+  }
+  // Tailwind 4 serializa rgba() como #rrggbbaa — GLSL precisa do rgb sem alpha.
+  const hex8 = s.match(/^#([0-9a-f]{8})$/i)
+  if (hex8) {
+    const int = parseInt(hex8[1], 16)
+    return [((int >> 24) & 255) / 255, ((int >> 16) & 255) / 255, ((int >> 8) & 255) / 255]
   }
   return fallback
 }
@@ -107,11 +113,13 @@ export function AuroraShader({
     // Sem WebGL ou em reduced-motion o canvas fica transparente → .aurora CSS cobre.
     const isMobile = window.matchMedia("(max-width: 767px)").matches
 
-    const gl = (cv.getContext("webgl2", { premultipliedAlpha: true, antialias: false }) ||
-      cv.getContext("webgl", { premultipliedAlpha: true, antialias: false })) as
-      | WebGLRenderingContext
-      | null
-    if (!gl) return
+    const glAttrs = { alpha: true, premultipliedAlpha: true, antialias: false } as const
+    const gl = (cv.getContext("webgl2", glAttrs) ||
+      cv.getContext("webgl", glAttrs)) as WebGLRenderingContext | null
+    if (!gl) {
+      cv.style.display = "none"
+      return
+    }
 
     // Cores do tema (mesmo padrão do NeuralField).
     const cs = getComputedStyle(cv)
@@ -185,7 +193,10 @@ export function AuroraShader({
       return true
     }
 
-    if (!setup()) return
+    if (!setup()) {
+      cv.style.display = "none"
+      return
+    }
 
     const resize = () => {
       const rect = cv.getBoundingClientRect()
@@ -282,7 +293,10 @@ export function AuroraShader({
       if (!e.persisted) return
       stop() // defensivo: garante running=false mesmo se o pagehide não veio
       if (gl.isContextLost()) {
-        if (!setup()) return // sem GL: o `.aurora` CSS estático cobre
+        if (!setup()) {
+          cv.style.display = "none"
+          return // sem GL: o `.aurora` CSS estático cobre
+        }
       }
       resize()
       last = 0
@@ -301,7 +315,11 @@ export function AuroraShader({
       stop()
     }
     const onRestored = () => {
-      if (!setup()) return // recursos invalidados pela perda — recria do zero
+      if (!setup()) {
+        cv.style.display = "none"
+        return // recursos invalidados pela perda — recria do zero
+      }
+      cv.style.display = "block"
       resize()
       if (reduce) {
         render(0)
@@ -325,7 +343,8 @@ export function AuroraShader({
       cv.removeEventListener("webglcontextrestored", onRestored as EventListener)
       if (buffer) gl.deleteBuffer(buffer)
       if (program) gl.deleteProgram(program)
-      gl.getExtension("WEBGL_lose_context")?.loseContext()
+      // Não chamar loseContext(): no Strict Mode (dev) o remount reutiliza o
+      // mesmo <canvas> e um contexto “morto” bloqueia o fallback CSS .aurora.
     }
   }, [intensity])
 
