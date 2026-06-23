@@ -20,8 +20,11 @@ public static class PromptValidation
     // Lista vazia = prompt CRU (usado sem .format) → chaves livres, sem checagem.
     private static readonly Dictionary<string, string[]> Catalogo = new()
     {
-        // response.py: .format(nome_paciente=…, sintomas_resumo=…)
-        ["orchestrator:response_generation"] = ["nome_paciente", "sintomas_resumo"],
+        // response.py: .format(sintomas_resumo=…)
+        // ADR-044/LGPD: `nome_paciente` foi REMOVIDO do prompt do gerador (não
+        // se envia identificador direto do paciente junto de conteúdo clínico
+        // ao LLM). Um prompt editado com {nome_paciente} agora é rejeitado.
+        ["orchestrator:response_generation"] = ["sintomas_resumo"],
         // medication.py: .format(checkin_resumo=…, prescricoes_resumo=…)
         ["orchestrator:medication_classification"] = ["checkin_resumo", "prescricoes_resumo"],
         // symptoms.py: usado cru (sem .format)

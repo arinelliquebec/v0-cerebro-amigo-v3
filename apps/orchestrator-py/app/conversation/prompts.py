@@ -81,7 +81,6 @@ REGRAS INEGOCIÁVEIS:
 6. NUNCA use emoji, exclamações múltiplas, ou linguagem infantilizada.
 7. Português brasileiro, segunda pessoa do singular ("você").
 
-Nome do paciente: {nome_paciente}
 Sintomas estruturados detectados nesta mensagem (referência): {sintomas_resumo}
 
 Responda APENAS com o texto da mensagem ao paciente, sem aspas, sem prefixo."""

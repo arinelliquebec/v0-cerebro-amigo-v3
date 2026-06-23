@@ -16,8 +16,10 @@ public sealed class PromptValidationTests
     [Fact]
     public void PromptValido_ComTodosPlaceholders_Passa()
     {
+        // ADR-044/LGPD: o gerador NÃO recebe mais {nome_paciente} — fala em 2ª
+        // pessoa ("você"). O único placeholder aceito é {sintomas_resumo}.
         var erros = PromptValidation.Validar(Agente, Nome,
-            "Você fala com {nome_paciente}. Sintomas (referência): {sintomas_resumo}.");
+            "Responda a você com acolhimento. Sintomas (referência): {sintomas_resumo}.");
         Assert.Empty(erros);
     }
 
@@ -25,7 +27,7 @@ public sealed class PromptValidationTests
     public void JsonLiteralEscapado_Passa()
     {
         var erros = PromptValidation.Validar(Agente, Nome,
-            "Paciente: {nome_paciente}. Sintomas: {sintomas_resumo}. " +
+            "Sintomas: {sintomas_resumo}. " +
             "Responda APENAS JSON: {{\"humor\": 1, \"flags\": []}}");
         Assert.Empty(erros);
     }
@@ -35,7 +37,7 @@ public sealed class PromptValidationTests
     {
         // O caso clássico que derruba o nó: exemplo JSON com { } cru.
         var erros = PromptValidation.Validar(Agente, Nome,
-            "Paciente: {nome_paciente}. Sintomas: {sintomas_resumo}. " +
+            "Sintomas: {sintomas_resumo}. " +
             "Responda JSON: {\"humor\": 1}");
         Assert.NotEmpty(erros);
     }
@@ -43,15 +45,16 @@ public sealed class PromptValidationTests
     [Fact]
     public void PlaceholderDesconhecido_Reprova()
     {
+        // {nome_paciente} agora é DESCONHECIDO neste prompt (removido por ADR-044).
         var erros = PromptValidation.Validar(Agente, Nome,
-            "Olá {nome_paciente} {sintomas_resumo} {idade_paciente}");
-        Assert.Contains(erros, e => e.Contains("idade_paciente"));
+            "Olá {sintomas_resumo} {nome_paciente}");
+        Assert.Contains(erros, e => e.Contains("nome_paciente"));
     }
 
     [Fact]
     public void PlaceholderObrigatorioAusente_Reprova()
     {
-        var erros = PromptValidation.Validar(Agente, Nome, "Olá {nome_paciente}, tudo bem?");
+        var erros = PromptValidation.Validar(Agente, Nome, "Olá, tudo bem?");
         Assert.Contains(erros, e => e.Contains("sintomas_resumo"));
     }
 
@@ -59,7 +62,7 @@ public sealed class PromptValidationTests
     public void ChaveAbertaSemFechar_Reprova()
     {
         var erros = PromptValidation.Validar(Agente, Nome,
-            "{nome_paciente} {sintomas_resumo} e um { perdido");
+            "{sintomas_resumo} e um { perdido");
         Assert.NotEmpty(erros);
     }
 
@@ -67,7 +70,7 @@ public sealed class PromptValidationTests
     public void ChaveFechadaSolta_Reprova()
     {
         var erros = PromptValidation.Validar(Agente, Nome,
-            "{nome_paciente} {sintomas_resumo} e um } perdido");
+            "{sintomas_resumo} e um } perdido");
         Assert.NotEmpty(erros);
     }
 
@@ -75,16 +78,16 @@ public sealed class PromptValidationTests
     public void PlaceholderPosicional_Reprova()
     {
         Assert.NotEmpty(PromptValidation.Validar(Agente, Nome,
-            "{} {nome_paciente} {sintomas_resumo}"));
+            "{} {sintomas_resumo}"));
         Assert.NotEmpty(PromptValidation.Validar(Agente, Nome,
-            "{0} {nome_paciente} {sintomas_resumo}"));
+            "{0} {sintomas_resumo}"));
     }
 
     [Fact]
     public void FormatSpecEConversao_NaoQuebramOParser()
     {
         var erros = PromptValidation.Validar(Agente, Nome,
-            "{nome_paciente!r} — {sintomas_resumo:>10}");
+            "{sintomas_resumo:>10}");
         Assert.Empty(erros);
     }
 
@@ -102,7 +105,7 @@ public sealed class PromptValidationTests
     {
         // Typo no nome nunca seria carregado (loader cai no builtin em silêncio).
         var erros = PromptValidation.Validar(Agente, "response_generaton",
-            "{nome_paciente} {sintomas_resumo}");
+            "{sintomas_resumo}");
         Assert.Contains(erros, e => e.Contains("desconhecido"));
     }
 

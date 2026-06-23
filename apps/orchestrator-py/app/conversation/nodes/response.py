@@ -22,8 +22,12 @@ async def generate_response(state: ConversaState) -> dict:
     settings = get_settings()
     sintomas_resumo = json.dumps(state.get("sintomas") or {}, ensure_ascii=False)
 
+    # ADR-044 / LGPD categoria especial: NÃO enviar identificador direto do
+    # paciente (nome real) junto do conteúdo clínico na mesma chamada ao LLM.
+    # O prompt já instrui resposta em 2ª pessoa ("você"); o nome próprio é
+    # dispensável e não é mais injetado. `state["nome_paciente"]` permanece no
+    # state para outros nós, mas jamais vai para o prompt do gerador.
     system = (await get_prompt("orchestrator", "response_generation")).format(
-        nome_paciente=state.get("nome_paciente", "") or "",
         sintomas_resumo=sintomas_resumo,
     )
 
