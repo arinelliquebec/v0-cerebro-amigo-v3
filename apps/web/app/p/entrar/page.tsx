@@ -20,7 +20,7 @@ export default async function EntrarPage({
     <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-6 py-12">
       <AuroraBackdrop />
       <div className="relative w-full max-w-sm space-y-8">
-        <BackButton className="text-noir-text-dim hover:text-foreground" />
+        <BackButton href="/" className="text-noir-text-dim hover:text-foreground" />
         <div className="space-y-3 text-center">
           <BrandWordmark layout="inline" size="lg" className="justify-center" />
           <div>

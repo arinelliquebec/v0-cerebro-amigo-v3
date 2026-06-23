@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
@@ -7,12 +8,25 @@ import { ArrowLeft } from "lucide-react"
 interface BackButtonProps {
   label?: string
   className?: string
+  /** Quando fornecido, navega diretamente para este destino sem usar router.back(). */
+  href?: string
   /** Destino quando não há histórico interno para voltar (land direto, novo tab, pós-redirect). */
   fallbackHref?: string
 }
 
-export function BackButton({ label = "Voltar", className, fallbackHref = "/" }: BackButtonProps) {
+export function BackButton({ label = "Voltar", className, href, fallbackHref = "/" }: BackButtonProps) {
   const router = useRouter()
+
+  if (href) {
+    return (
+      <Button variant="ghost" size="sm" asChild className={className}>
+        <Link href={href}>
+          <ArrowLeft className="h-4 w-4" />
+          {label}
+        </Link>
+      </Button>
+    )
+  }
 
   const handleBack = () => {
     // router.back() é no-op quando não há entrada anterior no histórico
