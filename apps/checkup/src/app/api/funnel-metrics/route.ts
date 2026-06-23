@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSql } from "@/lib/db";
+import { bearerMatches } from "@/lib/tracking/auth";
 
 /**
  * Cérebro Amigo — https://www.cerebroamigo.com.br
@@ -34,7 +35,9 @@ export async function GET(req: NextRequest) {
     // fail-closed: sem token configurado, não expõe métricas (checkup é superfície pública)
     return NextResponse.json({ error: "metrics_disabled" }, { status: 503 });
   }
-  if ((req.headers.get("authorization") ?? "") !== `Bearer ${expected}`) {
+  // Comparação timing-safe (mesmo helper dos endpoints de cron) — evita timing oracle
+  // no CHECKUP_METRICS_TOKEN nesta superfície pública.
+  if (!bearerMatches(req.headers.get("authorization"), expected)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 

@@ -6,7 +6,9 @@ export function getAnthropicClient(): Anthropic | null {
   if (_client) return _client;
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
-  _client = new Anthropic({ apiKey });
+  // timeout/maxRetries explícitos: defaults do SDK (~10min, 2 retries) somados ao retry
+  // manual em devolutiva.ts amplificam custo/latência numa superfície pública.
+  _client = new Anthropic({ apiKey, timeout: 15000, maxRetries: 1 });
   return _client;
 }
 

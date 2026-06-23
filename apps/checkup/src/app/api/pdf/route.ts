@@ -32,7 +32,11 @@ export async function GET(req: NextRequest) {
   const inj = searchParams.get("inj") === "1";
   const label = searchParams.get("label") ?? "";
   const crisis = searchParams.get("crisis") === "true";
-  const rid = searchParams.get("rid") ?? "";
+  // rid normal é `sid.slice(0,8)` (hex). Valida o mesmo padrão de events/route.ts para
+  // impedir injeção de query params extras / destino manipulado no QR (rid entra cru na
+  // URL via buildQrUrl). Inválido → tratado como ausente (sem QR), não quebra o fluxo.
+  const ridRaw = searchParams.get("rid") ?? "";
+  const rid = /^[A-Za-z0-9-]{1,32}$/.test(ridRaw) ? ridRaw : "";
 
   const score = parseInt(scoreStr, 10);
   if (!scale || !band) {
