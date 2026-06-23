@@ -199,8 +199,9 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
   <a href="#s8"><span class="n">08</span>O lado do paciente (aplicativo)</a>
   <a href="#s9"><span class="n">09</span>Privacidade, sigilo e auditoria</a>
   <a href="#s10"><span class="n">10</span>Check-up Mental: triagem e novos pacientes</a>
-  <a href="#s11"><span class="n">11</span>Como começar</a>
-  <a href="#s12"><span class="n">12</span>Perguntas frequentes</a>
+  <a href="#s11"><span class="n">11</span>Sua conta, planos e documentos</a>
+  <a href="#s12"><span class="n">12</span>Como começar</a>
+  <a href="#s13"><span class="n">13</span>Perguntas frequentes</a>
 </div>
 
 <footer class="pg"><span>Cérebro Amigo — Guia para o Psiquiatra</span><span>1</span></footer>
@@ -348,7 +349,9 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
     <tr><td class="k">Agenda</td><td>Consultas, disponibilidade, detecção de conflito, lembretes e agendamento pelo próprio paciente.</td></tr>
     <tr><td class="k">Check-ins</td><td>Registros de humor e confirmações de medicação que o paciente envia entre consultas.</td></tr>
     <tr><td class="k">Exames (no prontuário)</td><td>Acompanhamento de exames laboratoriais relevantes e avisos de pendência ou vencimento.</td></tr>
-    <tr><td class="k">Financeiro</td><td>Cobrança da sua assinatura; quais pacientes sumiram há muito tempo (para você decidir reativar o contato); e o registro que comprova o acompanhamento prestado — útil se um dia precisar demonstrar o cuidado.</td></tr>
+    <tr><td class="k">Busca (no prontuário)</td><td>Busca semântica pelo histórico do paciente — encontra trechos por significado, não só pela palavra exata. Apoio à sua leitura.</td></tr>
+    <tr><td class="k">Financeiro</td><td>Sua assinatura e formas de pagamento; quais pacientes sumiram há muito tempo (para você decidir reativar o contato); e o registro que comprova o acompanhamento prestado — útil se um dia precisar demonstrar o cuidado.</td></tr>
+    <tr><td class="k">Minha conta</td><td>Seu autosserviço: plano e pagamentos, troca de senha, foto e dados profissionais, um cofre de documentos com a plataforma (contrato, NFS-e, recibos) e os seus próprios direitos de LGPD. Detalhes no capítulo 11.</td></tr>
   </table>
 
   <h3>Você define as regras de cada paciente</h3>
@@ -367,6 +370,7 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
   <footer class="pg"><span>04 · Seu painel</span><span>5</span></footer>
 </section>
 
+<!--SPLIT-->
 <!-- ===================== 05 ===================== -->
 <section id="s5">
   <div class="eyebrow">Capítulo 05</div>
@@ -449,17 +453,26 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
   conversa em um rascunho de evolução. É um <strong>rascunho para a sua revisão e edição</strong> —
   nunca um registro definitivo gerado sozinho. O áudio é descartado após o processamento.</p>
 
-  <h3>Prescrição digital</h3>
-  <p>Prescrição integrada via <strong>Memed</strong>, com um <strong>verificador determinístico de
-  interações e duplicidades</strong> (baseado em base de dados farmacológica, não em IA) que sinaliza,
-  sem interpretar o caso, pontos para a sua avaliação. A decisão de prescrever, manter ou trocar é
-  sempre sua. Há ainda apoio à <strong>renovação de receitas</strong> de uso contínuo, dentro das
-  regras.</p>
+  <h3>Medicações em uso e verificação de interações</h3>
+  <p>No prontuário você registra as <strong>medicações em uso</strong> do paciente — o que ele de fato
+  toma, venha de você, de outro prescritor ou por conta própria. É <strong>reconciliação, não
+  receita</strong>: você escolhe o fármaco em um catálogo organizado por classe (alimentado por base
+  ANVISA) ou digita livremente, e pode exportar ou imprimir a lista — sempre com o aviso explícito de
+  que aquilo não é uma prescrição.</p>
+  <p>Sobre essa lista roda um <strong>verificador determinístico de interações e duplicidades</strong>
+  (base de dados farmacológica, não IA) que sinaliza, sem interpretar o caso, pontos para a sua
+  avaliação.</p>
 
   <div class="rule nobreak">
     O verificador de interações <strong>alerta</strong>, não decide. Ele existe como uma rede de
     segurança a mais — a conduta farmacológica permanece inteiramente sob seu julgamento.
   </div>
+
+  <h3>Prescrição digital (Memed)</h3>
+  <p>A emissão de receitas digitais pela <strong>Memed</strong> — com apoio à renovação de uso
+  contínuo, dentro das regras — está <strong>em preparação</strong> e acende na própria área de
+  prescrição assim que a integração for liberada. Quando ativa, ela conviverá com a lista de medicações
+  em uso e passará pelo mesmo verificador de interações antes de qualquer emissão.</p>
 
   <h3>Agenda</h3>
   <p>Disponibilidade, detecção de conflito de horário, lembretes automáticos de consulta (24 h e 1 h
@@ -478,7 +491,7 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
 
   <table class="nobreak">
     <tr><th style="width:30%">Recurso</th><th>Para o paciente</th></tr>
-    <tr><td class="k">Conversa</td><td>Um canal acolhedor para registrar como está. Respostas automáticas passam por auditoria; temas clínicos ou de risco escalam para você.</td></tr>
+    <tr><td class="k">Conversa</td><td>Um canal acolhedor para registrar como está, por texto ou áudio. Respostas automáticas passam por auditoria; temas clínicos ou de risco escalam para você.</td></tr>
     <tr><td class="k">Humor diário</td><td>Registro rápido de humor, que alimenta a curva de evolução.</td></tr>
     <tr><td class="k">Diário</td><td>Texto ou áudio. O paciente escolhe o que compartilhar com você antes da consulta.</td></tr>
     <tr><td class="k">Medicação</td><td>Confirmação de doses e lembretes — a base da métrica de adesão.</td></tr>
@@ -510,6 +523,7 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
     <tr><td class="k">Conteúdo cifrado</td><td>O conteúdo das conversas é criptografado quando armazenado.</td></tr>
     <tr><td class="k">Sem vazar nos bastidores</td><td>Informação que identifica o paciente é removida dos registros técnicos e de diagnóstico do sistema. Conteúdo clínico não é registrado em texto puro.</td></tr>
     <tr><td class="k">Trilha imutável</td><td>Acionamentos de crise, notificações e execuções dos assistentes ficam em registros que não podem ser apagados — sua proteção médico-legal.</td></tr>
+    <tr><td class="k">Operação com escopo mínimo</td><td>Mesmo a equipe da plataforma trabalha sob escopo restrito: o suporte administrativo e financeiro não enxerga o conteúdo clínico dos seus pacientes.</td></tr>
     <tr><td class="k">Direitos do titular</td><td>Há um console para atender solicitações do paciente sobre os próprios dados (LGPD).</td></tr>
   </table>
 
@@ -533,7 +547,8 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
   <ul>
     <li>A pessoa responde, de forma <strong>anônima</strong>, a um ou mais instrumentos validados.</li>
     <li>Recebe uma devolutiva educativa (texto gerado por IA com roteiro fixo e salvaguardas, jamais
-      um diagnóstico) e um <strong>relatório em PDF</strong> para levar ao profissional de saúde.</li>
+      um diagnóstico) e um <strong>relatório</strong> — para baixar em PDF ou, se quiser, receber por
+      e-mail — para levar ao profissional de saúde.</li>
     <li>O relatório traz um <strong>QR Code</strong> que leva ao cadastro de psiquiatras do Cérebro
       Amigo — é assim que o paciente pode chegar até você.</li>
   </ul>
@@ -567,13 +582,64 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
   <footer class="pg"><span>10 · Check-up Mental</span><span>11</span></footer>
 </section>
 
+<!--SPLIT-->
 <!-- ===================== 11 ===================== -->
 <section id="s11">
   <div class="eyebrow">Capítulo 11</div>
+  <h2>Sua conta, planos e documentos</h2>
+  <p class="lead">Tudo o que é administrativo — plano, pagamentos, documentos, senha, os seus próprios
+  dados — fica em um só lugar, em autosserviço, sem depender de e-mail para o suporte.</p>
+
+  <h3>Os planos</h3>
+  <p>O Cérebro Amigo é organizado em três planos mensais. Todos compartilham a base do produto
+  (acompanhamento entre consultas, agenda, prontuário, mensagens, cuidado por medida) e se diferenciam
+  pela <strong>camada de inteligência</strong> que liberam — sempre na lógica de apoio, nunca de
+  decisão.</p>
+
+  <table class="nobreak">
+    <tr><th style="width:24%">Plano</th><th style="width:18%">Mensal</th><th>Inteligência incluída</th></tr>
+    <tr><td class="k">Essencial</td><td>R$ 397</td><td>Resumo pré-consulta gerado por IA.</td></tr>
+    <tr><td class="k">Pro</td><td>R$ 597</td><td>Tudo do Essencial + os assistentes de insights (capítulo 05) e a busca semântica no prontuário.</td></tr>
+    <tr><td class="k">Master</td><td>R$ 997</td><td>Tudo do Pro + o escriba clínico na teleconsulta (capítulo 07).</td></tr>
+  </table>
+  <p class="muted">Os recursos clínicos e de segurança — protocolo de crise, isolamento entre médicos,
+  trilhas de auditoria — são iguais em todos os planos. O que muda é quanto de automação inteligente
+  trabalha por você.</p>
+
+  <div class="panel nobreak">
+    <div class="eyebrow">Comece sem compromisso</div>
+    <p style="margin:0">Ao se cadastrar, você entra com <strong>acesso de leitura</strong> para
+    conhecer a plataforma. Ao escolher um plano e confirmar o pagamento, a escrita e a inteligência do
+    plano são liberadas. A cobrança é mensal e self-service — você troca de plano quando quiser.</p>
+  </div>
+
+  <h3>Minha conta: o seu autosserviço</h3>
+  <table class="nobreak">
+    <tr><th style="width:30%">Onde</th><th>O que você resolve sozinho</th></tr>
+    <tr><td class="k">Plano e pagamentos</td><td>Plano atual, fatura em aberto, link de pagamento e 2ª via, histórico de cobranças.</td></tr>
+    <tr><td class="k">Documentos</td><td>Um cofre nos dois sentidos: você envia documentos (contrato, comprovantes) e baixa os que a plataforma disponibiliza (NFS-e, recibos).</td></tr>
+    <tr><td class="k">Dados e foto</td><td>Nome, especialidade, CRM, CPF e foto de perfil.</td></tr>
+    <tr><td class="k">Segurança</td><td>Troca de senha — que encerra as sessões abertas — e recuperação por e-mail se você esquecer.</td></tr>
+    <tr><td class="k">Privacidade (LGPD)</td><td>Exportar os seus dados de cadastro ou solicitar a exclusão da sua conta — os seus próprios direitos de titular.</td></tr>
+  </table>
+
+  <div class="safe nobreak">
+    <span class="label">Os seus dados, sob o seu controle</span>
+    A exclusão da conta é tratada com cuidado: os seus dados de cadastro saem, mas as trilhas que a lei
+    e a boa prática médico-legal exigem preservar (como acionamentos de crise) permanecem de forma
+    anonimizada. Transparência, não letra miúda.
+  </div>
+
+  <footer class="pg"><span>11 · Sua conta, planos e documentos</span><span>12</span></footer>
+</section>
+
+<!-- ===================== 12 ===================== -->
+<section id="s12">
+  <div class="eyebrow">Capítulo 12</div>
   <h2>Como começar</h2>
   <ol>
     <li><strong>Cadastro do psiquiatra.</strong> Sua conta é criada com validação do registro
-      profissional (CRM).</li>
+      profissional (CRM) e do seu CPF — uma verificação anti-fraude protege o cadastro.</li>
     <li><strong>Configure seu perfil e suas preferências.</strong> Defina como você quer que os
       lembretes e check-ins funcionem.</li>
     <li><strong>Convide seus pacientes.</strong> Cada paciente recebe um acesso ao aplicativo
@@ -584,6 +650,10 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
       organizam sua rotina.</li>
   </ol>
 
+  <p class="muted">No começo, sua conta entra com <strong>acesso de leitura</strong> enquanto você
+  escolhe um plano; ao assinar, a escrita e a camada de inteligência são liberadas conforme o plano
+  (capítulo 11).</p>
+
   <div class="panel nobreak">
     <div class="eyebrow">Dica de adoção</div>
     <p style="margin:0">Não é preciso ligar tudo de uma vez. Os recursos mais valiosos no começo
@@ -591,12 +661,12 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
     humor</strong>. Teleconsulta, escriba, prescrição e cuidado por medida entram quando você quiser.</p>
   </div>
 
-  <footer class="pg"><span>11 · Como começar</span><span>12</span></footer>
+  <footer class="pg"><span>12 · Como começar</span><span>13</span></footer>
 </section>
 
 <!-- ===================== 12 ===================== -->
-<section id="s12">
-  <div class="eyebrow">Capítulo 12</div>
+<section id="s13">
+  <div class="eyebrow">Capítulo 13</div>
   <h2>Perguntas frequentes</h2>
 
   <h4>A IA vai opinar sobre o meu caso ou sugerir condutas?</h4>
@@ -626,6 +696,17 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
   <h4>O escriba substitui a minha evolução?</h4>
   <p>Não. Ele produz um rascunho para a sua revisão e edição. O registro definitivo é sempre seu.</p>
 
+  <h4>Como funcionam os planos?</h4>
+  <p>São três planos mensais — Essencial, Pro e Master — que se diferenciam pela camada de inteligência
+  liberada (do resumo pré-consulta até insights, busca semântica e escriba). Os recursos clínicos e de
+  segurança são iguais em todos. Você assina, troca de plano e acompanha os pagamentos pela própria
+  plataforma. Detalhes no capítulo 11.</p>
+
+  <h4>Consigo resolver questões da minha conta sozinho?</h4>
+  <p>Sim. Em "Minha conta" você troca a senha, atualiza foto e dados, troca documentos com a plataforma
+  (contrato, NFS-e, recibos) e exerce os seus direitos de LGPD — exportar ou solicitar a exclusão dos
+  seus dados de cadastro.</p>
+
   <div class="cover" style="margin-top:24px; padding:30px 34px;">
     <div class="brand">Cérebro Amigo · by Arinelli</div>
     <h1 style="font-size:22pt; margin:10px 0 4px 0;">Você cuida. Nós cuidamos do intervalo.</h1>
@@ -635,7 +716,7 @@ pode trazer novos pacientes até o seu consultório. Capítulos independentes �
     <div class="footnote">Dúvidas e cadastro: www.cerebroamigo.com.br · © 2026 Cérebro Amigo by Arinelli</div>
   </div>
 
-  <footer class="pg"><span>12 · Perguntas frequentes</span><span>13</span></footer>
+  <footer class="pg"><span>13 · Perguntas frequentes</span><span>14</span></footer>
 </section>
 
 </body>
