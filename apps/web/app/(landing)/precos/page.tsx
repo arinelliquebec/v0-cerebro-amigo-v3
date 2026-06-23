@@ -139,7 +139,7 @@ function FaqItem({ q, a }: { q: string; a: string }) {
 
 export default function PrecosPage() {
   return (
-    <main className="theme-noir min-h-screen bg-background text-foreground antialiased">
+    <main className="theme-noir min-h-screen text-foreground antialiased">
       <Schema data={faqSchema} />
       <Schema data={breadcrumb([{ name: "Início", path: "/" }, { name: "Preços", path: "/precos" }])} />
 

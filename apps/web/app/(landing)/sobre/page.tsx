@@ -79,7 +79,7 @@ const depoimentos = [
 
 export default function SobrePage() {
   return (
-    <main className="theme-noir min-h-screen bg-background text-foreground antialiased">
+    <main className="theme-noir min-h-screen text-foreground antialiased">
       <Schema data={orgSchema} />
       <Schema data={founderSchema} />
       <Schema data={breadcrumb([{ name: "Início", path: "/" }, { name: "Sobre", path: "/sobre" }])} />

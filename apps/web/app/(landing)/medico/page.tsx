@@ -27,7 +27,7 @@ export default function MedicoLandingPage() {
   return (
     // `.theme-noir` escopa o tema dark espacial só à landing — dashboard e
     // portal têm seus próprios layouts e seguem o :root (light).
-    <main className="theme-noir min-h-screen bg-background text-foreground antialiased">
+    <main className="theme-noir min-h-screen text-foreground antialiased">
       <Schema data={softwareSchema} />
       <Schema data={websiteSchema} />
       <Schema data={breadcrumb([{ name: "Início", path: "/" }, { name: "Para Psiquiatras", path: "/medico" }])} />

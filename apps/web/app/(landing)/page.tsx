@@ -35,7 +35,7 @@ const opcoes = [
 
 export default function ChooserPage() {
   return (
-    <main className="theme-noir relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-background px-5 py-14 text-foreground antialiased">
+    <main className="theme-noir relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-5 py-14 text-foreground antialiased">
       <AuroraBackdrop grid shader intensity={0.7} />
 
       <div className="relative w-full max-w-3xl">
