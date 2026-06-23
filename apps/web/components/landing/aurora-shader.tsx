@@ -267,17 +267,32 @@ export function AuroraShader({
     }
     document.addEventListener("visibilitychange", onVisibility)
 
-    // bfcache: o botão "voltar" do browser restaura a página CONGELADA via
-    // `pageshow` (persisted=true) sem disparar visibilitychange — então o RAF
-    // (cancelado quando a página foi pro cache) não religa e a aurora fica parada.
-    // Religar o loop na restauração. `last=0` evita salto no relógio.
-    const onPageShow = (e: PageTransitionEvent) => {
-      if (reduce || !e.persisted) return
-      if (onScreen && !document.hidden) {
-        last = 0
-        start()
-      }
+    // bfcache: ao apertar "voltar", o browser restaura a página CONGELADA do
+    // cache de back/forward. Ao CONGELAR (pagehide persisted) o RAF deixa de ser
+    // chamado, mas `running` continua true e `last` guarda o timestamp velho —
+    // então um start() ingênuo na volta dá early-return (`if (running) return`)
+    // e a aurora nunca religa (só refresh ressuscita). Par pagehide/pageshow:
+    //  - pagehide(persisted): stop() → zera `running`, cancela o RAF morto.
+    //  - pageshow(persisted): reconstrói o GL se o contexto foi descartado no
+    //    cache, recalcula tamanho, zera o relógio (`last=0`, sem salto) e religa.
+    const onPageHide = (e: PageTransitionEvent) => {
+      if (e.persisted) stop()
     }
+    const onPageShow = (e: PageTransitionEvent) => {
+      if (!e.persisted) return
+      stop() // defensivo: garante running=false mesmo se o pagehide não veio
+      if (gl.isContextLost()) {
+        if (!setup()) return // sem GL: o `.aurora` CSS estático cobre
+      }
+      resize()
+      last = 0
+      if (reduce) {
+        render(0)
+        return
+      }
+      if (onScreen && !document.hidden) start()
+    }
+    window.addEventListener("pagehide", onPageHide)
     window.addEventListener("pageshow", onPageShow)
 
     // Resiliência a context-loss.
@@ -304,6 +319,7 @@ export function AuroraShader({
       ro.disconnect()
       io.disconnect()
       document.removeEventListener("visibilitychange", onVisibility)
+      window.removeEventListener("pagehide", onPageHide)
       window.removeEventListener("pageshow", onPageShow)
       cv.removeEventListener("webglcontextlost", onLost as EventListener)
       cv.removeEventListener("webglcontextrestored", onRestored as EventListener)
