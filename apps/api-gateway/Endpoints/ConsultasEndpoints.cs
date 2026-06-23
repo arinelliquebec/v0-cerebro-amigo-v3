@@ -41,8 +41,14 @@ public static class ConsultasEndpoints
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
 
-            var inicio = DateTime.TryParse(de, out var d) ? d.Date : DateTime.UtcNow.Date;
-            var fim = DateTime.TryParse(ate, out var a) ? a.Date.AddDays(1) : inicio.AddDays(7);
+            // UTC explícito: Npgsql rejeita DateTime Kind=Unspecified em coluna
+            // timestamptz (inicia_em). Sem isto o GET da agenda estoura 500 e a
+            // agenda fica vazia ("Nenhuma consulta neste dia") mesmo com consultas
+            // existindo. `.Date`/`DateTime.UtcNow.Date` vêm Unspecified → forçar Utc.
+            var inicio = DateTime.SpecifyKind(
+                DateTime.TryParse(de, out var d) ? d.Date : DateTime.UtcNow.Date, DateTimeKind.Utc);
+            var fim = DateTime.SpecifyKind(
+                DateTime.TryParse(ate, out var a) ? a.Date.AddDays(1) : inicio.AddDays(7), DateTimeKind.Utc);
 
             var rows = await db.Database.SqlQueryRaw<ConsultaListItem>(@"
                 SELECT co.id, co.paciente_id, cl.nome AS paciente_nome,
