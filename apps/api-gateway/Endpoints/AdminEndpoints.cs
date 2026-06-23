@@ -512,10 +512,22 @@ public static class AdminEndpoints
         // Trocar senha de qualquer usuario (útil para reset manual)
         g.MapPatch("/usuarios/{id:guid}/senha", async (
             Guid id, [FromBody] TrocarSenhaAdminRequest req,
-            AppDbContext db, IPasswordHasher hasher) =>
+            AppDbContext db, IPasswordHasher hasher, ClaimsPrincipal caller) =>
         {
             if (string.IsNullOrWhiteSpace(req.NovaSenha) || req.NovaSenha.Length < 8)
                 return Results.BadRequest(new { error = "senha minimo 8 caracteres" });
+
+            // ADR-068: reset de conta privilegiada (owner/admin) só pelo owner.
+            // Sem isto, um admin reseta a senha do owner e assume a conta (owner faz
+            // tenant_bypass → leitura clínica cross-tenant). Espelha o guard do DELETE.
+            var alvoRole = await db.Database.ExecuteScalarAsync<string?>(
+                "SELECT role FROM usuarios WHERE id = {0}", id);
+            if (alvoRole is null) return Results.NotFound();
+            var callerRole = caller.FindFirst("role")?.Value ?? "";
+            if ((string.Equals(alvoRole, "owner", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(alvoRole, "admin", StringComparison.OrdinalIgnoreCase)) &&
+                callerRole != "owner")
+                return Results.Forbid();
 
             var hash = hasher.Hash(req.NovaSenha);
             var ok = await db.Database.ExecuteSqlRawAsync(
@@ -552,13 +564,24 @@ public static class AdminEndpoints
         // Editar dados básicos (nome + e-mail). Qualquer admin (policy do grupo).
         // Role tem rota própria (owner-only); senha idem.
         g.MapPatch("/usuarios/{id:guid}", async (
-            Guid id, [FromBody] EditarUsuarioRequest req, AppDbContext db) =>
+            Guid id, [FromBody] EditarUsuarioRequest req, AppDbContext db, ClaimsPrincipal caller) =>
         {
             var nome = (req.Nome ?? "").Trim();
             var email = (req.Email ?? "").Trim().ToLowerInvariant();
             if (nome.Length < 3) return Results.BadRequest(new { error = "nome invalido" });
             if (string.IsNullOrEmpty(email) || !email.Contains('@'))
                 return Results.BadRequest(new { error = "email invalido" });
+
+            // ADR-068: editar conta privilegiada (owner/admin) só pelo owner — senão
+            // um admin troca o e-mail do owner e sequestra via fluxo "esqueci a senha".
+            var alvoRole = await db.Database.ExecuteScalarAsync<string?>(
+                "SELECT role FROM usuarios WHERE id = {0}", id);
+            if (alvoRole is null) return Results.NotFound();
+            var callerRole = caller.FindFirst("role")?.Value ?? "";
+            if ((string.Equals(alvoRole, "owner", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(alvoRole, "admin", StringComparison.OrdinalIgnoreCase)) &&
+                callerRole != "owner")
+                return Results.Forbid();
 
             var emailEmUso = await db.Database.ExistsAsync(
                 "SELECT 1 FROM usuarios WHERE email = {0} AND id <> {1}", email, id);

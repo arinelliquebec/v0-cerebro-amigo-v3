@@ -78,8 +78,9 @@ public static class MensagensAudioEndpoints
             var pid = PacienteAuthEndpoints.GetPacienteId(user);
             if (pid is null) return Results.Unauthorized();
             if (string.IsNullOrWhiteSpace(req.S3Key)) return Results.BadRequest();
-            // Valida que a key pertence ao paciente (path inclui paciente_id)
-            if (!req.S3Key.Contains(pid.Value.ToString()))
+            // Valida que a key pertence ao paciente: prefixo exato (não Contains, que
+            // aceitaria o pid em qualquer posição de uma key forjada).
+            if (!req.S3Key.StartsWith($"audio/{pid.Value}/", StringComparison.Ordinal))
                 return Results.Forbid();
 
             var medicoId = await db.Database.ExecuteScalarAsync<Guid?>(@"
