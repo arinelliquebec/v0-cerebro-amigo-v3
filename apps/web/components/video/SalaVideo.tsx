@@ -536,7 +536,10 @@ export function SalaVideo({ papel, baseUrl, nomePeer, voltarHref }: SalaVideoPro
           ref={remoteVideoRef}
           autoPlay
           playsInline
-          className={cn("h-full w-full object-cover", aguardando && "opacity-0")}
+          // object-contain: mostra o frame inteiro do outro (sem zoom/crop) quando
+          // os aspect-ratios diferem (celular retrato × notebook paisagem). As barras
+          // ficam na cor do fundo (bg-navy).
+          className={cn("h-full w-full object-contain", aguardando && "opacity-0")}
         />
 
         {/* Estado enquanto o outro não conecta */}
