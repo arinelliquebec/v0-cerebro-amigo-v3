@@ -19,7 +19,7 @@ export async function HeroSection() {
           NeuralField aqui; `.aurora` estático segue de fallback resiliente. */}
       <AuroraBackdrop grid shader intensity={0.9} />
       {/* fade do fundo para o conteúdo respirar */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-background to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#07070D] to-transparent" />
 
       <div className="container mx-auto max-w-7xl px-6 relative">
         <div className="grid items-center gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:gap-14">

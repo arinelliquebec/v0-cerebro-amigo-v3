@@ -176,7 +176,7 @@ export default function PrecosPage() {
       {/* Hero */}
       <section className="relative overflow-hidden pb-16 pt-20">
         <AuroraBackdrop shader intensity={0.6} />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-background to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[#07070D] to-transparent" />
         <div className="container relative mx-auto max-w-3xl px-6 text-center">
           <Reveal>
             <Eyebrow className="mb-4">Sem letras miúdas</Eyebrow>

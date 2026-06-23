@@ -12,7 +12,7 @@ export default function LandingLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="theme-noir">
+    <div className="theme-noir min-h-screen" style={{ backgroundColor: '#07070D' }}>
       {children}
     </div>
   )

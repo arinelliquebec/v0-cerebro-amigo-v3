@@ -117,7 +117,7 @@ export default function SobrePage() {
       {/* Hero — história */}
       <section className="relative overflow-hidden pb-20 pt-20">
         <AuroraBackdrop shader intensity={0.6} />
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background to-transparent" />
+        <div className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-[#07070D] to-transparent" />
         <div className="container relative mx-auto max-w-3xl px-6 text-center">
           <Reveal>
             <Eyebrow icon={HeartHandshake} className="mb-4">Nossa história</Eyebrow>
