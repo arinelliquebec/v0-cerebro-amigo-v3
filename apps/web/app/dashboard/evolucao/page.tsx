@@ -16,6 +16,7 @@ import {
   Heart,
   Loader2,
 } from "lucide-react"
+import { Sparkline } from "@/components/dashboard/sparkline"
 
 const GrowthChart = dynamic(
   () => import("@/components/dashboard/growth-chart").then((m) => m.GrowthChart),
@@ -60,6 +61,8 @@ function fmt(n: number | null | undefined, suffix = "") {
 export default function EvolucaoPage() {
   const [data, setData] = useState<Resumo | null>(null)
   const [loading, setLoading] = useState(true)
+  // Série de humor por paciente (mesma fonte real dos check-ins) p/ a sparkline.
+  const [serieMap, setSerieMap] = useState<Map<string, number[]>>(new Map())
 
   useEffect(() => {
     fetch("/api/evolucao")
@@ -67,6 +70,21 @@ export default function EvolucaoPage() {
       .then(setData)
       .catch(() => setData(null))
       .finally(() => setLoading(false))
+
+    fetch("/api/checkins")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: { pacienteId: string; humor: number }[]) => {
+        const m = new Map<string, number[]>()
+        for (const c of Array.isArray(rows) ? rows : []) {
+          const arr = m.get(c.pacienteId) ?? []
+          arr.push(c.humor) // gateway devolve em ordem decrescente
+          m.set(c.pacienteId, arr)
+        }
+        // cronológico (antigo → recente), no máx. 12 pontos
+        for (const [k, v] of m) m.set(k, v.slice(0, 12).reverse())
+        setSerieMap(m)
+      })
+      .catch(() => setSerieMap(new Map()))
   }, [])
 
   const s = data?.stats
@@ -193,6 +211,19 @@ export default function EvolucaoPage() {
                           Humor médio (15d): {fmt(p.humorAtual)} · Adesão: {fmt(p.adesao, "%")}
                         </p>
                       </div>
+
+                      {(() => {
+                        const serie = serieMap.get(p.pacienteId) ?? []
+                        if (serie.length < 2) return null
+                        return (
+                          <span
+                            className="hidden text-primary sm:block"
+                            title="Humor reportado (últimos registros)"
+                          >
+                            <Sparkline values={serie} width={88} height={28} />
+                          </span>
+                        )
+                      })()}
 
                       <div
                         className={`flex items-center gap-1 px-3 py-1.5 rounded-full ${

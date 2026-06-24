@@ -16,6 +16,7 @@ import {
   Heart,
   TrendingDown,
   Minus,
+  Inbox,
 } from "lucide-react"
 import { tempoRelativo } from "@/lib/tempo"
 
@@ -186,20 +187,52 @@ export function FilaAtencao() {
 
   const totalPendencias = itens.length + deltas.length
   const vazio = !loading && itens.length === 0 && deltas.length === 0
+  const temCritico = itens.some(
+    (i) => i.severidade === "critico" || i.severidade === "urgente",
+  )
 
   return (
-    <Card className="border-border/80">
-      <CardHeader className="flex flex-row items-center justify-between pb-2 pt-5 px-5">
-        <div>
-          <CardTitle className="text-[0.9375rem] font-semibold text-foreground">
-            Fila de atenção
-          </CardTitle>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Ação imediata e mudanças recentes nos sinais reportados
-          </p>
+    <Card
+      className={`relative overflow-hidden border-primary/15 bg-gradient-to-b from-card to-card/40 ${
+        !loading && temCritico ? "glow-coral-lg" : "glow-purple-lg"
+      }`}
+    >
+      {/* faixa de acento superior — coral quando há item crítico */}
+      <span
+        aria-hidden
+        className={`absolute inset-x-0 top-0 h-px ${
+          !loading && temCritico
+            ? "bg-gradient-to-r from-transparent via-coral/60 to-transparent"
+            : "bg-gradient-to-r from-transparent via-primary/50 to-transparent"
+        }`}
+      />
+      <CardHeader className="flex flex-row items-start justify-between gap-3 pb-3 pt-5 px-5">
+        <div className="flex items-start gap-3">
+          <span
+            className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-xl ${
+              !loading && temCritico ? "bg-coral/12 text-coral" : "bg-primary/12 text-primary"
+            }`}
+          >
+            <Inbox size={18} />
+          </span>
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+              Prioridade agora
+            </p>
+            <CardTitle className="mt-0.5 text-lg font-semibold tracking-tight text-foreground">
+              Fila de atenção
+            </CardTitle>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Ação imediata e mudanças recentes nos sinais reportados
+            </p>
+          </div>
         </div>
         {!loading && totalPendencias > 0 && (
-          <span className="rounded-full bg-coral/10 px-2.5 py-0.5 text-xs font-medium text-coral">
+          <span
+            className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold tabular-nums ${
+              temCritico ? "bg-coral/12 text-coral" : "bg-primary/12 text-primary"
+            }`}
+          >
             {totalPendencias}
           </span>
         )}

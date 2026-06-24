@@ -24,43 +24,70 @@ async function RecentPatientsSection() {
   return <RecentPatientsWidget data={d.recentes} />
 }
 
+// Rótulo de banda — cria ritmo e prioridade entre as seções (escaneável).
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-4 px-1 font-mono text-[11px] uppercase tracking-[0.2em] text-muted-foreground/70">
+      {children}
+    </p>
+  )
+}
+
 export default function DashboardPage() {
   return (
     <div className="min-h-screen">
       <Header title="Dashboard" />
 
-      <div className="p-8 space-y-8">
+      <div className="p-8 space-y-10">
         {/* Onboarding — só aparece se o médico ainda não tem pacientes */}
         <PrimeirosPassos />
 
-        {/* Stats Overview (dados reais) */}
+        {/* Panorama (dados reais) */}
         <Suspense fallback={<StatsCardsSkeleton />}>
           <StatsCards />
         </Suspense>
 
-        {/* Fila de atenção — o que precisa do médico agora (ranqueado) */}
-        <FilaAtencao />
+        {/* HERO — o que precisa do médico AGORA. Atmosfera noir atrás p/ destacar. */}
+        <section className="relative isolate">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-0 -m-8 -z-10 aurora opacity-60 blur-2xl"
+          />
+          <FilaAtencao />
+        </section>
 
-        {/* Main Content Grid */}
-        <div className="grid gap-8 lg:grid-cols-3">
-          {/* Left Column - 2 cols */}
-          <div className="lg:col-span-2 space-y-8">
-            <EvolutionChart />
+        {/* Banda 1 — sinais clínicos + o dia */}
+        <section>
+          <Eyebrow>Sinais clínicos</Eyebrow>
+          <div className="grid gap-8 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <EvolutionChart />
+            </div>
+            <AgendaWidget />
+          </div>
+        </section>
+
+        {/* Banda 2 — pacientes & conversas */}
+        <section>
+          <Eyebrow>Pacientes &amp; conversas</Eyebrow>
+          <div className="grid gap-8 lg:grid-cols-3">
             <Suspense fallback={<RecentPatientsSkeleton />}>
               <RecentPatientsSection />
             </Suspense>
-          </div>
-
-          {/* Right Column - Widgets */}
-          <div className="space-y-8">
-            <AgendaWidget />
-            <RenovacoesWidget />
-            <CheckinWidget />
             <MessagesWidget />
+            <CheckinWidget />
+          </div>
+        </section>
+
+        {/* Banda 3 — operação & alertas */}
+        <section>
+          <Eyebrow>Operação &amp; alertas</Eyebrow>
+          <div className="grid gap-8 lg:grid-cols-3">
+            <RenovacoesWidget />
             <RemindersWidget />
             <BlindagemCard />
           </div>
-        </div>
+        </section>
       </div>
     </div>
   )

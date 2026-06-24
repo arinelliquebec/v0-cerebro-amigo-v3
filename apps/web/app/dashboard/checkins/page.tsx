@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Smile, Meh, Frown, TrendingUp, TrendingDown, Minus, Loader2 } from "lucide-react"
 import { tempoRelativo } from "@/lib/tempo"
+import { Sparkline } from "@/components/dashboard/sparkline"
 
 interface CheckinHumor {
   id: string
@@ -39,13 +40,6 @@ function band(h: number): keyof typeof moodClasses {
   if (h >= 6) return "Bem"
   if (h >= 4) return "Neutro"
   return "Mal"
-}
-
-function humorBg(h: number) {
-  if (h >= 8) return "bg-success"
-  if (h >= 6) return "bg-primary"
-  if (h >= 4) return "bg-warning"
-  return "bg-coral"
 }
 
 function trendIcon(delta: number | null) {
@@ -179,17 +173,14 @@ export default function CheckinsPage() {
                         )}
 
                         {p.serie.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <span className="text-xs text-muted-foreground mr-2">Últimos:</span>
-                            {p.serie.map((value, i) => (
-                              <div
-                                key={i}
-                                className={`h-6 w-6 rounded flex items-center justify-center text-xs font-medium text-white ${humorBg(value)}`}
-                                title={`${value}/10`}
-                              >
-                                {value}
-                              </div>
-                            ))}
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground">Tendência:</span>
+                            <span className={cfg.text}>
+                              <Sparkline values={p.serie} width={104} height={26} />
+                            </span>
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              {p.serie.length} registro{p.serie.length === 1 ? "" : "s"}
+                            </span>
                           </div>
                         )}
                       </div>

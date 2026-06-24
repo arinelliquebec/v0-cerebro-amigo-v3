@@ -391,15 +391,18 @@ function Stats({ consultas, anchor }: { consultas: Consulta[]; anchor: Date }) {
   const noShows = consultas.filter(ehNoShow)
 
   return (
-    <div className="flex flex-wrap gap-3">
+    <div className="grid grid-cols-3 gap-3 sm:max-w-lg">
       {[
-        { label: "Hoje", val: deDia.length, cor: "text-foreground" },
-        { label: "Esta semana", val: deSemana.length, cor: "text-foreground" },
-        { label: "No-shows (carregados)", val: noShows.length, cor: noShows.length > 0 ? "text-warning" : "text-muted-foreground" },
-      ].map(({ label, val, cor }) => (
-        <div key={label} className="rounded-lg border border-border/60 bg-card px-4 py-2 min-w-[110px]">
-          <p className="text-[11px] text-muted-foreground">{label}</p>
-          <p className={`text-xl font-bold ${cor}`}>{val}</p>
+        { label: "Hoje", val: deDia.length, cor: "text-foreground", dot: "bg-primary", title: "Consultas de hoje (exceto canceladas)" },
+        { label: "Esta semana", val: deSemana.length, cor: "text-foreground", dot: "bg-primary/50", title: "Consultas desta semana (exceto canceladas)" },
+        { label: "No-shows", val: noShows.length, cor: noShows.length > 0 ? "text-warning" : "text-muted-foreground", dot: noShows.length > 0 ? "bg-warning" : "bg-muted-foreground/40", title: "No-shows na janela carregada" },
+      ].map(({ label, val, cor, dot, title }) => (
+        <div key={label} title={title} className="rounded-xl border border-border/60 bg-card px-4 py-3">
+          <div className="flex items-center gap-1.5">
+            <span className={`h-1.5 w-1.5 rounded-full ${dot}`} />
+            <p className="text-[11px] text-muted-foreground">{label}</p>
+          </div>
+          <p className={`mt-1 text-2xl font-bold tabular-nums ${cor}`}>{val}</p>
         </div>
       ))}
     </div>
