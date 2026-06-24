@@ -167,7 +167,7 @@ export default function ConversaPage() {
         {msgs.map((m, i) => (
           <Bolha key={i} msg={m} />
         ))}
-        {etapa && <IndicadorCuidado etapa={etapa} />}
+        {etapa !== null && <IndicadorCuidado etapa={etapa} />}
         <div ref={fimRef} />
       </div>
 

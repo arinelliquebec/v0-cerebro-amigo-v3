@@ -4,23 +4,26 @@
 
 import type { NextConfig } from "next";
 
+const isDev = process.env.NODE_ENV === "development";
+
 // CSP da superfície pública anônima (P1 hardening). `'unsafe-inline'` é necessário em
 // script-src (JSON-LD do SEO via dangerouslySetInnerHTML + bootstrap de hidratação do
 // Next) e style-src (experimental.inlineCss + Tailwind + estilos da tela de crise);
 // nonce exigiria render dinâmico, incompatível com o modelo SSG/PPR do checkup. Sem
 // recurso externo (sem GA/pixels — CLAUDE.md), então connect/img/font ficam em 'self'.
+// `'unsafe-eval'` só em dev: React/Turbopack usam eval() p/ debugging (nunca em prod).
 const CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'self'",
-  "upgrade-insecure-requests",
+  ...(isDev ? [] : ["upgrade-insecure-requests"]),
 ].join("; ");
 
 const SECURITY_HEADERS = [
