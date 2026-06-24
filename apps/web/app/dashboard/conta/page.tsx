@@ -17,6 +17,7 @@ import { DocumentosTab } from "@/components/conta/documentos-tab"
 import { SegurancaTab } from "@/components/conta/seguranca-tab"
 import { PrivacidadeTab } from "@/components/conta/privacidade-tab"
 import { FotoPerfil } from "@/components/conta/foto-perfil"
+import { planoNome } from "@/lib/feature-gate"
 import {
   Loader2, CreditCard, ExternalLink, CheckCircle2, FolderLock, ShieldCheck,
   ScrollText, BarChart3, IdCard, Sparkles, ArrowRight,
@@ -102,7 +103,7 @@ export default function MinhaContaPage() {
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
                     <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Plano</p>
-                    <p className="text-lg font-semibold capitalize text-foreground">{a?.plano ?? me?.plano ?? "—"}</p>
+                    <p className="text-lg font-semibold text-foreground">{planoNome(a?.plano ?? me?.plano)}</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Valor mensal</p>

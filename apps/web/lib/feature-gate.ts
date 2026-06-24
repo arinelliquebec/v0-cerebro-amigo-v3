@@ -27,6 +27,25 @@ export const PLANO_MINIMO: Record<string, string> = {
   escriba: "Master",
 }
 
+/**
+ * Nome humano do plano (sem preço) — código físico de `assinaturas.plano` → rótulo do
+ * ADR-059. `trial`/`enterprise` são legados. Espelha o PLANO_LABEL do /admin/financeiro,
+ * mas sem o valor (as telas do médico já mostram `valorMensal` num campo próprio).
+ */
+export const PLANO_NOME: Record<string, string> = {
+  pendente: "Pendente",
+  trial: "Trial (legado)",
+  starter: "Essencial",
+  pro: "Pro",
+  master: "Master",
+  enterprise: "Clínica (legado)",
+}
+
+/** Rótulo do plano p/ exibição; cai no próprio código se desconhecido, "—" se vazio. */
+export function planoNome(p?: string | null): string {
+  return p ? (PLANO_NOME[p] ?? p) : "—"
+}
+
 /** O plano atual (via me.features) inclui a feature? Usado p/ travar a UI proativamente. */
 export function temFeature(features: string[] | undefined | null, feature: string): boolean {
   return Array.isArray(features) && features.includes(feature)

@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Loader2, CreditCard, ExternalLink, CheckCircle2 } from "lucide-react"
 import { PagueViaPix, MANUAL_PIX_ATIVO } from "@/components/assinatura/pague-via-pix"
+import { planoNome } from "@/lib/feature-gate"
 
 interface Pagamento { valor: number; referencia: string | null; metodo: string | null; pagoEm: string | null }
 interface Assinatura {
@@ -112,7 +113,7 @@ export default function MinhaAssinaturaPage() {
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <div>
                   <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Plano</p>
-                  <p className="text-lg font-semibold capitalize text-foreground">{a.plano}</p>
+                  <p className="text-lg font-semibold text-foreground">{planoNome(a.plano)}</p>
                 </div>
                 <div>
                   <p className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground mb-1">Valor mensal</p>
