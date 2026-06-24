@@ -1,7 +1,7 @@
 "use client"
 
 import { isSameDay } from "date-fns"
-import { Video, MapPin, AlertCircle } from "lucide-react"
+import { Video, MapPin, AlertCircle, CalendarOff } from "lucide-react"
 
 interface Consulta {
   id: string
@@ -86,10 +86,16 @@ export function DiaView({
   const colunas = distribuir(consultas, dia)
   const nCols = Math.max(1, colunas.length)
 
+  const agora = new Date()
+  const ehHoje = isSameDay(dia, agora)
+  const agoraMins = agora.getHours() * 60 + agora.getMinutes()
+  const mostrarAgora = ehHoje && agoraMins >= HORA_INI * 60 && agoraMins <= HORA_FIM * 60
+
   if (consultas.length === 0) {
     return (
-      <div className="flex items-center justify-center py-20 text-sm text-muted-foreground">
-        Nenhuma consulta neste dia.
+      <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border/60 bg-card/40 py-20 text-center">
+        <CalendarOff className="h-8 w-8 text-muted-foreground/50" />
+        <p className="text-sm text-muted-foreground">Nenhuma consulta neste dia.</p>
       </div>
     )
   }
@@ -123,6 +129,18 @@ export function DiaView({
             />
           ))}
         </div>
+
+        {/* Indicador "agora" — só quando vendo o dia de hoje */}
+        {mostrarAgora && (
+          <div
+            className="pointer-events-none absolute left-0 right-0 z-10"
+            style={{ top: topo(agoraMins) }}
+            aria-hidden
+          >
+            <span className="absolute -left-[3px] -top-[3px] h-1.5 w-1.5 rounded-full bg-coral shadow-[0_0_8px_var(--coral)]" />
+            <div className="border-t border-coral/70" />
+          </div>
+        )}
 
         {/* Cards posicionados */}
         <div className="relative" style={{ height: totalPx }}>

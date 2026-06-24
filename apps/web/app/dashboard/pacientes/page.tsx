@@ -24,6 +24,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { ImportarDialog } from "@/components/pacientes/importar-dialog"
 import { NovoPacienteDialog } from "@/components/pacientes/novo-paciente-dialog"
 import { ReenviarLinkButton } from "@/components/pacientes/reenviar-link-button"
+import { PacientesCommand } from "@/components/pacientes/pacientes-command"
 import { baixarModelo, exportarPacientes } from "@/lib/pacientes-xlsx"
 
 interface Paciente {
@@ -50,6 +51,19 @@ function PacientesContent() {
   }, [qParam])
   const [pacientes, setPacientes] = useState<Paciente[]>([])
   const [loading, setLoading] = useState(true)
+  const [cmdOpen, setCmdOpen] = useState(false)
+
+  // Cmd/Ctrl+K abre a busca rápida de pacientes.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault()
+        setCmdOpen((v) => !v)
+      }
+    }
+    document.addEventListener("keydown", onKey)
+    return () => document.removeEventListener("keydown", onKey)
+  }, [])
 
   // Ações da linha do paciente → deep-link com ?paciente=<id> (as páginas-alvo leem).
   const irPront = (id: string) => router.push(`/dashboard/prontuarios/${id}`)
@@ -75,6 +89,7 @@ function PacientesContent() {
 
   return (
     <div className="min-h-screen">
+      <PacientesCommand open={cmdOpen} onOpenChange={setCmdOpen} />
       <div className="print:hidden">
         <Header title="Pacientes" subtitle="Gerencie seus pacientes" />
       </div>
@@ -97,6 +112,13 @@ function PacientesContent() {
             />
           </div>
           <div className="flex gap-2 flex-wrap">
+            <Button variant="outline" className="gap-2" onClick={() => setCmdOpen(true)}>
+              <Search className="h-4 w-4" />
+              Busca rápida
+              <kbd className="ml-1 hidden rounded border border-border/70 bg-muted px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:inline">
+                ⌘K
+              </kbd>
+            </Button>
             <Button variant="outline" className="gap-2">
               <Filter className="h-4 w-4" />
               Filtros

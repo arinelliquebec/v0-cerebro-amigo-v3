@@ -42,7 +42,10 @@ export function SemanaView({
           .sort((a, b) => a.iniciaEm.localeCompare(b.iniciaEm))
         const hoje = isSameDay(d, new Date())
         return (
-          <div key={d.toISOString()} className="rounded-lg border border-border/60 bg-card">
+          <div
+            key={d.toISOString()}
+            className={`rounded-lg border bg-card ${hoje ? "border-primary/40 ring-1 ring-primary/20" : "border-border/60"}`}
+          >
             <button
               onClick={() => onDiaClick(d)}
               className="flex w-full items-center justify-between border-b border-border/60 px-2 py-1.5 text-left hover:bg-secondary/60"

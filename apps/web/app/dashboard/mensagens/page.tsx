@@ -5,7 +5,7 @@ import { Header } from "@/components/header"
 import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Search, Loader2, ShieldCheck, MessageSquare, Bot, User } from "lucide-react"
+import { Search, Loader2, ShieldCheck, MessageSquare, Bot, User, Stethoscope, type LucideIcon } from "lucide-react"
 import { tempoRelativo } from "@/lib/tempo"
 import { iniciais } from "@/lib/iniciais"
 import { EscalacaoInbox } from "@/components/escalacao/escalacao-inbox"
@@ -152,20 +152,50 @@ function ThreadHeader({ sel }: { sel: ConversaInbox }) {
   )
 }
 
+// Config por papel da mensagem. Paciente à esquerda; automação/médico à direita.
+// Backward-compatible: papéis desconhecidos caem em "assistente".
+type PapelCfg = { lado: "dir" | "esq"; nome: string; Icon: LucideIcon; bolha: string; meta: string }
+
+function papelCfg(papel: string): PapelCfg {
+  const p = papel.toLowerCase()
+  if (p === "user" || p === "paciente") {
+    return {
+      lado: "esq",
+      nome: "Paciente",
+      Icon: User,
+      bolha: "border border-border/60 bg-background text-foreground",
+      meta: "text-muted-foreground",
+    }
+  }
+  if (p === "medico" || p === "profissional" || p === "human" || p === "doctor") {
+    return {
+      lado: "dir",
+      nome: "Médico",
+      Icon: Stethoscope,
+      bolha: "border border-success/30 bg-success/10 text-foreground",
+      meta: "text-success",
+    }
+  }
+  return {
+    lado: "dir",
+    nome: "Assistente",
+    Icon: Bot,
+    bolha: "bg-primary text-primary-foreground",
+    meta: "text-primary-foreground/70",
+  }
+}
+
 function MessageBubble({ m }: { m: Mensagem }) {
-  const ehAssistente = m.papel === "assistant"
+  const cfg = papelCfg(m.papel)
   return (
-    <div className={`flex ${ehAssistente ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[78%] rounded-2xl px-4 py-2.5 ${
-          ehAssistente ? "bg-primary text-primary-foreground" : "border border-border/60 bg-background text-foreground"
-        }`}
-      >
-        <div className={`mb-1 flex items-center gap-1.5 text-[10px] font-medium ${ehAssistente ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
-          {ehAssistente ? <Bot className="h-3 w-3" /> : <User className="h-3 w-3" />}
-          {ehAssistente ? "Assistente" : "Paciente"} · {horaMin(m.criadaEm)}
+    <div className={`flex ${cfg.lado === "dir" ? "justify-end" : "justify-start"}`}>
+      <div className={`max-w-[78%] rounded-2xl px-4 py-2.5 ${cfg.bolha}`}>
+        <div className={`mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide ${cfg.meta}`}>
+          <cfg.Icon className="h-3 w-3" />
+          {cfg.nome}
+          <span className="font-normal normal-case opacity-70">· {horaMin(m.criadaEm)}</span>
         </div>
-        <p className="whitespace-pre-line text-sm leading-relaxed">{m.conteudo}</p>
+        <p className="whitespace-pre-line text-sm leading-relaxed normal-case">{m.conteudo}</p>
       </div>
     </div>
   )
