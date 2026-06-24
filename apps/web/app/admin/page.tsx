@@ -8,6 +8,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ErroCarregar } from "@/components/admin/erro-carregar"
+import { AdminAtencao } from "@/components/admin/admin-atencao"
 
 interface Metricas {
   totalMedicos: number
@@ -135,6 +136,9 @@ export default function AdminOverview() {
           Atualizar
         </Button>
       </div>
+
+      {/* Zona-herói: o que exige ação do admin agora (crises, automações, agentes) */}
+      <AdminAtencao />
 
       {/* Financeiro em destaque */}
       <section>
