@@ -247,10 +247,13 @@ class ResumidorAgent(BaseAgent):
                 desde,
             )
 
+            # Minimização LGPD (clinical-safety Regra 4): só metadados do evento
+            # de crise vão ao LLM externo — NÃO `palavras_detectadas` (frase crua
+            # do paciente). `revisado_humano` não existe no schema (era coluna
+            # fantasma; causava `column does not exist` e quebrava o agente 100%).
             crises = await conn.fetch(
                 """
-                SELECT gatilho, palavras_detectadas, confianca,
-                       medico_notificado, revisado_humano, criado_em
+                SELECT gatilho, confianca, medico_notificado, criado_em
                 FROM protocolos_crise_acionados
                 WHERE paciente_id = $1 AND criado_em > $2
                 ORDER BY criado_em DESC

@@ -132,24 +132,30 @@ class BaseAgent(abc.ABC):
             )
         log.info("execucao.started", execucao_id=str(execucao_id))
 
+        # persist_insight E finalize ficam DENTRO do try: se a gravação do
+        # insight ou o UPDATE final falharem, a execução é marcada como FALHA
+        # (concluido_em preenchido) em vez de ficar "em aberto" (concluido_em
+        # NULL) — zumbi que o dedup (sucesso=TRUE) não enxerga e o scheduler
+        # reprocessa indefinidamente, queimando LLM. Bug histórico: 1085
+        # execuções de adesao travadas em maio/2026.
         try:
             output = await self.execute(payload)
+            insight_id = await self._persist_insight(output)
+            await self._finalize_execution(
+                execucao_id,
+                sucesso=True,
+                insight_id=insight_id,
+                tokens_in=output.tokens_in,
+                tokens_out=output.tokens_out,
+                custo_usd=output.custo_usd,
+                modelo=output.modelo,
+            )
         except Exception as exc:
             await self._finalize_execution(
                 execucao_id, sucesso=False, erro=str(exc),
             )
             raise
 
-        insight_id = await self._persist_insight(output)
-        await self._finalize_execution(
-            execucao_id,
-            sucesso=True,
-            insight_id=insight_id,
-            tokens_in=output.tokens_in,
-            tokens_out=output.tokens_out,
-            custo_usd=output.custo_usd,
-            modelo=output.modelo,
-        )
         log.info(
             "execucao.done",
             execucao_id=str(execucao_id),
