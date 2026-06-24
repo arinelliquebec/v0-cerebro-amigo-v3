@@ -187,6 +187,7 @@
   --noir-glow-coral: rgba(229, 115, 115, 0.42);
   --noir-aurora-1: rgba(110, 95, 176, 0.22);
   --noir-aurora-2: rgba(229, 115, 115, 0.12);
+  --noir-aurora-3: rgba(148, 134, 201, 0.10);
   --noir-glass-bg: rgba(18, 18, 30, 0.55);
   --noir-glass-border: rgba(180, 166, 218, 0.14);
 
@@ -386,11 +387,46 @@
   .glow-coral-lg {
     box-shadow: 0 0 80px -16px var(--noir-glow-coral);
   }
+  /* Gradiente estático — cards e acentos locais (portal clínico). */
   .aurora {
     background:
       radial-gradient(60% 55% at 50% -8%, var(--noir-aurora-1), transparent 70%),
       radial-gradient(45% 45% at 85% 22%, var(--noir-aurora-2), transparent 70%),
       radial-gradient(40% 40% at 12% 70%, var(--noir-aurora-1), transparent 72%);
+  }
+  /* Aurora VIVA — fundo de landing/login (AuroraBackdrop). CSS sempre anima;
+     WebGL (AuroraShader) é camada extra quando `shader` está ligado. */
+  .aurora-field {
+    overflow: hidden;
+    background:
+      radial-gradient(58% 48% at 50% -10%, var(--noir-aurora-1), transparent 70%),
+      radial-gradient(42% 38% at 88% 16%, var(--noir-aurora-2), transparent 70%),
+      radial-gradient(40% 42% at 8% 62%, var(--noir-aurora-3), transparent 72%),
+      radial-gradient(50% 40% at 70% 96%, var(--noir-aurora-1), transparent 75%);
+  }
+  .aurora-field::before,
+  .aurora-field::after {
+    content: "";
+    position: absolute;
+    inset: -25%;
+    pointer-events: none;
+    will-change: transform, opacity;
+  }
+  .aurora-field::before {
+    background:
+      radial-gradient(48% 42% at 42% 8%, var(--noir-aurora-1), transparent 70%),
+      radial-gradient(38% 38% at 10% 60%, var(--noir-aurora-3), transparent 72%);
+    animation:
+      aurora-drift-a 34s ease-in-out infinite alternate,
+      aurora-breathe 22s ease-in-out infinite;
+  }
+  .aurora-field::after {
+    background:
+      radial-gradient(36% 34% at 86% 18%, var(--noir-aurora-2), transparent 70%),
+      radial-gradient(44% 38% at 72% 94%, var(--noir-aurora-1), transparent 75%);
+    animation:
+      aurora-drift-b 41s ease-in-out infinite alternate,
+      aurora-breathe 28s ease-in-out infinite reverse;
   }
   .text-noir-shimmer {
     background: linear-gradient(
@@ -461,10 +497,42 @@
   to { background-position: 200% center; }
 }
 
+@keyframes aurora-drift-a {
+  from { transform: translate3d(-3%, -2%, 0) scale(1.04); }
+  to   { transform: translate3d( 4%,  3%, 0) scale(1.10); }
+}
+@keyframes aurora-drift-b {
+  from { transform: translate3d( 3%,  2%, 0) scale(1.06); }
+  to   { transform: translate3d(-4%, -3%, 0) scale(1.12); }
+}
+@keyframes aurora-breathe {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+
+@media (max-width: 640px) {
+  .aurora-field::before {
+    animation:
+      aurora-drift-a 48s ease-in-out infinite alternate,
+      aurora-breathe 30s ease-in-out infinite;
+  }
+  .aurora-field::after {
+    animation:
+      aurora-drift-b 56s ease-in-out infinite alternate,
+      aurora-breathe 36s ease-in-out infinite reverse;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .text-noir-shimmer { animation: none; }
   .quiz-step-in,
   .quiz-opt-in { animation: none; }
+  .aurora-field::before,
+  .aurora-field::after {
+    animation: none !important;
+    transform: none !important;
+    opacity: 1 !important;
+  }
 }
 
 /* Portal — ritmo conversacional dos questionários PHQ-9/GAD-7 (uma pergunta/tela). */

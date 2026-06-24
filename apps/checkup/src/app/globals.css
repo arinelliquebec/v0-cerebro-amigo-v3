@@ -341,8 +341,8 @@ body:has(main.landing-aurora) .noir-backdrop::after {
 /* ── Movimento (page-load reveal escalonado; reduced-motion zera tudo) ──── */
 
 @keyframes rise-in {
-  from { transform: translateY(18px); }
-  to   { transform: translateY(0); }
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 .reveal { animation: rise-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) both; }
 .reveal-1 { animation-delay: 0.07s; }
@@ -369,13 +369,17 @@ body:has(main.landing-aurora) .noir-backdrop::after {
   animation: quiz-opt-in 0.3s ease-out both;
 }
 
-/* Arco do medidor de escore no resultado (de vazio até o valor inline). */
+/* Arco do medidor: de vazio (--gauge-circ) até o strokeDashoffset inline do SVG. */
 @keyframes gauge-in {
-  from { stroke-dashoffset: 326.7; }
+  from { stroke-dashoffset: var(--gauge-circ, 326.7); }
 }
 .gauge-arc {
   animation: gauge-in 1s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
+
+/* Faixa de risco entra após o gauge — sobriedade, sem dramatização. */
+.reveal-band  { animation-delay: 0.85s; }
+.reveal-band-2 { animation-delay: 1s; }
 
 } /* fim @layer components */
 
