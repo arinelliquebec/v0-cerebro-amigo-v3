@@ -139,15 +139,16 @@ public static class ConsultasEndpoints
                 return Results.BadRequest(new { erro = "modalidade inválida" });
 
             var duracao = req.DuracaoMin is > 0 ? req.DuracaoMin.Value : 30;
+            var iniciaEm = ToUtc(req.IniciaEm); // timestamptz exige Kind=Utc (ver ToUtc)
 
-            if (await TemConflitoAsync(db, medicoId.Value, req.IniciaEm, duracao, Guid.Empty))
+            if (await TemConflitoAsync(db, medicoId.Value, iniciaEm, duracao, Guid.Empty))
                 return Results.Conflict(new { erro = "horario_ocupado" });
 
             var novoId = await db.Database.ExecuteScalarAsync<Guid>(@"
                 INSERT INTO consultas (paciente_id, medico_id, inicia_em, duracao_min, modalidade, status, notas)
                 VALUES ({0}, {1}, {2}, {3}, {4}, 'agendada', {5})
                 RETURNING id",
-                req.PacienteId, medicoId.Value, req.IniciaEm, duracao, modalidade,
+                req.PacienteId, medicoId.Value, iniciaEm, duracao, modalidade,
                 (object?)req.Notas ?? DBNull.Value);
 
             return Results.Created($"/api/v1/consultas/{novoId}", new { id = novoId });
@@ -179,9 +180,10 @@ public static class ConsultasEndpoints
                 id, medicoId.Value).FirstOrDefaultAsync();
             if (atual is null) return Results.NotFound();
 
-            var novoInicio = req.IniciaEm ?? atual.IniciaEm;
+            var iniciaEmUtc = req.IniciaEm is { } ie ? ToUtc(ie) : (DateTime?)null;
+            var novoInicio = iniciaEmUtc ?? atual.IniciaEm;
             var novaDur = req.DuracaoMin is > 0 ? req.DuracaoMin.Value : atual.DuracaoMin;
-            var mudouTempo = req.IniciaEm is not null
+            var mudouTempo = iniciaEmUtc is not null
                 || (req.DuracaoMin is > 0 && req.DuracaoMin.Value != atual.DuracaoMin);
             if (mudouTempo && await TemConflitoAsync(db, medicoId.Value, novoInicio, novaDur, id))
                 return Results.Conflict(new { erro = "horario_ocupado" });
@@ -199,7 +201,7 @@ public static class ConsultasEndpoints
                   )",
                 id, medicoId.Value,
                 (object?)status ?? DBNull.Value,
-                (object?)req.IniciaEm ?? DBNull.Value,
+                (object?)iniciaEmUtc ?? DBNull.Value,
                 (object?)modalidade ?? DBNull.Value,
                 (object?)req.Notas ?? DBNull.Value,
                 (object?)req.DuracaoMin ?? DBNull.Value);
@@ -386,6 +388,20 @@ public static class ConsultasEndpoints
         return await db.Database.ExecuteScalarAsync<Guid?>(
             "SELECT id FROM medicos WHERE usuario_id = {0}", userId);
     }
+
+    /// <summary>
+    /// Normaliza um instante para UTC antes de enviar ao Npgsql: a coluna
+    /// <c>inicia_em</c> é <c>timestamptz</c> e rejeita <c>DateTime</c> com
+    /// Kind != Utc (estoura 500 ao agendar/remarcar). Body sem timezone chega
+    /// como Unspecified → tratado como UTC (todo o sistema persiste em UTC);
+    /// Local → convertido. O GET já fazia isso para as datas da query-string.
+    /// </summary>
+    private static DateTime ToUtc(DateTime dt) => dt.Kind switch
+    {
+        DateTimeKind.Utc => dt,
+        DateTimeKind.Local => dt.ToUniversalTime(),
+        _ => DateTime.SpecifyKind(dt, DateTimeKind.Utc),
+    };
 
     private sealed record HorarioCfg(
         HashSet<string> Dias, int StartMin, int EndMin, int Dur, int? AlmIni, int? AlmFim);
