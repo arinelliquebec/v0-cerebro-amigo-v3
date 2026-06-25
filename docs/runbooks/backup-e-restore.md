@@ -22,7 +22,7 @@ A instância RDS de produção é **`cerebro-postgres-enc`** na `sa-east-1`
 | Maintenance window | `thu 06:01–06:31 UTC` (03:01 BRT qui) | Não pode sobrepor o backup window |
 | Automated backups | Enabled | Snapshot diário + WAL contínuo |
 | Snapshot encryption | KMS (instância cifrada, ADR-018) | Dados cifrados em repouso |
-| Cross-region snapshot copy | `us-east-1` (DR — **a confirmar/provisionar**) | Desastre regional sa-east-1 |
+| Cross-region snapshot copy | **VEDADO** (não usar `us-east-1` nem outra region) | LGPD: dado de saúde é categoria especial, residência obrigatória no Brasil. AWS só tem 1 region no BR (`sa-east-1`) → não há DR cross-region possível dentro do país |
 
 ### Cadência do backup (importante)
 
@@ -44,6 +44,26 @@ restaurar para qualquer instante dos últimos **35 dias** com granularidade de
   prazo): **AWS Backup vault** (lifecycle em anos, compliance-lock/WORM) ou
   **snapshots manuais** (sem expiração, vivem até deleção explícita). Não usar
   PITR como arquivo de longo prazo.
+
+### DR e residência de dado (LGPD)
+
+Dado de saúde mental = **categoria especial** (LGPD), com **residência
+obrigatória no Brasil**. Por isso:
+
+- **Não copiar snapshot para outra region AWS** (`us-east-1` etc.) — tira o
+  dado do Brasil. Vedado sem revisão jurídica/LGPD.
+- A AWS só tem **uma** region no Brasil (`sa-east-1`), então **não existe DR
+  cross-region in-country**. O DR fica restrito a recursos in-region.
+- Opções de DR/guarda longa que **permanecem em `sa-east-1`**:
+  - **AWS Backup vault** in-region com lifecycle longo (compliance-lock/WORM).
+  - **Snapshots manuais** retidos in-region.
+  - **Export pra S3** em `sa-east-1` (bucket com cifragem + bloqueio público).
+- Resiliência intra-region já disponível: **Multi-AZ** (failover automático na
+  mesma region). Hoje Single-AZ; gatilho para religar = 1º pagante.
+
+> A `ENCRYPTION_KEY` (ADR-018) é credencial, não dado clínico — pode ter cópia
+> de DR, mas mantenha o alvo de replicação **em `sa-east-1`** para não criar
+> superfície fora do Brasil junto de snapshots vazados.
 
 ### Como ajustar retenção / janela (sem downtime)
 
@@ -165,5 +185,7 @@ Não há rollback automático.
 
 **NUNCA perca esta chave**. Sem ela, dados cifrados no banco são
 irrecuperáveis. Backup separado:
-- AWS Secrets Manager com replicação cross-region
+- AWS Secrets Manager **em `sa-east-1`** (não replicar para outra region — ver
+  nota de residência LGPD acima; a chave fora do BR + snapshot vazado = dado
+  clínico exposto)
 - Cópia offline em cofre físico (opção de negócio)
