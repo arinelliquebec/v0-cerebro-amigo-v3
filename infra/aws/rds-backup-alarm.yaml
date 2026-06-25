@@ -19,11 +19,12 @@ Parameters:
     Description: E-mail do alerta (obrigatorio; passar via --parameter-overrides; confirmar a subscricao SNS no 1o deploy).
   MaxBackupAgeHours:
     Type: Number
-    Default: 168
+    Default: 48
     Description: >
       Idade maxima aceitavel do snapshot automatico mais recente, em horas.
-      168 = 7 dias (criterio do DEBT T1-6). Backups automaticos sao diarios;
-      36-48h alerta mais rapido se quiser apertar.
+      48 = 2 dias (apertado em 2026-06-25; backups sao diarios, idade normal
+      ~13-37h, entao 48h da margem e alarma em ~2 dias se a pipeline parar).
+      Historico: 168 (7 dias) era o criterio original do DEBT T1-6.
 
 Resources:
 
