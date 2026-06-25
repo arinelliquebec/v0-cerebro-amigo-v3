@@ -31,8 +31,9 @@ export async function POST(req: NextRequest) {
     if (err instanceof GatewayError) {
       if (err.status === 401 || err.status === 403)
         return NextResponse.json({ error: "não autorizado" }, { status: 401 })
-      // 400 (validação) e 409 (duplicado/conflito) carregam mensagem clínica
-      if (err.status === 400 || err.status === 409)
+      // 400 (validação) e 409 (duplicado/conflito) carregam mensagem clínica;
+      // 402 (gate de assinatura, ADR-055) carrega o corpo do paywall p/ a UI.
+      if (err.status === 400 || err.status === 402 || err.status === 409)
         return NextResponse.json(err.body, { status: err.status })
     }
     return NextResponse.json({ error: "erro interno" }, { status: 500 })

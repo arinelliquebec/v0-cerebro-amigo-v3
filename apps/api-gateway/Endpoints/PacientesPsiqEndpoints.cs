@@ -297,22 +297,19 @@ public static class PacientesPsiqEndpoints
         // ================================================================
         // CRIAR PACIENTE (médico cadastra novo paciente)
         // ================================================================
-        // Dois fluxos suportados:
+        // O cadastro SEMPRE convida o paciente por e-mail (correção 2026-06-25 —
+        // antes, definir uma senha provisória pulava o e-mail e o paciente ficava
+        // sem nenhum aviso de acesso):
         //
-        //  A) `senhaInicial` vazio → fluxo magic link:
-        //       1. Cria `clientes` + `pacientes`
-        //       2. Gera magic_link de 24h
-        //       3. Envia email com convite (Resend via orchestrator)
+        //  1. Cria `clientes` + `pacientes`
+        //  2. (Opcional) se `senhaInicial` veio preenchido, grava uma senha
+        //     provisória em `pacientes_credenciais` (`senha_temporaria=TRUE`,
+        //     força troca no 1º acesso) — ADICIONAL, não substitui o e-mail.
+        //  3. Gera magic_link de 24h e envia o convite por e-mail (Resend).
+        //  4. Retorna `emailEnviado`/`magicLinkUrl` (fallback se o e-mail falhou)
+        //     e, quando houver, a `senhaProvisoria` pro médico também entregar.
         //
-        //  B) `senhaInicial` preenchido → fluxo "cadastro em consultório":
-        //       1. Cria `clientes` + `pacientes`
-        //       2. Hasheia a senha e grava em `pacientes_credenciais`
-        //          com `senha_temporaria=TRUE` (força troca no 1º acesso)
-        //       3. NÃO envia email, NÃO cria magic_link
-        //       4. Retorna a senha provisória pro médico anotar/entregar
-        //
-        // Em ambos: telefone (WhatsApp) é obrigatório, pra fallback de
-        // emergência fora do app.
+        // Telefone (WhatsApp) é obrigatório, pra fallback de emergência fora do app.
         g.MapPost("/", async (
             [FromBody] CriarPacienteRequest req,
             AppDbContext db, ClaimsPrincipal user,
@@ -327,8 +324,12 @@ public static class PacientesPsiqEndpoints
             var capErro = await TrialCapPacientesAsync(db, user, medicoId.Value, cfg);
             if (capErro is not null) return capErro;
 
-            var modoSenhaProvisoria = !string.IsNullOrWhiteSpace(req.SenhaInicial);
-            if (modoSenhaProvisoria && req.SenhaInicial!.Length < 6)
+            // Senha provisória é OPCIONAL e ADICIONAL (não substitui o e-mail): se o
+            // médico informar uma, ela é gravada E o paciente ainda recebe o magic link
+            // por e-mail. Todo cadastro envia o convite por e-mail (correção 2026-06-25:
+            // antes, definir senha pulava o e-mail e o paciente ficava sem aviso).
+            var definirSenha = !string.IsNullOrWhiteSpace(req.SenhaInicial);
+            if (definirSenha && req.SenhaInicial!.Length < 6)
                 return Results.BadRequest(new { error = "senha provisória precisa ter pelo menos 6 caracteres" });
 
             // Validação + criação de clientes/pacientes — núcleo compartilhado com
@@ -347,9 +348,11 @@ public static class PacientesPsiqEndpoints
             var emailNorm = req.Email.Trim().ToLowerInvariant();
 
             // ----------------------------------------------------------------
-            // Fluxo B — senha provisória definida pelo médico
+            // (Opcional) senha provisória definida pelo médico — ADICIONAL ao e-mail.
+            // Grava credencial temporária (força troca no 1º acesso). NÃO retorna aqui:
+            // o cadastro segue para o convite por e-mail (magic link), que vai sempre.
             // ----------------------------------------------------------------
-            if (modoSenhaProvisoria)
+            if (definirSenha)
             {
                 var senhaHash = hasher.Hash(req.SenhaInicial!);
 
@@ -363,39 +366,32 @@ public static class PacientesPsiqEndpoints
                         senha_definida_em = NOW(),
                         senha_temporaria = TRUE",
                     clienteId, emailNorm, senhaHash);
-
-                return Results.Created($"/api/v1/pacientes/{clienteId}", new
-                {
-                    pacienteId = clienteId,
-                    modo = "senha_provisoria",
-                    emailEnviado = false,
-                    emailErro = (string?)null,
-                    magicLinkUrl = (string?)null,
-                    senhaProvisoria = req.SenhaInicial,
-                });
             }
 
             // ----------------------------------------------------------------
-            // Fluxo A — magic link por email
+            // Convite por e-mail (magic link) — SEMPRE, em todo cadastro.
+            // O INSERT do magic_links fica DENTRO do try: se o banco falhar aqui, o
+            // paciente já foi criado — não derruba o request com 500, e não oferece
+            // URL de fallback com um token que não chegou a ser persistido.
             // ----------------------------------------------------------------
-            var tokenBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
-            var token = Convert.ToBase64String(tokenBytes)
-                .Replace("+", "-").Replace("/", "_").Replace("=", "");
-            var hashToken = SHA256(token);
-
-            await db.Database.ExecuteSqlRawAsync(@"
-                INSERT INTO magic_links (paciente_id, token_hash, proposito, expira_em)
-                VALUES ({0}, {1}, 'primeiro_acesso', NOW() + INTERVAL '24 hours')",
-                clienteId, hashToken);
-
-            var portalBase = cfg["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
-            var url = $"{portalBase}/p/entrar?token={token}";
-
-            // 4. Envia email diretamente via Resend (ResendClient .NET tipado)
             var emailEnviado = false;
             string? emailErro = null;
+            string? magicLinkUrl = null;
             try
             {
+                var tokenBytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32);
+                var token = Convert.ToBase64String(tokenBytes)
+                    .Replace("+", "-").Replace("/", "_").Replace("=", "");
+                var hashToken = SHA256(token);
+
+                await db.Database.ExecuteSqlRawAsync(@"
+                    INSERT INTO magic_links (paciente_id, token_hash, proposito, expira_em)
+                    VALUES ({0}, {1}, 'primeiro_acesso', NOW() + INTERVAL '24 hours')",
+                    clienteId, hashToken);
+
+                var portalBase = cfg["PORTAL_PACIENTE_URL"] ?? "http://localhost:3000";
+                var url = $"{portalBase}/p/entrar?token={token}";
+
                 var medicoNome = await db.Database.ExecuteScalarAsync<string>(
                     "SELECT nome FROM medicos WHERE id = {0}", medicoId)
                     ?? "Seu/sua médico(a)";
@@ -448,21 +444,24 @@ public static class PacientesPsiqEndpoints
 
                 emailEnviado = result.Success;
                 emailErro = result.Error;
+                magicLinkUrl = emailEnviado ? null : url; // fallback só com token persistido
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "falha ao enviar magic link via email");
+                logger.LogError(ex, "falha ao gerar/enviar magic link via email");
                 emailErro = ex.Message;
+                // magicLinkUrl fica null de propósito: se o INSERT do token falhou, não há
+                // link válido a oferecer (médico usa "Reenviar link" na lista depois).
             }
 
             return Results.Created($"/api/v1/pacientes/{clienteId}", new
             {
                 pacienteId = clienteId,
-                modo = "magic_link",
+                modo = definirSenha ? "magic_link_e_senha" : "magic_link",
                 emailEnviado,
                 emailErro,
-                magicLinkUrl = emailEnviado ? null : url, // fallback se falhou
-                senhaProvisoria = (string?)null,
+                magicLinkUrl,
+                senhaProvisoria = definirSenha ? req.SenhaInicial : (string?)null,
             });
         });
 

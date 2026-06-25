@@ -91,7 +91,8 @@ type FormValues = z.infer<typeof schema>
 
 interface ResultadoCriacao {
   pacienteId: string
-  modo: "magic_link" | "senha_provisoria"
+  // "magic_link" (só convite por e-mail) ou "magic_link_e_senha" (e-mail + senha extra).
+  modo: string
   emailEnviado: boolean
   emailErro: string | null
   magicLinkUrl: string | null
@@ -188,6 +189,8 @@ export function NovoPacienteDialog({ onConcluido, trigger }: { onConcluido: () =
           setErroServidor("Sessão expirada — faça logout e login novamente.")
         else if (r.status === 403)
           setErroServidor("Sem permissão. Conta não está configurada como médico.")
+        else if (r.status === 402)
+          setErroServidor("Assinatura inativa — regularize o pagamento para cadastrar pacientes (Conta → Minha assinatura).")
         else if (r.status === 409)
           setErroServidor(data?.message ?? "Paciente já cadastrado com este e-mail ou CPF.")
         else
@@ -257,40 +260,47 @@ export function NovoPacienteDialog({ onConcluido, trigger }: { onConcluido: () =
         {/* ── Resultado de criação ── */}
         {authStatus === "ok" && resultado && (
           <div className="space-y-4">
-            {resultado.modo === "magic_link" ? (
-              resultado.emailEnviado ? (
-                <div className="flex items-start gap-3 rounded-lg bg-success/10 p-3">
-                  <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                  <div className="text-sm">
-                    <p className="font-medium text-foreground">Convite enviado</p>
-                    <p className="text-muted-foreground">
-                      O paciente recebeu um e-mail com o link para criar a senha (válido por 24h).
-                    </p>
-                  </div>
+            {/* Convite por e-mail — todo cadastro envia. */}
+            {resultado.emailEnviado ? (
+              <div className="flex items-start gap-3 rounded-lg bg-success/10 p-3">
+                <MailCheck className="mt-0.5 h-5 w-5 shrink-0 text-success" />
+                <div className="text-sm">
+                  <p className="font-medium text-foreground">Convite enviado</p>
+                  <p className="text-muted-foreground">
+                    O paciente recebeu um e-mail com o link para criar a senha (válido por 24h).
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning">
-                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
-                    <span>Não foi possível enviar o e-mail. Copie e envie o link manualmente:</span>
-                  </div>
-                  {resultado.magicLinkUrl && <CampoCopiavel valor={resultado.magicLinkUrl} />}
-                </div>
-              )
+              </div>
             ) : (
+              <div className="space-y-2">
+                <div className="flex items-start gap-2 rounded-lg bg-warning/10 p-3 text-sm text-warning">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                  <span>
+                    {resultado.magicLinkUrl
+                      ? "Não foi possível enviar o e-mail. Copie e envie o link manualmente:"
+                      : "Não foi possível enviar o e-mail nem gerar o link agora. Use “Reenviar link” na lista do paciente."}
+                  </span>
+                </div>
+                {resultado.magicLinkUrl && <CampoCopiavel valor={resultado.magicLinkUrl} />}
+              </div>
+            )}
+
+            {/* Senha provisória — opcional, ADICIONAL ao e-mail. */}
+            {resultado.senhaProvisoria && (
               <div className="space-y-2">
                 <div className="flex items-start gap-3 rounded-lg bg-secondary/60 p-3">
                   <KeyRound className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <div className="text-sm">
-                    <p className="font-medium text-foreground">Senha provisória criada</p>
+                    <p className="font-medium text-foreground">Senha provisória (opcional)</p>
                     <p className="text-muted-foreground">
-                      Entregue ao paciente. Ele troca no primeiro acesso ao portal.
+                      Além do e-mail, você pode entregar esta senha. O paciente troca no primeiro acesso.
                     </p>
                   </div>
                 </div>
-                {resultado.senhaProvisoria && <CampoCopiavel valor={resultado.senhaProvisoria} />}
+                <CampoCopiavel valor={resultado.senhaProvisoria} />
               </div>
             )}
+
             <DialogFooter>
               <Button className="bg-primary hover:bg-purple-dark text-primary-foreground" onClick={fechar}>
                 Concluir
@@ -387,18 +397,18 @@ export function NovoPacienteDialog({ onConcluido, trigger }: { onConcluido: () =
                 <div className="flex items-center justify-between rounded-lg border border-border/60 p-3">
                   <div className="text-sm">
                     <p className="font-medium text-foreground">
-                      {field.value ? "Definir senha provisória" : "Enviar convite por e-mail"}
+                      Também definir uma senha provisória
                     </p>
                     <p className="text-xs text-muted-foreground">
                       {field.value
-                        ? "Sem e-mail — você entrega a senha (cadastro em consultório)."
-                        : "Magic link de 24h enviado ao paciente para criar a senha."}
+                        ? "O paciente recebe o convite por e-mail E você também entrega esta senha (troca no 1º acesso)."
+                        : "Opcional. O convite por e-mail (magic link de 24h) é sempre enviado ao paciente."}
                     </p>
                   </div>
                   <Switch
                     checked={field.value}
                     onCheckedChange={field.onChange}
-                    aria-label="Definir senha provisória"
+                    aria-label="Também definir uma senha provisória"
                   />
                 </div>
               )}
