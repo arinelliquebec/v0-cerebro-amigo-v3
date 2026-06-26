@@ -30,7 +30,7 @@ export function CrisisSupportPanel({
       }
     >
       {!compacto && (
-        <h1 className="text-lg font-semibold text-foreground">{titulo}</h1>
+        <h1 className="portal-display text-[1.5rem] font-medium text-foreground">{titulo}</h1>
       )}
       <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-4 space-y-3">
         <div className="flex items-center gap-2 text-destructive">

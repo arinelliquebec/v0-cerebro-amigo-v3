@@ -1,8 +1,9 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Pill, Clock, Check, Loader2, RefreshCw } from "lucide-react"
+import { Clock, Check, Loader2, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { PortalPageHeader } from "@/components/portal/page-header"
 
 interface Medicacao {
   id: string
@@ -82,39 +83,43 @@ export default function MedicacoesPage() {
   }
 
   return (
-    <div className="p-4 pt-8 space-y-5">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-          <Pill className="h-6 w-6 text-primary" /> Medicações
-        </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Suas medicações</p>
-      </div>
+    <div className="space-y-5 p-5 pt-9">
+      <PortalPageHeader
+        eyebrow="Sua rotina"
+        titulo="Medicações"
+        subtitulo="Confirme as tomadas e acompanhe sua prescrição."
+      />
 
       {loading ? (
         <div className="flex justify-center py-12 text-muted-foreground">
           <Loader2 className="h-6 w-6 animate-spin" />
         </div>
       ) : falhou ? (
-        <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center space-y-3">
+        <div className="portal-card space-y-3 border-destructive/30 p-6 text-center">
           <p className="text-sm text-foreground">Não foi possível carregar suas medicações.</p>
-          <Button variant="outline" size="sm" className="gap-2" onClick={carregar}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="portal-tap gap-2 rounded-lg"
+            onClick={carregar}
+          >
             <RefreshCw className="h-4 w-4" /> Tentar de novo
           </Button>
         </div>
       ) : meds.length === 0 ? (
-        <p className="rounded-2xl border border-border/60 bg-card p-6 text-center text-sm text-muted-foreground">
+        <div className="portal-card portal-hairline px-6 py-12 text-center text-sm text-muted-foreground">
           Nenhuma medicação ativa no momento.
-        </p>
+        </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="portal-rise-in portal-stagger-2 space-y-3">
           {meds.map((m) => (
-            <li key={m.id} className="rounded-2xl border border-border/60 bg-card p-4 space-y-2">
+            <li key={m.id} className="portal-card portal-hairline space-y-3 p-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="min-w-0">
                   <p className="font-medium text-foreground">{m.medicamento}</p>
                   <p className="text-sm text-muted-foreground">{m.doseDescricao}</p>
                   {m.fonte && (
-                    <p className="text-xs text-muted-foreground mt-0.5">Fonte: {m.fonte}</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Fonte: {m.fonte}</p>
                   )}
                 </div>
                 {/* Só prescrições da plataforma têm tomada/check-in p/ confirmar.
@@ -123,7 +128,11 @@ export default function MedicacoesPage() {
                   <Button
                     size="sm"
                     variant={feito[m.id] ? "outline" : "default"}
-                    className={feito[m.id] ? "text-success border-success/40" : "bg-primary hover:bg-purple-dark text-primary-foreground"}
+                    className={
+                      feito[m.id]
+                        ? "portal-tap rounded-lg border-success/40 text-success"
+                        : "portal-tap rounded-lg bg-primary text-primary-foreground hover:bg-purple-dark"
+                    }
                     disabled={confirmando === m.id || feito[m.id]}
                     onClick={() => confirmar(m.id)}
                   >
@@ -145,20 +154,22 @@ export default function MedicacoesPage() {
               </div>
               {m.horarios?.length > 0 && (
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Clock className="h-3 w-3" />
+                  <Clock className="h-3.5 w-3.5" />
                   {m.horarios.map((h, i) => (
-                    <span key={i} className="rounded-full bg-secondary px-2 py-0.5 text-primary">
+                    <span
+                      key={i}
+                      className="nums rounded-full bg-primary/12 px-2.5 py-0.5 font-medium text-primary"
+                    >
                       {horaCurta(h)}
                     </span>
                   ))}
                 </div>
               )}
-              {m.observacoes && (
-                <p className="text-xs text-muted-foreground">{m.observacoes}</p>
-              )}
+              {m.observacoes && <p className="text-xs text-muted-foreground">{m.observacoes}</p>}
               {erro[m.id] && (
                 <p className="text-xs text-destructive">
-                  Não conseguimos registrar agora. Verifique sua conexão e toque em Confirmar de novo. Isso não muda sua rotina de medicação.
+                  Não conseguimos registrar agora. Verifique sua conexão e toque em Confirmar de
+                  novo. Isso não muda sua rotina de medicação.
                 </p>
               )}
             </li>

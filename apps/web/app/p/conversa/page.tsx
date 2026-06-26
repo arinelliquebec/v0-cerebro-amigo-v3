@@ -192,23 +192,24 @@ export default function ConversaPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-5rem)]">
-      <header className="border-b border-border/60 px-4 py-3 space-y-2">
+    <div className="flex h-[calc(100dvh-7rem)] flex-col">
+      <header className="space-y-2.5 border-b border-noir-line/60 px-5 pb-3.5 pt-7">
         <div>
-          <h1 className="text-base font-semibold text-foreground">Conversa</h1>
-          <p className="text-xs text-muted-foreground">
-            Acompanhamento entre consultas · sua psiquiatra é avisada em caso de risco
-          </p>
+          <p className="portal-eyebrow">Entre consultas</p>
+          <h1 className="portal-display mt-1.5 text-[1.4rem] font-medium leading-tight text-foreground">
+            Conversa
+          </h1>
         </div>
-        <p className="rounded-lg border border-border/50 bg-muted/30 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+        <p className="rounded-xl border border-noir-line/60 bg-noir-surface-raised/50 px-3.5 py-2.5 text-[11px] leading-relaxed text-muted-foreground">
           Organizo e acolho entre consultas.{" "}
           <span className="text-foreground/80">
             Não substituo sua psiquiatra — não dou diagnóstico nem oriento dose de medicamento.
-          </span>
+          </span>{" "}
+          Sua psiquiatra é avisada em caso de risco.
         </p>
       </header>
 
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div className="flex-1 space-y-3.5 overflow-y-auto px-4 py-5">
         {carregandoHist ? (
           <div className="flex justify-center py-8 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -221,11 +222,14 @@ export default function ConversaPage() {
       </div>
 
       {pausado ? (
-        <div className="border-t border-border/60 bg-secondary/40 px-4 py-3 text-center text-sm text-muted-foreground">
+        <div className="border-t border-noir-line/60 bg-secondary/40 px-4 py-3.5 text-center text-sm text-muted-foreground">
           Conversa pausada — sua psiquiatra foi avisada e vai te acompanhar a partir daqui.
         </div>
       ) : (
-        <form onSubmit={enviar} className="border-t border-border/60 p-3 flex items-end gap-2">
+        <form
+          onSubmit={enviar}
+          className="flex items-end gap-2 border-t border-noir-line/60 bg-background/40 p-3 backdrop-blur-sm"
+        >
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
@@ -238,15 +242,15 @@ export default function ConversaPage() {
             rows={1}
             placeholder="Escreva como você está…"
             disabled={etapa !== null || carregandoHist}
-            className="flex-1 resize-none rounded-xl border border-border bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 max-h-32 disabled:opacity-60"
+            className="max-h-32 flex-1 resize-none rounded-2xl border border-noir-line bg-noir-surface-raised/70 px-4 py-2.5 text-sm leading-relaxed focus-visible:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-60"
           />
           <button
             type="submit"
             disabled={etapa !== null || !input.trim() || carregandoHist}
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground disabled:opacity-40"
+            className="portal-tap portal-fab grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-purple-dark text-primary-foreground disabled:opacity-40 disabled:shadow-none"
             aria-label="Enviar"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-[1.15rem] w-[1.15rem]" />
           </button>
         </form>
       )}
@@ -260,7 +264,7 @@ function Bolha({ msg }: { msg: Msg }) {
   }
   if (msg.papel === "sistema") {
     return (
-      <p className="mx-auto max-w-[85%] rounded-lg bg-muted/60 px-3 py-2 text-center text-xs text-muted-foreground">
+      <p className="mx-auto max-w-[85%] rounded-full border border-noir-line/50 bg-noir-surface-raised/60 px-3.5 py-1.5 text-center text-xs text-muted-foreground">
         {msg.texto}
       </p>
     )
@@ -269,8 +273,10 @@ function Bolha({ msg }: { msg: Msg }) {
   return (
     <div className={`flex ${eUser ? "justify-end" : "justify-start"}`}>
       <div
-        className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm leading-relaxed whitespace-pre-line ${
-          eUser ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground"
+        className={`max-w-[82%] whitespace-pre-line px-4 py-2.5 text-sm leading-relaxed ${
+          eUser
+            ? "rounded-[1.25rem] rounded-br-md bg-gradient-to-br from-primary to-purple-dark text-primary-foreground shadow-[0_8px_24px_-12px_var(--noir-glow-purple)]"
+            : "glass-noir rounded-[1.25rem] rounded-bl-md text-foreground"
         }`}
       >
         {msg.texto}

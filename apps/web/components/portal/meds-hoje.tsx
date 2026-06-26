@@ -50,39 +50,52 @@ export function MedsHoje({ tomadas }: { tomadas: TomadaHoje[] }) {
   const pendentes = tomadas.filter((t) => statusMap[t.id] === "pendente")
 
   return (
-    <section className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+    <section className="portal-card portal-hairline space-y-3.5 p-4">
       <div className="flex items-center justify-between">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-          <Pill className="h-4 w-4 text-primary" /> Medicações de hoje
+          <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/12 text-primary">
+            <Pill className="h-4 w-4" />
+          </span>
+          Medicações de hoje
         </h2>
-        <Link href="/p/medicacoes" className="text-xs text-primary">
+        <Link
+          href="/p/medicacoes"
+          className="portal-tap rounded-full px-2 py-1 text-xs text-primary hover:text-purple-light"
+        >
           ver todas
         </Link>
       </div>
 
       {tomadas.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Nenhuma medicação para hoje.</p>
+        <p className="py-2 text-sm text-muted-foreground">Nenhuma medicação para hoje.</p>
       ) : (
-        <ul className="space-y-2.5">
+        <ul className="space-y-2">
           {tomadas.slice(0, 4).map((t) => {
             const st = statusMap[t.id] ?? t.status
             const pendente = st === "pendente"
             return (
-              <li key={t.id} className="flex items-center gap-2 text-sm">
-                <div className="min-w-0 flex-1">
-                  <span className="text-foreground">{t.medicamento}</span>
-                  <span className="text-muted-foreground"> · {t.dose}</span>
-                  <span
-                    className={`ml-2 tabular-nums ${pendente ? "text-warning" : "text-success"}`}
-                  >
-                    {horaCurta(t.horarioPrevisto)}
-                  </span>
+              <li
+                key={t.id}
+                className="flex items-center gap-3 rounded-xl border border-noir-line/50 bg-noir-surface-raised/50 px-3 py-2.5"
+              >
+                <span
+                  className={`nums grid h-9 w-12 shrink-0 place-items-center rounded-lg text-[11px] font-semibold ${
+                    pendente
+                      ? "bg-warning/12 text-warning"
+                      : "bg-success/12 text-success line-through opacity-70"
+                  }`}
+                >
+                  {horaCurta(t.horarioPrevisto)}
+                </span>
+                <div className="min-w-0 flex-1 text-sm">
+                  <span className="block truncate font-medium text-foreground">{t.medicamento}</span>
+                  <span className="block truncate text-xs text-muted-foreground">{t.dose}</span>
                 </div>
                 {pendente ? (
                   <Button
                     size="sm"
                     variant="default"
-                    className="h-8 shrink-0 bg-primary px-3 text-xs hover:bg-purple-dark"
+                    className="portal-tap h-9 shrink-0 rounded-lg bg-primary px-3.5 text-xs font-medium hover:bg-purple-dark"
                     disabled={confirmando === t.id}
                     onClick={() => confirmar(t)}
                   >
@@ -104,7 +117,7 @@ export function MedsHoje({ tomadas }: { tomadas: TomadaHoje[] }) {
       )}
 
       {pendentes.length > 0 && (
-        <p className="text-xs text-warning">{pendentes.length} pendente(s) hoje</p>
+        <p className="nums text-xs text-warning">{pendentes.length} pendente(s) hoje</p>
       )}
 
       {Object.entries(erro).some(([, v]) => v) && (

@@ -2,11 +2,12 @@
 
 import { useEffect, useRef, useState } from "react"
 import Link from "next/link"
-import { User, Stethoscope, Loader2, Check, LogOut, ClipboardCheck, ChevronRight, MapPin } from "lucide-react"
+import { Stethoscope, Loader2, Check, LogOut, ClipboardCheck, ChevronRight, MapPin } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { PushToggle } from "@/components/portal/push-toggle"
+import { PortalPageHeader } from "@/components/portal/page-header"
 import { sairPaciente } from "../entrar/actions"
 
 interface Perfil {
@@ -170,14 +171,12 @@ export default function PerfilPage() {
   }
 
   return (
-    <div className="p-4 pt-8 space-y-6">
-      <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-        <User className="h-6 w-6 text-primary" /> Meu perfil
-      </h1>
+    <div className="space-y-6 p-5 pt-9 [&_input]:h-11 [&_input]:rounded-xl [&_input]:bg-noir-surface-raised/60">
+      <PortalPageHeader eyebrow="Conta" titulo="Meu perfil" />
 
       {perfil?.nomeMedico && (
-        <div className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4">
-          <div className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-primary">
+        <div className="portal-card portal-hairline flex items-center gap-3 p-4">
+          <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary/12 text-primary ring-1 ring-primary/15">
             <Stethoscope className="h-5 w-5" />
           </div>
           <div>
@@ -225,7 +224,7 @@ export default function PerfilPage() {
         </div>
 
         {/* Endereço */}
-        <div className="space-y-3 rounded-2xl border border-border/60 bg-card p-4">
+        <div className="portal-card portal-hairline space-y-3 p-4">
           <p className="flex items-center gap-1.5 text-sm font-medium text-foreground">
             <MapPin className="h-4 w-4 text-primary" /> Endereço
           </p>
@@ -286,36 +285,50 @@ export default function PerfilPage() {
           </div>
         </div>
 
-        <Button onClick={salvar} disabled={salvando} className="w-full bg-primary hover:bg-purple-dark text-primary-foreground">
+        <Button
+          onClick={salvar}
+          disabled={salvando}
+          className="portal-tap h-11 w-full rounded-xl bg-primary text-primary-foreground hover:bg-purple-dark"
+        >
           {salvando ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : salvo ? (
-            <><Check className="mr-1 h-4 w-4" /> Salvo</>
+            <>
+              <Check className="mr-1 h-4 w-4" /> Salvo
+            </>
           ) : (
             "Salvar"
           )}
         </Button>
-        {erro && <p role="alert" className="text-sm text-destructive">{erro}</p>}
+        {erro && (
+          <p role="alert" className="text-sm text-destructive">
+            {erro}
+          </p>
+        )}
       </div>
 
       <PushToggle />
 
       <Link
         href="/p/checkins"
-        className="flex items-center gap-3 rounded-2xl border border-border/60 bg-card p-4"
+        className="portal-card portal-tap group flex items-center gap-3 p-4 hover:border-primary/40"
       >
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-primary">
+        <div className="grid h-11 w-11 place-items-center rounded-xl bg-primary/12 text-primary ring-1 ring-primary/15">
           <ClipboardCheck className="h-5 w-5" />
         </div>
         <div className="flex-1">
           <p className="text-sm font-medium text-foreground">Check-ins</p>
           <p className="text-xs text-muted-foreground">Perguntas rápidas da sua psiquiatra</p>
         </div>
-        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
       </Link>
 
-      <form action={sairPaciente} className="pt-2">
-        <Button variant="outline" type="submit" className="w-full gap-2 text-muted-foreground">
+      <form action={sairPaciente} className="pt-1">
+        <Button
+          variant="outline"
+          type="submit"
+          className="portal-tap h-11 w-full gap-2 rounded-xl text-muted-foreground"
+        >
           <LogOut className="h-4 w-4" /> Sair
         </Button>
       </form>

@@ -21,28 +21,31 @@ export default async function EntrarPage({
       <AuroraBackdrop />
       <div className="relative w-full max-w-sm space-y-8">
         <BackButton href="/" className="text-noir-text-dim hover:text-foreground" />
-        <div className="space-y-3 text-center">
+        <div className="space-y-4 text-center">
           <BrandWordmark layout="inline" size="lg" className="justify-center" />
           <div>
-            <h1 className="text-xl font-semibold text-foreground">
-              {sp.token ? "Ative sua conta" : "Portal do paciente"}
+            <p className="portal-eyebrow">{sp.token ? "Ativação" : "Portal do paciente"}</p>
+            <h1 className="portal-display mt-2.5 text-[1.7rem] font-medium leading-tight text-foreground">
+              {sp.token ? "Ative sua conta" : "Bem-vindo de volta"}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">Acompanhamento entre consultas</p>
+            <p className="mt-1.5 text-sm text-muted-foreground">Acompanhamento entre consultas</p>
           </div>
         </div>
 
-        <div className="glass-noir rounded-2xl border border-noir-line p-6 glow-purple-lg">
+        <div className="glass-noir portal-hairline relative rounded-[1.5rem] border border-noir-line p-6 glow-purple-lg">
           <EntrarForm token={sp.token} next={next} />
         </div>
 
-        <div className="space-y-2 text-center">
+        <div className="space-y-2.5 text-center">
           <p className="text-xs text-muted-foreground">
-            Em caso de crise: <span className="font-mono text-foreground">CVV 188</span> (24h) ·{" "}
-            <span className="font-mono text-foreground">SAMU 192</span>
+            Em caso de crise: <span className="nums font-mono text-foreground">CVV 188</span> (24h) ·{" "}
+            <span className="nums font-mono text-foreground">SAMU 192</span>
           </p>
           <p className="text-xs text-noir-text-dim">
             É médico?{" "}
-            <Link href="/login" className="font-medium text-primary hover:underline">Entre aqui</Link>
+            <Link href="/login" className="font-medium text-primary hover:underline">
+              Entre aqui
+            </Link>
           </p>
         </div>
       </div>

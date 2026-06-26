@@ -11,9 +11,14 @@ export function PortalErroCarregar({
   onRetry: () => void
 }) {
   return (
-    <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-center space-y-3">
+    <div className="portal-card space-y-3 border-destructive/30 p-6 text-center">
       <p className="text-sm text-foreground">{mensagem}</p>
-      <Button variant="outline" size="sm" className="gap-2" onClick={onRetry}>
+      <Button
+        variant="outline"
+        size="sm"
+        className="portal-tap gap-2 rounded-lg"
+        onClick={onRetry}
+      >
         <RefreshCw className="h-4 w-4" /> Tentar de novo
       </Button>
     </div>

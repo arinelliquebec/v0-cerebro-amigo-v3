@@ -51,6 +51,7 @@ export function EsqueciSenhaForm({ onVoltar }: { onVoltar: () => void }) {
           type="email"
           autoComplete="email"
           placeholder="seu@email.com"
+          className="h-11 rounded-xl bg-noir-surface-raised/60"
           required
         />
       </div>
@@ -58,7 +59,7 @@ export function EsqueciSenhaForm({ onVoltar }: { onVoltar: () => void }) {
       <Button
         type="submit"
         disabled={pending}
-        className="w-full gap-2 bg-primary hover:bg-purple-dark text-primary-foreground"
+        className="portal-tap h-11 w-full gap-2 rounded-xl bg-primary text-primary-foreground hover:bg-purple-dark"
       >
         {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
         Enviar link de recuperação

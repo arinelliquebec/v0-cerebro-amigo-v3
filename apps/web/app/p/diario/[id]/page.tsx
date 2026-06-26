@@ -1,9 +1,8 @@
-import Link from "next/link"
 import { cookies } from "next/headers"
 import { notFound } from "next/navigation"
-import { ArrowLeft, Mic, PenLine } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Mic, PenLine } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
+import { PortalPageHeader } from "@/components/portal/page-header"
 import { format } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -52,44 +51,36 @@ export default async function DiarioDetalhePage({
   })
 
   return (
-    <div className="px-4 py-6 space-y-5">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Button asChild variant="ghost" size="icon">
-          <Link href="/p/diario" aria-label="Voltar para o diário">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-        </Button>
-        <h1 className="text-lg font-semibold truncate">
-          {entrada.titulo ?? "Entrada do diário"}
-        </h1>
-      </div>
+    <div className="space-y-5 p-5 pt-9">
+      <PortalPageHeader
+        backHref="/p/diario"
+        eyebrow={entrada.tipo === "audio" ? "Áudio transcrito" : "Anotação"}
+        titulo={entrada.titulo ?? "Entrada do diário"}
+      />
 
-      {/* Meta */}
-      <div className="flex items-center gap-2 flex-wrap text-sm text-muted-foreground">
+      <div className="portal-rise-in portal-stagger-2 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
         {entrada.tipo === "audio" ? (
           <span className="inline-flex items-center gap-1">
-            <Mic className="w-3.5 h-3.5" /> Áudio transcrito
+            <Mic className="h-3.5 w-3.5" /> Áudio transcrito
           </span>
         ) : (
           <span className="inline-flex items-center gap-1">
-            <PenLine className="w-3.5 h-3.5" /> Texto
+            <PenLine className="h-3.5 w-3.5" /> Texto
           </span>
         )}
         <span>·</span>
-        <span>{quando}</span>
+        <span className="nums">{quando}</span>
         {entrada.humor != null && <HumorBadge humor={entrada.humor} />}
         {entrada.compartilhadaComMedico && (
-          <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+          <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
             Compartilhado
           </Badge>
         )}
       </div>
 
-      {/* Tags */}
       {entrada.tags.length > 0 && (
-        <div className="flex gap-1.5 flex-wrap">
-          {entrada.tags.map(t => (
+        <div className="portal-rise-in portal-stagger-2 flex flex-wrap gap-1.5">
+          {entrada.tags.map((t) => (
             <Badge key={t} variant="secondary" className="text-xs">
               {t}
             </Badge>
@@ -97,9 +88,8 @@ export default async function DiarioDetalhePage({
         </div>
       )}
 
-      {/* Conteúdo */}
-      <div className="rounded-xl border bg-card p-4">
-        <p className="text-sm whitespace-pre-wrap leading-relaxed">
+      <div className="portal-card portal-hairline portal-rise-in portal-stagger-3 p-5">
+        <p className="whitespace-pre-wrap text-[0.95rem] leading-relaxed text-foreground/90">
           {entrada.conteudo}
         </p>
       </div>
