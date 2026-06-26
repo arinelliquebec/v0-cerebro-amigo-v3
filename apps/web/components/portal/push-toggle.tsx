@@ -39,9 +39,15 @@ export function PushToggle() {
   if (estado === "indisponivel") return null
 
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-card p-4">
+    <div className="portal-card portal-hairline flex items-center justify-between p-4">
       <div className="flex items-center gap-3">
-        <div className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-primary">
+        <div
+          className={`grid h-11 w-11 place-items-center rounded-xl ring-1 ${
+            estado === "ativo"
+              ? "bg-primary/15 text-primary ring-primary/20"
+              : "bg-noir-surface-raised text-muted-foreground ring-noir-line"
+          }`}
+        >
           {estado === "ativo" ? <Bell className="h-5 w-5" /> : <BellOff className="h-5 w-5" />}
         </div>
         <div>
@@ -60,7 +66,11 @@ export function PushToggle() {
       <Button
         size="sm"
         variant={estado === "ativo" ? "outline" : "default"}
-        className={estado === "ativo" ? "" : "bg-primary hover:bg-purple-dark text-primary-foreground"}
+        className={
+          estado === "ativo"
+            ? "portal-tap shrink-0 rounded-lg"
+            : "portal-tap shrink-0 rounded-lg bg-primary text-primary-foreground hover:bg-purple-dark"
+        }
         disabled={ocupado || estado === "carregando" || estado === "negado"}
         onClick={alternar}
       >

@@ -84,13 +84,14 @@ export default function CheckinsPage() {
   const pendentes = itens.filter((c) => !feitos[c.id])
 
   return (
-    <div className="p-4 pt-8 space-y-5">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-semibold text-foreground">
-          <ClipboardCheck className="h-6 w-6 text-primary" /> Check-ins
+    <div className="space-y-5 p-5 pt-9">
+      <header className="portal-rise-in">
+        <p className="portal-eyebrow">Da sua psiquiatra</p>
+        <h1 className="portal-display mt-2 text-[1.75rem] font-medium leading-tight text-foreground">
+          Check-ins
         </h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Perguntas rápidas da sua psiquiatra</p>
-      </div>
+        <p className="mt-1.5 text-sm text-muted-foreground">Perguntas rápidas — leva poucos minutos</p>
+      </header>
 
       {loading ? (
         <div className="flex justify-center py-12 text-muted-foreground">
@@ -102,14 +103,25 @@ export default function CheckinsPage() {
           onRetry={carregar}
         />
       ) : pendentes.length === 0 ? (
-        <p className="rounded-2xl border border-border/60 bg-card p-6 text-center text-sm text-muted-foreground">
-          Nenhum check-in pendente. 🎉
-        </p>
+        <div className="portal-card portal-hairline flex flex-col items-center gap-3 px-6 py-14 text-center">
+          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-success/10 text-3xl ring-1 ring-success/15">
+            🎉
+          </div>
+          <div>
+            <p className="portal-display text-lg font-medium text-foreground">Tudo em dia</p>
+            <p className="mt-1 text-sm text-muted-foreground">Nenhum check-in pendente.</p>
+          </div>
+        </div>
       ) : (
-        <ul className="space-y-3">
+        <ul className="portal-rise-in portal-stagger-2 space-y-3">
           {pendentes.map((c) => (
-            <li key={c.id} className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
-              <p className="text-sm font-medium text-foreground">{ROTULO[c.tipo] ?? c.tipo}</p>
+            <li key={c.id} className="portal-card portal-hairline space-y-3 p-4">
+              <div className="flex items-center gap-2">
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-primary/12 text-primary">
+                  <ClipboardCheck className="h-4 w-4" />
+                </span>
+                <p className="text-sm font-medium text-foreground">{ROTULO[c.tipo] ?? c.tipo}</p>
+              </div>
 
               {c.tipo === "medicacao" ? (
                 <>
@@ -119,15 +131,20 @@ export default function CheckinsPage() {
                   <div className="flex gap-2">
                     <Button
                       size="sm"
-                      className="bg-primary hover:bg-purple-dark text-primary-foreground"
+                      className="portal-tap rounded-lg bg-primary text-primary-foreground hover:bg-purple-dark"
                       disabled={respondendo === c.id}
                       onClick={() => responder(c, { status: "tomada" })}
                     >
-                      {respondendo === c.id ? <Loader2 className="h-4 w-4 animate-spin" /> : "Tomei ✓"}
+                      {respondendo === c.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        "Tomei ✓"
+                      )}
                     </Button>
                     <Button
                       size="sm"
                       variant="outline"
+                      className="portal-tap rounded-lg"
                       disabled={respondendo === c.id}
                       onClick={() => responder(c, { status: "esquecida" })}
                     >
@@ -136,7 +153,11 @@ export default function CheckinsPage() {
                   </div>
                 </>
               ) : c.tipo === "humor_diario" ? (
-                <Button asChild size="sm" className="bg-primary hover:bg-purple-dark text-primary-foreground gap-1.5">
+                <Button
+                  asChild
+                  size="sm"
+                  className="portal-tap gap-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-purple-dark"
+                >
                   <Link href="/p/humor">
                     <Smile className="h-4 w-4" /> Registrar humor
                   </Link>
@@ -153,9 +174,7 @@ export default function CheckinsPage() {
                 </p>
               )}
 
-              {erros[c.id] && (
-                <p className="text-sm text-destructive">{erros[c.id]}</p>
-              )}
+              {erros[c.id] && <p className="text-sm text-destructive">{erros[c.id]}</p>}
             </li>
           ))}
         </ul>

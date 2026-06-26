@@ -87,54 +87,49 @@ export function PortalOnboarding() {
       aria-modal="true"
       aria-labelledby="onboarding-titulo"
     >
-      <div className="relative w-full max-w-md overflow-hidden rounded-2xl border border-border/60 bg-card shadow-xl">
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent"
-        />
+      <div className="portal-card portal-hairline relative w-full max-w-md overflow-hidden">
         <button
           type="button"
           aria-label="Fechar onboarding"
-          className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-secondary/70"
+          className="portal-tap absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-lg text-muted-foreground hover:bg-secondary/70"
           onClick={() => void concluir()}
         >
           <X className="h-4 w-4" />
         </button>
 
-        <div className="p-6 pt-8 space-y-5">
+        <div className="space-y-5 p-6 pt-8">
           <div className="flex gap-2">
             {PASSOS.map((_, i) => (
               <span
                 key={i}
                 className={`h-1 flex-1 rounded-full transition-colors ${
-                  i <= passo ? "bg-primary" : "bg-border"
+                  i <= passo ? "bg-primary" : "bg-noir-line"
                 }`}
               />
             ))}
           </div>
 
-          <div className="grid h-12 w-12 place-items-center rounded-xl bg-primary/15 text-primary">
+          <div className="grid h-12 w-12 place-items-center rounded-2xl bg-primary/15 text-primary ring-1 ring-primary/20">
             <Icon className="h-6 w-6" />
           </div>
 
           <div className="space-y-2">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
+            <p className="portal-eyebrow">
               Passo {passo + 1} de {PASSOS.length}
             </p>
-            <h2 id="onboarding-titulo" className="text-lg font-semibold text-foreground">
+            <h2
+              id="onboarding-titulo"
+              className="portal-display text-[1.4rem] font-medium leading-tight text-foreground"
+            >
               {cfg.titulo}
             </h2>
             <p className="text-sm leading-relaxed text-muted-foreground">{cfg.texto}</p>
           </div>
 
-          {cfg.extra === "push" && (
-            <div className="rounded-xl border border-border/50 bg-muted/20 p-3">
-              <PushToggle />
-            </div>
-          )}
+          {cfg.extra === "push" && <PushToggle />}
 
           {cfg.extra === "humor" && (
-            <Button asChild variant="outline" className="w-full gap-2">
+            <Button asChild variant="outline" className="portal-tap w-full gap-2 rounded-xl">
               <Link href="/p/humor" onClick={() => setVisivel(false)}>
                 <Smile className="h-4 w-4" /> Experimentar check-in de humor
               </Link>
@@ -143,13 +138,17 @@ export function PortalOnboarding() {
 
           <div className="flex gap-2 pt-1">
             {passo > 0 && (
-              <Button variant="ghost" className="flex-1" onClick={() => setPasso((p) => p - 1)}>
+              <Button
+                variant="ghost"
+                className="portal-tap flex-1 rounded-xl"
+                onClick={() => setPasso((p) => p - 1)}
+              >
                 Voltar
               </Button>
             )}
             {ultimo ? (
               <Button
-                className="flex-1 bg-primary hover:bg-purple-dark text-primary-foreground"
+                className="portal-tap flex-1 rounded-xl bg-primary text-primary-foreground hover:bg-purple-dark"
                 disabled={concluindo}
                 onClick={concluir}
               >
@@ -157,7 +156,7 @@ export function PortalOnboarding() {
               </Button>
             ) : (
               <Button
-                className="flex-1 gap-1 bg-primary hover:bg-purple-dark text-primary-foreground"
+                className="portal-tap flex-1 gap-1 rounded-xl bg-primary text-primary-foreground hover:bg-purple-dark"
                 onClick={() => setPasso((p) => p + 1)}
               >
                 Próximo <ChevronRight className="h-4 w-4" />

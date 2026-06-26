@@ -87,12 +87,21 @@ function resolverPrioridade(props: FaixaDoDiaProps): Prioridade {
   }
 }
 
-const VARIANT = {
-  warning: "border-warning/35 bg-warning/[0.07] via-warning/[0.04]",
-  primary: "border-primary/30 bg-primary/[0.06] via-primary/[0.03]",
-  accent: "border-accent/35 bg-accent/[0.07] via-accent/[0.04]",
-  success: "border-success/30 bg-success/[0.06] via-success/[0.03]",
-} as const
+type Tone = "warning" | "primary" | "accent" | "success"
+
+const TONE_BORDER: Record<Tone, string> = {
+  warning: "border-warning/35",
+  primary: "border-primary/35",
+  accent: "border-accent/35",
+  success: "border-success/30",
+}
+
+const TONE_GLOW: Record<Tone, string> = {
+  warning: "bg-[radial-gradient(80%_120%_at_85%_-10%,rgba(251,191,36,0.16),transparent_60%)]",
+  primary: "bg-[radial-gradient(80%_120%_at_85%_-10%,rgba(148,134,201,0.18),transparent_60%)]",
+  accent: "bg-[radial-gradient(80%_120%_at_85%_-10%,rgba(229,115,115,0.16),transparent_60%)]",
+  success: "bg-[radial-gradient(80%_120%_at_85%_-10%,rgba(52,211,153,0.14),transparent_60%)]",
+}
 
 // Hero editorial — uma prioridade por vez (“Cuidado noturno”, Tier 3).
 export function FaixaDoDia(props: FaixaDoDiaProps) {
@@ -101,7 +110,7 @@ export function FaixaDoDia(props: FaixaDoDiaProps) {
 
   if (p.kind === "checkins") {
     return (
-      <FaixaShell variant={VARIANT.warning} dia={dia}>
+      <FaixaShell tone="warning" dia={dia}>
         <FaixaIcon icon={ClipboardCheck} tone="warning" />
         <FaixaCopy
           titulo={p.qtd === 1 ? "1 check-in pendente" : `${p.qtd} check-ins pendentes`}
@@ -116,7 +125,7 @@ export function FaixaDoDia(props: FaixaDoDiaProps) {
 
   if (p.kind === "med") {
     return (
-      <FaixaShell variant={VARIANT.warning} dia={dia}>
+      <FaixaShell tone="warning" dia={dia}>
         <FaixaIcon icon={Pill} tone="warning" />
         <FaixaCopy
           titulo={`Hora da ${p.tomada.medicamento}`}
@@ -130,7 +139,7 @@ export function FaixaDoDia(props: FaixaDoDiaProps) {
 
   if (p.kind === "humor") {
     return (
-      <FaixaShell variant={VARIANT.primary} dia={dia}>
+      <FaixaShell tone="primary" dia={dia}>
         <FaixaIcon icon={Smile} tone="primary" />
         <FaixaCopy
           titulo="Como você está hoje?"
@@ -144,7 +153,7 @@ export function FaixaDoDia(props: FaixaDoDiaProps) {
 
   if (p.kind === "consulta") {
     return (
-      <FaixaShell variant={VARIANT.primary} dia={dia}>
+      <FaixaShell tone="primary" dia={dia}>
         <FaixaIcon icon={CalendarClock} tone="primary" />
         <FaixaCopy
           titulo={`Consulta ${p.relativo.toLowerCase()}`}
@@ -159,7 +168,7 @@ export function FaixaDoDia(props: FaixaDoDiaProps) {
   }
 
   return (
-    <FaixaShell variant={p.humorBaixo ? VARIANT.accent : VARIANT.success} dia={dia}>
+    <FaixaShell tone={p.humorBaixo ? "accent" : "success"} dia={dia}>
       <FaixaIcon icon={Sparkles} tone={p.humorBaixo ? "accent" : "success"} />
       <FaixaCopy
         titulo={p.humorBaixo ? "Estamos acompanhando você" : "Seu dia está em dia"}
@@ -176,26 +185,23 @@ export function FaixaDoDia(props: FaixaDoDiaProps) {
 }
 
 function FaixaShell({
-  variant,
+  tone,
   dia,
   children,
 }: {
-  variant: string
+  tone: Tone
   dia: string
   children: React.ReactNode
 }) {
   return (
     <section
-      className={`portal-rise-in portal-stagger-1 relative overflow-hidden rounded-2xl border bg-gradient-to-br to-transparent p-5 ${variant}`}
+      className={`portal-card portal-hairline portal-rise-in portal-stagger-1 relative overflow-hidden p-5 ${TONE_BORDER[tone]}`}
     >
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-foreground/20 to-transparent"
-      />
-      <p className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground capitalize">
-        Seu dia · {dia}
-      </p>
-      <div className="flex items-start gap-3.5">{children}</div>
+      <span aria-hidden className={`pointer-events-none absolute inset-0 ${TONE_GLOW[tone]}`} />
+      <div className="relative">
+        <p className="portal-eyebrow mb-3.5 capitalize">Seu dia · {dia}</p>
+        <div className="flex items-start gap-4">{children}</div>
+      </div>
     </section>
   )
 }
@@ -205,16 +211,16 @@ function FaixaIcon({
   tone,
 }: {
   icon: React.ComponentType<{ className?: string }>
-  tone: "warning" | "primary" | "accent" | "success"
+  tone: Tone
 }) {
   const cls = {
-    warning: "bg-warning/15 text-warning",
-    primary: "bg-primary/15 text-primary",
-    accent: "bg-accent/15 text-accent",
-    success: "bg-success/15 text-success",
+    warning: "bg-warning/15 text-warning ring-warning/20",
+    primary: "bg-primary/15 text-primary ring-primary/20",
+    accent: "bg-accent/15 text-accent ring-accent/20",
+    success: "bg-success/15 text-success ring-success/20",
   }[tone]
   return (
-    <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl ${cls}`}>
+    <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl ring-1 ${cls}`}>
       <Icon className="h-5 w-5" />
     </div>
   )
@@ -236,9 +242,11 @@ function FaixaCopy({
   return (
     <div className="min-w-0 flex-1 space-y-2.5">
       <div className="flex items-start gap-2">
-        <h2 className="text-lg font-semibold leading-snug text-foreground">{titulo}</h2>
+        <h2 className="portal-display text-[1.2rem] font-medium leading-snug text-foreground">
+          {titulo}
+        </h2>
         {badge && (
-          <span className="grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-warning px-1.5 text-[11px] font-bold tabular-nums text-background animate-pulse">
+          <span className="nums grid h-6 min-w-6 shrink-0 place-items-center rounded-full bg-warning px-1.5 text-[11px] font-bold text-background">
             {badge}
           </span>
         )}
@@ -246,7 +254,7 @@ function FaixaCopy({
       <p className="text-sm leading-relaxed text-muted-foreground">{subtitulo}</p>
       <Link
         href={href}
-        className="group inline-flex items-center gap-1 text-sm font-medium text-primary transition-colors hover:text-purple-light"
+        className="group inline-flex items-center gap-1 pt-0.5 text-sm font-medium text-primary transition-colors hover:text-purple-light"
       >
         {cta}
         <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />

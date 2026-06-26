@@ -11,8 +11,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { CalendarClock, Loader2, AlertTriangle, Check, X, Video } from "lucide-react"
+import { Loader2, AlertTriangle, Check, X, Video } from "lucide-react"
 import { PortalErroCarregar } from "@/components/portal/portal-erro-carregar"
+import { PortalPageHeader } from "@/components/portal/page-header"
 
 interface Consulta {
   id: string
@@ -184,45 +185,62 @@ export default function AgendaPacientePage() {
     .sort((a, b) => new Date(b.iniciaEm).getTime() - new Date(a.iniciaEm).getTime())
 
   return (
-    <div className="p-4 pt-8 space-y-6">
-      <header className="space-y-1">
-        <h1 className="flex items-center gap-2 text-xl font-semibold text-foreground">
-          <CalendarClock className="h-5 w-5 text-primary" /> Minha agenda
-        </h1>
-        <p className="text-sm text-muted-foreground">Agende uma consulta com seu médico.</p>
-      </header>
+    <div className="space-y-7 p-5 pt-9">
+      <PortalPageHeader
+        eyebrow="Consultas"
+        titulo="Minha agenda"
+        subtitulo="Agende uma consulta com seu médico."
+      />
 
       {/* Agendar */}
-      <section className="space-y-3 rounded-2xl border border-border/60 bg-card p-4">
-        <h2 className="text-sm font-semibold text-foreground">Nova consulta</h2>
+      <section className="portal-card portal-hairline portal-rise-in portal-stagger-2 space-y-3.5 p-4">
+        <h2 className="portal-eyebrow">Nova consulta</h2>
 
         {msg && (
           <div
-            className={`flex items-start gap-2 rounded-lg px-3 py-2 text-sm ${
-              msg.tipo === "ok" ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
+            className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm ${
+              msg.tipo === "ok"
+                ? "border border-success/20 bg-success/10 text-success"
+                : "border border-destructive/20 bg-destructive/10 text-destructive"
             }`}
           >
-            {msg.tipo === "ok" ? <Check className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />}
+            {msg.tipo === "ok" ? (
+              <Check className="mt-0.5 h-4 w-4 shrink-0" />
+            ) : (
+              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+            )}
             <span>{msg.texto}</span>
           </div>
         )}
 
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground">Dia</label>
-          <Input type="date" value={data} min={hojeYmd()} onChange={(e) => setData(e.target.value)} />
+          <Input
+            type="date"
+            value={data}
+            min={hojeYmd()}
+            onChange={(e) => setData(e.target.value)}
+            className="h-11 rounded-xl bg-noir-surface-raised/60"
+          />
         </div>
 
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground">Horário</label>
           <Select value={slot} onValueChange={setSlot} disabled={carregandoSlots || slots.length === 0}>
-            <SelectTrigger>
+            <SelectTrigger className="h-11 rounded-xl bg-noir-surface-raised/60">
               <SelectValue
-                placeholder={carregandoSlots ? "Carregando…" : slots.length === 0 ? "Sem horários neste dia" : "Escolha"}
+                placeholder={
+                  carregandoSlots
+                    ? "Carregando…"
+                    : slots.length === 0
+                      ? "Sem horários neste dia"
+                      : "Escolha"
+                }
               />
             </SelectTrigger>
             <SelectContent>
               {slots.map((s) => (
-                <SelectItem key={s} value={s}>
+                <SelectItem key={s} value={s} className="nums">
                   {horaLocal(s)}
                 </SelectItem>
               ))}
@@ -233,7 +251,7 @@ export default function AgendaPacientePage() {
         <div className="space-y-1.5">
           <label className="text-xs text-muted-foreground">Modalidade</label>
           <Select value={modalidade} onValueChange={setModalidade}>
-            <SelectTrigger>
+            <SelectTrigger className="h-11 rounded-xl bg-noir-surface-raised/60">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -243,14 +261,18 @@ export default function AgendaPacientePage() {
           </Select>
         </div>
 
-        <Button onClick={agendar} disabled={enviando || !slot} className="w-full">
+        <Button
+          onClick={agendar}
+          disabled={enviando || !slot}
+          className="portal-tap h-11 w-full rounded-xl bg-primary hover:bg-purple-dark"
+        >
           {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Solicitar consulta"}
         </Button>
       </section>
 
       {/* Próximas */}
       <section className="space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Próximas consultas</h2>
+        <h2 className="portal-eyebrow px-0.5">Próximas consultas</h2>
         {loading ? (
           <div className="flex justify-center py-8 text-muted-foreground">
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -261,35 +283,47 @@ export default function AgendaPacientePage() {
             onRetry={() => carregar()}
           />
         ) : futuras.length === 0 ? (
-          <p className="rounded-2xl border border-dashed border-border/60 px-4 py-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-2xl border border-dashed border-noir-line px-4 py-10 text-center text-sm text-muted-foreground">
             Você não tem consultas futuras agendadas.
           </p>
         ) : (
           futuras.map((c) => {
             const st = STATUS[c.status] ?? STATUS.agendada
             return (
-              <div key={c.id} className="rounded-2xl border border-border/60 bg-card p-4">
+              <div key={c.id} className="portal-card p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-sm font-medium capitalize text-foreground">{quando(c.iniciaEm)}</p>
+                    <p className="text-sm font-medium capitalize text-foreground">
+                      {quando(c.iniciaEm)}
+                    </p>
                     <p className="mt-0.5 text-xs capitalize text-muted-foreground">{c.modalidade}</p>
-                    <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${st.cls}`}>
+                    <span
+                      className={`mt-2.5 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-medium ${st.cls}`}
+                    >
                       {st.rotulo}
                     </span>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="gap-1 text-xs text-destructive"
+                    className="portal-tap gap-1 rounded-lg text-xs text-destructive hover:bg-destructive/10"
                     disabled={cancelando === c.id}
                     onClick={() => cancelar(c.id)}
                   >
-                    {cancelando === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <X className="h-3.5 w-3.5" />}
+                    {cancelando === c.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <X className="h-3.5 w-3.5" />
+                    )}
                     Cancelar
                   </Button>
                 </div>
                 {podeEntrarVideo(c) && (
-                  <Button asChild size="sm" className="mt-3 w-full gap-1.5">
+                  <Button
+                    asChild
+                    size="sm"
+                    className="portal-tap portal-fab mt-3 w-full gap-1.5 rounded-xl bg-gradient-to-br from-primary to-purple-dark"
+                  >
                     <Link href={`/p/consulta/${c.id}`}>
                       <Video className="h-4 w-4" /> Entrar na consulta
                     </Link>
@@ -304,14 +338,16 @@ export default function AgendaPacientePage() {
       {/* Anteriores */}
       {!loading && anteriores.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-foreground">Consultas anteriores</h2>
+          <h2 className="portal-eyebrow px-0.5">Consultas anteriores</h2>
           {anteriores.map((c) => {
             const st = STATUS[c.status] ?? STATUS.agendada
             return (
-              <div key={c.id} className="rounded-2xl border border-border/60 bg-card/50 p-4 opacity-80">
+              <div key={c.id} className="portal-card p-4 opacity-70">
                 <p className="text-sm font-medium capitalize text-foreground">{quando(c.iniciaEm)}</p>
                 <p className="mt-0.5 text-xs capitalize text-muted-foreground">{c.modalidade}</p>
-                <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${st.cls}`}>
+                <span
+                  className={`mt-2.5 inline-block rounded-full px-2.5 py-0.5 text-[10px] font-medium ${st.cls}`}
+                >
                   {st.rotulo}
                 </span>
               </div>

@@ -89,13 +89,17 @@ export function AudioRecorder() {
 
   if (fase === "consent") {
     return (
-      <div className="rounded-2xl border border-border/60 bg-card p-4 space-y-3">
+      <div className="portal-card portal-hairline space-y-3 p-4">
         <p className="text-sm font-medium text-foreground">Mensagens de áudio para sua psiquiatra</p>
-        <p className="text-xs text-muted-foreground">
-          Grave e envie áudios curtos entre as consultas. Os áudios ficam disponíveis por 60 dias
-          e só sua psiquiatra pode ouvir.
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          Grave e envie áudios curtos entre as consultas. Os áudios ficam disponíveis por 60 dias e
+          só sua psiquiatra pode ouvir.
         </p>
-        <Button size="sm" className="w-full" onClick={darConsent}>
+        <Button
+          size="sm"
+          className="portal-tap w-full rounded-lg bg-primary hover:bg-purple-dark"
+          onClick={darConsent}
+        >
           Entendi e quero usar
         </Button>
       </div>
@@ -104,8 +108,8 @@ export function AudioRecorder() {
 
   if (fase === "ok") {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-success/30 bg-success/5 p-4">
-        <CheckCircle className="h-5 w-5 text-success shrink-0" />
+      <div className="portal-card flex items-center gap-3 border-success/30 p-4">
+        <CheckCircle className="h-5 w-5 shrink-0 text-success" />
         <p className="text-sm text-foreground">Áudio enviado para sua psiquiatra.</p>
       </div>
     )
@@ -113,25 +117,33 @@ export function AudioRecorder() {
 
   if (fase === "erro") {
     return (
-      <div className="flex items-center gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
-        <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+      <div className="portal-card flex items-center gap-3 border-destructive/30 p-4">
+        <AlertCircle className="h-5 w-5 shrink-0 text-destructive" />
         <p className="text-sm text-foreground">Não consegui enviar. Tente de novo.</p>
       </div>
     )
   }
 
   return (
-    <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-card p-4">
+    <div className="portal-card portal-hairline flex items-center justify-between p-4">
       <div className="flex items-center gap-3">
-        <div className={`grid h-10 w-10 place-items-center rounded-xl ${fase === "gravando" ? "bg-destructive/10 text-destructive animate-pulse" : "bg-secondary text-primary"}`}>
+        <div
+          className={`grid h-11 w-11 place-items-center rounded-xl ring-1 ${
+            fase === "gravando"
+              ? "animate-pulse bg-destructive/12 text-destructive ring-destructive/20"
+              : "bg-primary/12 text-primary ring-primary/15"
+          }`}
+        >
           <Mic className="h-5 w-5" />
         </div>
         <div>
-          <p className="text-sm font-medium text-foreground">
+          <p className="nums text-sm font-medium text-foreground">
             {fase === "gravando" ? `Gravando… ${fmtSegundos(segundos)}` : "Mensagem de áudio"}
           </p>
           <p className="text-xs text-muted-foreground">
-            {fase === "gravando" ? "Toque em enviar quando terminar" : "Grave um recado para sua psiquiatra"}
+            {fase === "gravando"
+              ? "Toque em enviar quando terminar"
+              : "Grave um recado para sua psiquiatra"}
           </p>
         </div>
       </div>
@@ -139,11 +151,21 @@ export function AudioRecorder() {
       {fase === "enviando" ? (
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
       ) : fase === "gravando" ? (
-        <Button size="sm" onClick={pararEEnviar} className="gap-1">
+        <Button
+          size="sm"
+          onClick={pararEEnviar}
+          className="portal-tap gap-1 rounded-lg bg-primary hover:bg-purple-dark"
+        >
           <Send className="h-4 w-4" /> Enviar
         </Button>
       ) : (
-        <Button size="icon" variant="ghost" onClick={iniciarGravacao} aria-label="Gravar">
+        <Button
+          size="icon"
+          variant="ghost"
+          onClick={iniciarGravacao}
+          aria-label="Gravar"
+          className="portal-tap"
+        >
           <Mic className="h-5 w-5 text-primary" />
         </Button>
       )}

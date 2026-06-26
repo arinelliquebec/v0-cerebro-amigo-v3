@@ -3,6 +3,7 @@ import { cookies } from "next/headers"
 import { Plus, Mic, PenLine, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
+import { PortalPageHeader } from "@/components/portal/page-header"
 import { formatDistanceToNow } from "date-fns"
 import { ptBR } from "date-fns/locale"
 
@@ -40,31 +41,32 @@ export default async function DiarioPage() {
   const entradas = await carregarEntradas()
 
   return (
-    <div className="px-4 py-6 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">Diário</h1>
-          <p className="text-sm text-muted-foreground">
-            {entradas.length === 0
-              ? "Nenhuma entrada ainda"
-              : `${entradas.length} entr${entradas.length === 1 ? "ada" : "adas"}`}
-          </p>
-        </div>
-        <Button asChild size="sm">
-          <Link href="/p/diario/nova">
-            <Plus className="w-4 h-4 mr-1" />
-            Nova entrada
-          </Link>
-        </Button>
-      </div>
+    <div className="space-y-5 p-5 pt-9">
+      <PortalPageHeader
+        eyebrow="Seu espaço"
+        titulo="Diário"
+        subtitulo={
+          entradas.length === 0
+            ? "Nenhuma entrada ainda"
+            : `${entradas.length} entr${entradas.length === 1 ? "ada" : "adas"} registrada${
+                entradas.length === 1 ? "" : "s"
+              }`
+        }
+        acao={
+          <Button asChild size="sm" className="portal-tap rounded-full">
+            <Link href="/p/diario/nova">
+              <Plus className="mr-1 h-4 w-4" />
+              Nova entrada
+            </Link>
+          </Button>
+        }
+      />
 
-      {/* Lista */}
       {entradas.length === 0 ? (
         <EmptyState />
       ) : (
-        <div className="space-y-3">
-          {entradas.map(e => (
+        <div className="portal-rise-in portal-stagger-2 space-y-3">
+          {entradas.map((e) => (
             <EntradaCard key={e.id} entrada={e} />
           ))}
         </div>
@@ -84,48 +86,46 @@ function EntradaCard({ entrada }: { entrada: DiarioEntrada }) {
   return (
     <Link
       href={`/p/diario/${entrada.id}`}
-      className="block rounded-xl border bg-card p-4 hover:bg-accent/40 transition-colors"
+      className="portal-card portal-tap group block p-4 hover:border-primary/40"
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
-          {/* Título e ícone de tipo */}
-          <div className="flex items-center gap-2 mb-1">
-            {entrada.tipo === "audio" ? (
-              <Mic className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            ) : (
-              <PenLine className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-            )}
+          <div className="mb-1.5 flex items-center gap-2">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-md bg-primary/12 text-primary">
+              {entrada.tipo === "audio" ? (
+                <Mic className="h-3.5 w-3.5" />
+              ) : (
+                <PenLine className="h-3.5 w-3.5" />
+              )}
+            </span>
             {entrada.titulo ? (
-              <span className="font-medium text-sm truncate">{entrada.titulo}</span>
+              <span className="truncate text-sm font-medium text-foreground">{entrada.titulo}</span>
             ) : (
-              <span className="text-sm text-muted-foreground italic">Sem título</span>
+              <span className="text-sm italic text-muted-foreground">Sem título</span>
             )}
           </div>
 
-          {/* Preview do conteúdo */}
-          <p className="text-sm text-muted-foreground line-clamp-2">
-            {preview}{temMais && "…"}
+          <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">
+            {preview}
+            {temMais && "…"}
           </p>
 
-          {/* Meta: quando + humor + tags */}
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">{quando}</span>
-            {entrada.humor != null && (
-              <HumorBadge humor={entrada.humor} />
-            )}
+            {entrada.humor != null && <HumorBadge humor={entrada.humor} />}
             {entrada.compartilhadaComMedico && (
-              <Badge variant="outline" className="text-[10px] h-4 px-1.5">
+              <Badge variant="outline" className="h-4 px-1.5 text-[10px]">
                 Compartilhado
               </Badge>
             )}
-            {entrada.tags.slice(0, 3).map(t => (
-              <Badge key={t} variant="secondary" className="text-[10px] h-4 px-1.5">
+            {entrada.tags.slice(0, 3).map((t) => (
+              <Badge key={t} variant="secondary" className="h-4 px-1.5 text-[10px]">
                 {t}
               </Badge>
             ))}
           </div>
         </div>
-        <ChevronRight className="w-4 h-4 text-muted-foreground mt-1 shrink-0" />
+        <ChevronRight className="mt-1 h-4 w-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
       </div>
     </Link>
   )
@@ -143,17 +143,19 @@ function HumorBadge({ humor }: { humor: number }) {
 
 function EmptyState() {
   return (
-    <div className="flex flex-col items-center gap-4 py-16 text-center">
-      <div className="text-5xl">📔</div>
+    <div className="portal-card portal-hairline portal-rise-in portal-stagger-2 flex flex-col items-center gap-4 px-6 py-14 text-center">
+      <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/10 text-3xl ring-1 ring-primary/15">
+        📔
+      </div>
       <div>
-        <p className="font-medium">Seu diário está vazio</p>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="portal-display text-lg font-medium text-foreground">Seu diário está vazio</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
           Registre como você está se sentindo — por escrito ou gravando um áudio rápido.
         </p>
       </div>
-      <Button asChild>
+      <Button asChild className="portal-tap rounded-full">
         <Link href="/p/diario/nova">
-          <Plus className="w-4 h-4 mr-1" />
+          <Plus className="mr-1 h-4 w-4" />
           Primeira entrada
         </Link>
       </Button>

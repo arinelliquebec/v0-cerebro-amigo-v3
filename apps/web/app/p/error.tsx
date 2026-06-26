@@ -28,26 +28,28 @@ export default function PortalError({
   }, [error])
 
   return (
-    <div className="p-4 pt-8">
-      <div className="rounded-2xl border border-border/60 bg-card p-6 text-center space-y-4">
+    <div className="flex min-h-[70vh] items-center p-5 pt-9">
+      <div className="portal-card portal-hairline w-full space-y-4 p-6 text-center">
         <div className="flex justify-center">
-          <div className="grid h-14 w-14 place-items-center rounded-2xl bg-primary/10 text-primary">
-            <RefreshCw className="h-6 w-6" />
+          <div className="grid h-16 w-16 place-items-center rounded-2xl bg-primary/12 text-primary ring-1 ring-primary/20">
+            <RefreshCw className="h-7 w-7" />
           </div>
         </div>
-        <h2 className="text-lg font-semibold text-foreground">
+        <h2 className="portal-display text-xl font-medium text-foreground">
           Não foi possível carregar agora
         </h2>
-        <p className="text-sm text-muted-foreground">
-          Não conseguimos carregar suas informações neste momento. Isso costuma
-          ser temporário — toque em &quot;Tentar de novo&quot; ou volte daqui a
-          alguns instantes.
+        <p className="text-sm leading-relaxed text-muted-foreground">
+          Não conseguimos carregar suas informações neste momento. Isso costuma ser temporário —
+          toque em &quot;Tentar de novo&quot; ou volte daqui a alguns instantes.
         </p>
-        <Button onClick={reset} className="w-full">
+        <Button
+          onClick={reset}
+          className="portal-tap h-11 w-full rounded-xl bg-primary text-primary-foreground hover:bg-purple-dark"
+        >
           Tentar de novo
         </Button>
         {process.env.NODE_ENV === "development" && (
-          <pre className="text-left text-xs bg-muted p-3 rounded-lg overflow-auto max-h-48">
+          <pre className="max-h-48 overflow-auto rounded-lg bg-muted p-3 text-left text-xs">
             {error.message}
             {error.digest && `\nDigest: ${error.digest}`}
           </pre>

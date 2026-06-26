@@ -69,13 +69,13 @@ export function InstallPwaBanner() {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-2xl border border-primary/25 bg-primary/[0.06] p-4">
+    <section className="portal-card portal-hairline relative overflow-hidden border-primary/25 p-4">
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_120%_at_85%_-10%,rgba(148,134,201,0.14),transparent_60%)]"
       />
-      <div className="flex items-start gap-3">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+      <div className="relative flex items-start gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary ring-1 ring-primary/20">
           <Smartphone className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1 space-y-2">

@@ -29,7 +29,7 @@ export function EntrarForm({ token, next }: { token?: string; next: string }) {
       {token && <input type="hidden" name="token" value={token} />}
 
       {state.error && (
-        <div className="flex items-start gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="flex items-start gap-2 rounded-xl border border-destructive/20 bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
           <span>{state.error}</span>
         </div>
@@ -48,6 +48,7 @@ export function EntrarForm({ token, next }: { token?: string; next: string }) {
               type="password"
               autoComplete="new-password"
               placeholder="Mínimo 8 caracteres"
+              className="h-11 rounded-xl bg-noir-surface-raised/60"
               required
             />
           </div>
@@ -59,6 +60,7 @@ export function EntrarForm({ token, next }: { token?: string; next: string }) {
               type="password"
               autoComplete="new-password"
               placeholder="Repita a senha"
+              className="h-11 rounded-xl bg-noir-surface-raised/60"
               required
             />
           </div>
@@ -73,6 +75,7 @@ export function EntrarForm({ token, next }: { token?: string; next: string }) {
               type="email"
               autoComplete="email"
               placeholder="seu@email.com"
+              className="h-11 rounded-xl bg-noir-surface-raised/60"
               required
             />
           </div>
@@ -84,6 +87,7 @@ export function EntrarForm({ token, next }: { token?: string; next: string }) {
               type="password"
               autoComplete="current-password"
               placeholder="Sua senha"
+              className="h-11 rounded-xl bg-noir-surface-raised/60"
               required
             />
           </div>
@@ -93,7 +97,7 @@ export function EntrarForm({ token, next }: { token?: string; next: string }) {
       <Button
         type="submit"
         disabled={pending}
-        className="w-full bg-primary hover:bg-purple-dark text-primary-foreground"
+        className="portal-tap h-11 w-full rounded-xl bg-primary text-primary-foreground hover:bg-purple-dark"
       >
         {pending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
