@@ -1,6 +1,6 @@
 # ADR-074: `apps/web` volta para a Vercel (Pro, região gru1); decomissão da stack EC2 ASG+ALB+CloudFront do web
 
-**Status:** Proposed (→ Accepted no cutover de DNS)
+**Status:** ❌ Superseded por [ADR-076](ADR-076-web-permanece-no-ec2-lgpd.md) — **ABANDONADO**. O cutover de DNS **nunca foi executado**; a análise LGPD no momento do flip vetou a transferência de dado de saúde para operadora US. O `apps/web` **permanece no EC2** `sa-east-1`. (Preparo técnico aproveitado como hardening — ver ADR-076.)
 **Data:** 2026-06-29
 **Decisores:** Rafael Arinelli, Adonai Arinelli
 **Categoria:** Infra / Arquitetura / Compliance
