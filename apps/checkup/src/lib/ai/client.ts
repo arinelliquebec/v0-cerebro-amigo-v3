@@ -8,7 +8,11 @@ export function getAnthropicClient(): Anthropic | null {
   if (!apiKey) return null;
   // timeout/maxRetries explícitos: defaults do SDK (~10min, 2 retries) somados ao retry
   // manual em devolutiva.ts amplificam custo/latência numa superfície pública.
-  _client = new Anthropic({ apiKey, timeout: 15000, maxRetries: 1 });
+  // maxRetries:0 — numa superfície pública anônima o SDK NÃO deve retentar erro de
+  // rede/5xx (cada retry é uma chamada faturada a mais). O fallback estático já é a
+  // rede de segurança; o único reenvio é o retry de PARSE em devolutiva.ts (teto 2
+  // chamadas/request em vez de ~4). Anti denial-of-wallet (ADR de hardening do checkup).
+  _client = new Anthropic({ apiKey, timeout: 15000, maxRetries: 0 });
   return _client;
 }
 

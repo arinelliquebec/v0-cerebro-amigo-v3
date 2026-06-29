@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getSql } from "@/lib/db";
 import { checkTrackingLimit } from "@/lib/ratelimit";
+import { getClientIp } from "@/lib/client-ip";
 import { bandSchema } from "@/lib/tracking/bands";
 
 /**
@@ -21,14 +22,6 @@ const BodySchema = z.object({
   crisis: z.boolean().default(false),
 });
 
-function getClientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown"
-  );
-}
-
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const parsed = BodySchema.safeParse(body);
@@ -41,7 +34,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "crisis_not_eligible" }, { status: 409 });
   }
 
-  const limit = await checkTrackingLimit(getClientIP(req), token);
+  const limit = await checkTrackingLimit(getClientIp(req), token);
   if (!limit.allowed) {
     const retryAfter = Math.ceil((limit.retryAfterMs ?? 3600000) / 1000);
     return NextResponse.json(

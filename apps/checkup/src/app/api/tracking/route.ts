@@ -4,6 +4,7 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { getSql } from "@/lib/db";
 import { checkTrackingLimit } from "@/lib/ratelimit";
+import { getClientIp } from "@/lib/client-ip";
 import { bandSchema } from "@/lib/tracking/bands";
 
 /**
@@ -36,14 +37,6 @@ const BodySchema = z.object({
   crisis: z.boolean().default(false),
 });
 
-function getClientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown"
-  );
-}
-
 export async function POST(req: NextRequest) {
   // dark até a Fase 3 (envio + erasure) estar no ar — não coletar e-mail que não dá pra usar.
   if (process.env.NEXT_PUBLIC_CHECKUP_TRACKING_ENABLED !== "true") {
@@ -56,7 +49,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "tracking_unavailable" }, { status: 503 });
   }
 
-  const ip = getClientIP(req);
+  const ip = getClientIp(req);
   const limitKeyBody = await req.json().catch(() => null);
   const parsed = BodySchema.safeParse(limitKeyBody);
   if (!parsed.success) {

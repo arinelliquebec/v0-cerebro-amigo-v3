@@ -4,17 +4,10 @@ import { createElement } from "react";
 import QRCode from "qrcode";
 import { CheckupPDF, buildQrUrl } from "@/components/CheckupPDF";
 import { checkPdfLimit } from "@/lib/ratelimit";
-
-function getClientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown"
-  );
-}
+import { getClientIp } from "@/lib/client-ip";
 
 export async function GET(req: NextRequest) {
-  const ip = getClientIP(req);
+  const ip = getClientIp(req);
   const limit = await checkPdfLimit(ip);
   if (!limit.allowed) {
     const retryAfter = Math.ceil((limit.retryAfterMs ?? 3600000) / 1000);
@@ -41,6 +34,22 @@ export async function GET(req: NextRequest) {
   const score = parseInt(scoreStr, 10);
   if (!scale || !band) {
     return NextResponse.json({ error: "missing_params" }, { status: 400 });
+  }
+  // Limites de tamanho: estas strings entram cruas no react-pdf (renderToBuffer) numa
+  // superfície pública. Sem teto, query params gigantes inflam CPU/RAM do container
+  // (256m/0.5cpu) e o tamanho do PDF — DoS de recurso. `sub` (ASSIST) é multi-linha:
+  // cap por tamanho E por nº de entradas. Score num range sano. Anti-abuso do checkup.
+  if (
+    scale.length > 24 ||
+    band.length > 24 ||
+    label.length > 64 ||
+    sub.length > 500 ||
+    sub.split(/[\n,;|]/).length > 30 ||
+    !Number.isFinite(score) ||
+    score < 0 ||
+    score > 999
+  ) {
+    return NextResponse.json({ error: "invalid_params" }, { status: 400 });
   }
 
   // QR real (PNG data-URL) gerado server-side — react-pdf não roda <canvas>,

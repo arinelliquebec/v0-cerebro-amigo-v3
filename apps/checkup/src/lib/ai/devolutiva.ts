@@ -1,6 +1,7 @@
 import { getAnthropicClient, HAIKU_MODEL } from "./client";
 import { DevolutivaSchema, devolutivaHasProhibitedContent } from "./types";
 import { getFallback } from "./fallbacks";
+import { tryConsumeLlmBudget } from "./breaker";
 import type { Devolutiva, DevolutivaInput } from "./types";
 
 const SYSTEM_PROMPT = `Você escreve devolutivas de instrumentos de TRIAGEM de saúde mental.
@@ -54,6 +55,13 @@ export async function generateDevolutiva(input: DevolutivaInput): Promise<Devolu
 
   const client = getAnthropicClient();
   if (!client) return getFallback(input);
+
+  // Circuit breaker global (anti denial-of-wallet): se o teto horário/diário de
+  // chamadas estourou, degrada para o fallback estático em vez de chamar o LLM.
+  // O usuário ainda recebe devolutiva; o gasto fica capped. Conferido AQUI (não na
+  // rota) para que as escalas sem LLM (short-circuit acima) não consumam orçamento.
+  const budget = await tryConsumeLlmBudget();
+  if (!budget.allowed) return getFallback(input);
 
   try {
     const response = await client.messages.create({

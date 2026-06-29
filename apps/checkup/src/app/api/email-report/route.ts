@@ -8,6 +8,7 @@ import { CheckupPDF } from "@/components/CheckupPDF";
 import { getDb } from "@/lib/db";
 import { reportEmails } from "@/lib/db/schema";
 import { checkPdfLimit } from "@/lib/ratelimit";
+import { getClientIp } from "@/lib/client-ip";
 
 // Envio do relatório PDF por e-mail via Resend (ADR-061). LGPD: o e-mail bruto NUNCA é
 // gravado — só o hash bcrypt em report_emails (tabela separada, sem FK com test_results).
@@ -21,18 +22,12 @@ const BodySchema = z.object({
   // as 3 originais — senão AUDIT/MDQ/Fagerström/MSI-BPD/ASSIST baixam PDF mas dão 400 no envio.
   scale: z.enum(["phq9", "gad7", "asrs18", "audit", "mdq", "fagerstrom", "msi_bpd", "assist"]),
   score: z.number().int().min(0).max(100),
-  band: z.string().min(1),
-  label: z.string().min(1),
+  // .max(): band/label entram no react-pdf (renderToBuffer). Cap evita inflar CPU/RAM
+  // e tamanho do anexo numa rota pública que dispara e-mail (custo externo).
+  band: z.string().min(1).max(24),
+  label: z.string().min(1).max(64),
   crisis: z.boolean().default(false),
 });
-
-function getClientIP(req: NextRequest): string {
-  return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
-    req.headers.get("x-real-ip") ??
-    "unknown"
-  );
-}
 
 // Corpo fixo do e-mail (texto). O PDF vai como anexo — o Resend monta o MIME.
 const REPORT_TEXT =
@@ -44,8 +39,10 @@ const REPORT_TEXT =
   "— Check-up Mental · Cérebro Amigo\n";
 
 export async function POST(req: NextRequest) {
-  const ip = getClientIP(req);
-  const limit = await checkPdfLimit(ip); // mesmo teto do PDF (envio gera 1 PDF; anti-spam por IP)
+  const ip = getClientIp(req);
+  // fail-closed: e-mail dispara Resend (custo externo + reputação do domínio clínico
+  // compartilhado magic-link/crise/onboarding). Sob falha de DB, negar em vez de abrir.
+  const limit = await checkPdfLimit(ip, true); // mesmo teto do PDF (envio gera 1 PDF; anti-spam por IP)
   if (!limit.allowed) {
     const retryAfter = Math.ceil((limit.retryAfterMs ?? 3600000) / 1000);
     return NextResponse.json(
