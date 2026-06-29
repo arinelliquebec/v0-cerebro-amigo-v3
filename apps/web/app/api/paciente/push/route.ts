@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -24,7 +25,7 @@ export async function POST(req: NextRequest) {
   if (!endpoint || !p256dh || !auth) {
     return NextResponse.json({ erro: "subscription inválida" }, { status: 400 })
   }
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/push/subscribe`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/push/subscribe`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ endpoint, p256dhKey: p256dh, authKey: auth }),
@@ -43,7 +44,7 @@ export async function DELETE(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const endpoint = body?.endpoint
   if (!endpoint) return NextResponse.json({ erro: "endpoint ausente" }, { status: 400 })
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/push/unsubscribe`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/push/unsubscribe`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ endpoint }),

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -11,7 +12,7 @@ async function tok() {
 export async function GET() {
   const token = await tok()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/perfil`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/perfil`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   })
@@ -29,7 +30,7 @@ export async function PATCH(req: NextRequest) {
   const token = await tok()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
   const body = await req.json().catch(() => ({}))
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/perfil`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/perfil`, {
     method: "PATCH",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({

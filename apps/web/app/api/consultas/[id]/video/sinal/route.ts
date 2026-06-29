@@ -3,6 +3,11 @@ import { cookies } from "next/headers"
 import { proxySinalSSE, proxySinalPOST } from "@/lib/teleconsulta-proxy"
 import { isSameOrigin } from "@/lib/same-origin"
 
+// SSE de sinalização: teto de execução da Vercel Function (Fluid Compute). Ao
+// cortar no fim, o EventSource do cliente reabre (SalaVideo.tsx) e o gateway
+// re-emite `presenca` → a sinalização sobrevive ao corte.
+export const maxDuration = 300
+
 // SSE + cookies() já tornam estas rotas dinâmicas (sob cacheComponents não se
 // usa `export const dynamic`). GET = recebe (SSE); POST = envia (offer/answer/ICE).
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

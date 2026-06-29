@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -12,7 +13,7 @@ async function tok() {
 export async function GET() {
   const token = await tok()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio/consent`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio/consent`, {
     headers: { Authorization: `Bearer ${token}` },
   })
   return new NextResponse(await res.text(), { status: res.status })
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
   }
   const token = await tok()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio/consent`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio/consent`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   })

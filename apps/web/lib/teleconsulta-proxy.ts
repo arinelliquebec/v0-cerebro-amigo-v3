@@ -7,6 +7,7 @@
  * Não logam o corpo: SDP/ICE contêm IP (PII). Só metadados, se necessário.
  */
 import { NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 
 const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 
@@ -16,7 +17,7 @@ export async function proxySinalSSE(gatewayPath: string, token: string | undefin
 
   let upstream: Response
   try {
-    upstream = await fetch(`${GATEWAY}${gatewayPath}`, {
+    upstream = await gatewayFetch(`${GATEWAY}${gatewayPath}`, {
       headers: { Authorization: `Bearer ${token}`, Accept: "text/event-stream" },
       cache: "no-store",
     })
@@ -49,7 +50,7 @@ export async function proxySinalPOST(
 ) {
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
 
-  const res = await fetch(`${GATEWAY}${gatewayPath}`, {
+  const res = await gatewayFetch(`${GATEWAY}${gatewayPath}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body,

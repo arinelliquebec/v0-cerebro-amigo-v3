@@ -359,6 +359,83 @@ app.UseExceptionHandler(errorApp =>
 });
 
 app.UseCors("dashboard");
+
+// -----------------------------------------------------------------------------
+// Edge origin auth (ADR-074) — autenticação de ORIGEM, acima do JWT/INTERNAL_API_TOKEN.
+// Quando EDGE_AUTH_SECRET está configurado, todo request exige o header
+// `X-Edge-Auth: <secret>`, provando que o caller é a nossa origem (o BFF na Vercel).
+// O egress da Vercel não tem IP fixo p/ allowlist no ALB → a origem é provada por
+// segredo compartilhado. FLAG-GATED: sem a env é no-op (não afeta o web-no-EC2 atual
+// nem o dev). Roda antes da authn p/ barrar randoms cedo, fail-closed 403.
+// Exemções = callers públicos legítimos que NÃO passam pelo BFF: health/ready
+// (ALB+uptime), webhook do Asaas (auth própria por ASAAS_WEBHOOK_TOKEN), OpenAPI,
+// e o preflight CORS. Chamadas internas (workers Python → gateway) passam pelo
+// bypass do INTERNAL_API_TOKEN. Links de e-mail (magic-link, unsubscribe, reset)
+// apontam pro domínio do web (FRONTEND_URL/PORTAL_PACIENTE_URL) e chegam ao gateway
+// via BFF → carregam o header, não precisam de exemção. Novo webhook público direto
+// no gateway PRECISA entrar nesta lista antes de habilitar o segredo.
+// -----------------------------------------------------------------------------
+var edgeAuthSecret = app.Configuration["EDGE_AUTH_SECRET"];
+if (!string.IsNullOrEmpty(edgeAuthSecret))
+{
+    var edgeBytes = System.Text.Encoding.UTF8.GetBytes(edgeAuthSecret);
+    // Rotação zero-downtime: durante a janela, o valor anterior também é aceito,
+    // então dá p/ trocar o segredo no web e no gateway sem 403 no meio.
+    var edgeAuthPrevious = app.Configuration["EDGE_AUTH_SECRET_PREVIOUS"];
+    var edgePrevBytes = string.IsNullOrEmpty(edgeAuthPrevious)
+        ? null : System.Text.Encoding.UTF8.GetBytes(edgeAuthPrevious);
+    var internalApiToken = app.Configuration["INTERNAL_API_TOKEN"] ?? "";
+    var internalBytes = System.Text.Encoding.UTF8.GetBytes(internalApiToken);
+
+    app.Use(async (context, next) =>
+    {
+        var req = context.Request;
+        var exempt =
+            HttpMethods.IsOptions(req.Method)
+            || req.Path.StartsWithSegments("/health")
+            || req.Path.StartsWithSegments("/ready")
+            || req.Path.StartsWithSegments("/openapi")
+            || req.Path.StartsWithSegments("/api/v1/asaas/webhook");
+
+        if (!exempt)
+        {
+            // Comparação constante-time (timing-safe), espelhando a policy "internal".
+            var provided = req.Headers["X-Edge-Auth"].ToString();
+            var providedBytes = System.Text.Encoding.UTF8.GetBytes(provided);
+            var okEdge = provided.Length > 0
+                && (CryptographicOperations.FixedTimeEquals(providedBytes, edgeBytes)
+                    || (edgePrevBytes is not null
+                        && CryptographicOperations.FixedTimeEquals(providedBytes, edgePrevBytes)));
+
+            // Bypass das chamadas internas (workers Python) que já se autenticam
+            // com Bearer ${INTERNAL_API_TOKEN}. O BFF usa JWT do usuário (não este
+            // token) → o BFF depende do X-Edge-Auth, como desejado.
+            var okInternal = false;
+            if (!okEdge && internalApiToken.Length > 0)
+            {
+                var auth = req.Headers.Authorization.ToString();
+                if (auth.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    var bearer = auth["Bearer ".Length..].Trim();
+                    okInternal = bearer.Length > 0
+                        && CryptographicOperations.FixedTimeEquals(
+                            System.Text.Encoding.UTF8.GetBytes(bearer), internalBytes);
+                }
+            }
+
+            if (!okEdge && !okInternal)
+            {
+                context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                context.Response.ContentType = "application/json";
+                await context.Response.WriteAsJsonAsync(new { error = "edge_auth_required" });
+                return;
+            }
+        }
+
+        await next();
+    });
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 

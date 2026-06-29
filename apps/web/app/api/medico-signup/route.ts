@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { isSameOrigin } from "@/lib/same-origin"
 
 // BFF do auto-cadastro de médico externo (ADR-046). Repassa p/ o gateway
@@ -22,7 +23,7 @@ export async function POST(req: NextRequest) {
   const xff = req.headers.get("x-forwarded-for") ?? ""
 
   try {
-    const r = await fetch(`${GATEWAY}/api/v1/auth/medico/signup`, {
+    const r = await gatewayFetch(`${GATEWAY}/api/v1/auth/medico/signup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

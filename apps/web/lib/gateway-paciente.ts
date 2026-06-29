@@ -7,6 +7,7 @@
  */
 
 import { cookies } from "next/headers"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 
 const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
 
@@ -23,7 +24,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const store = await cookies()
   const bearer = store.get("paciente_token")?.value
 
-  const res = await fetch(`${GATEWAY}${path}`, {
+  const res = await gatewayFetch(`${GATEWAY}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
