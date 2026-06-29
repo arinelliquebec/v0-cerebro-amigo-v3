@@ -264,6 +264,9 @@ Resources:
             SA_KEY=$(get /cerebro-amigo/web/server-actions-key)
             INTERNAL=$(get /cerebro-amigo/web/internal-api-token 2>/dev/null || echo "")
             METRICS=$(get /cerebro-amigo/web/checkup-metrics-token 2>/dev/null || echo "")
+            # ADR-074: header secreto de origem (X-Edge-Auth) p/ o gateway exposto.
+            # Graceful: vazio se o param nao existe -> gatewayFetch vira no-op (inerte).
+            EDGE=$(get /cerebro-amigo/web/edge-auth-secret 2>/dev/null || echo "")
             aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ECR
             docker rm -f web 2>/dev/null || true
             docker run -d --name web --restart unless-stopped \
@@ -277,6 +280,7 @@ Resources:
               -e NEXT_SERVER_ACTIONS_ENCRYPTION_KEY="$SA_KEY" \
               -e API_GATEWAY_URL="${ApiGatewayUrl}" \
               -e INTERNAL_API_TOKEN="$INTERNAL" \
+              -e EDGE_AUTH_SECRET="$EDGE" \
               -e CHECKUP_METRICS_TOKEN="$METRICS" \
               -e CHECKUP_METRICS_URL=https://checkup.cerebroamigo.com.br/api/funnel-metrics \
               -e FRONTEND_URL=https://www.cerebroamigo.com.br \
