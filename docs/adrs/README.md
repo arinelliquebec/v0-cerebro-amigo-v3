@@ -75,7 +75,8 @@ contexto regulatório, sem dependência da memória do autor.
 | [053](ADR-053-sizing-box-clinico-t3xlarge.md) | Vertical scaling do box clínico para t3.xlarge + recalibração de recursos | Accepted | Infra / Operação / Segurança clínica |
 | [054](ADR-054-cifragem-em-repouso-rds.md) | Cifragem em repouso do RDS clínico (migração para instância KMS-encrypted via snapshot+restore) | Accepted | Infra / Segurança clínica / LGPD |
 | [055](ADR-055-sem-trial-paywall-assinatura.md) | Sem trial — acesso por assinatura com prazo de pagamento (paywall) + cadência mensal/trimestral | Proposed | Produto / Negócio / Segurança clínica |
-| [074](ADR-074-web-na-vercel-decommission-aws.md) | `apps/web` volta para a Vercel (Pro, gru1); decomissão da stack EC2 ASG+ALB+CloudFront do web | Proposed | Infra / Arquitetura / Compliance |
+| [074](ADR-074-web-na-vercel-decommission-aws.md) | `apps/web` volta para a Vercel (Pro, gru1); decomissão da stack EC2 ASG+ALB+CloudFront do web | ❌ Superseded (ADR-076) | Infra / Arquitetura / Compliance |
+| [076](ADR-076-web-permanece-no-ec2-lgpd.md) | `apps/web` permanece no EC2 — migração para a Vercel abandonada por LGPD (residência de dado no BR) | Accepted | Infra / Arquitetura / Compliance |
 
 ## Status possíveis
 
