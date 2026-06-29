@@ -1,17 +1,22 @@
-/* CSP em Report-Only (hardening LGPD). DELIBERADAMENTE não-enforcing: o dashboard usa
-   React Compiler + bootstrap inline do Next (script e style inline) e o `eval` que alguns
-   chunks do Next/Turbopack ainda emitem — uma CSP enforcing com nonce exigiria render
-   dinâmico e quebraria o modelo SSG/PPR + cacheComponents. Report-Only NÃO bloqueia nada,
-   só mede violações; usamos p/ apertar depois (mover de Report-Only p/ enforcing + nonce
-   quando o inventário de inline/eval estiver fechado). Espelha a policy do checkup
-   (apps/checkup/next.config.ts), adaptada às chamadas reais do front web:
-     - script-src: 'unsafe-inline'/'unsafe-eval' p/ Next/React Compiler + Turnstile (ADR-055,
-       script de challenges.cloudflare.com).
-     - frame-src: Turnstile renderiza o desafio num iframe de challenges.cloudflare.com.
-     - connect-src: 'self' + viacep.com.br (busca de CEP no /p/perfil, fetch client-side).
-     - img-src data:/blob: p/ ícones inline, QR e previews.
-   Sem report-uri por ora (sem coletor de relatórios); adicionar ao apertar. */
-const CSP_REPORT_ONLY = [
+/* CSP ENFORCING (hardening P1). Antes era Report-Only; flipado p/ enforce após inventário
+   exaustivo dos recursos client-side (2026-06-29): todo recurso carregado pelo browser foi
+   mapeado e está na policy abaixo. MANTÉM 'unsafe-inline'/'unsafe-eval' em script-src —
+   exigidos por React Compiler + bootstrap inline do Next + eval de chunks Turbopack; nonce
+   exigiria render dinâmico e quebraria SSG/PPR + cacheComponents. Trade-off REGISTRADO: isso
+   esvazia o valor anti-XSS no eixo script (um XSS injetado executaria); a CSP ainda barra
+   exfiltração trivial (connect-src allowlist), clickjacking (frame-ancestors), base-hijack
+   (base-uri) e plugins (object-src). Futuro: nonce + 'strict-dynamic' quando o inventário
+   inline fechar.
+   Hosts externos legítimos (presigned S3, sa-east-1, virtual-hosted — Program.cs sem
+   ForcePathStyle; bucket names = defaults do código, sem override no repo):
+     - img-src:     foto de perfil do médico — <img> CRU (não next/image), bucket medico-docs.
+     - connect-src: uploads PUT presigned (foto + áudio do paciente) + viacep (CEP /p/perfil).
+     - media-src:   playback do áudio do paciente pelo médico (ADR-064), bucket audio-msgs.
+   Turnstile (ADR-055) em script-src/frame-src. worker-src/manifest-src explícitos p/ o PWA.
+   upgrade-insecure-requests espelha a policy do checkup. */
+const S3_MEDICO_DOCS = "https://cerebro-amigo-medico-docs.s3.sa-east-1.amazonaws.com";
+const S3_AUDIO_MSGS = "https://cerebro-amigo-audio-msgs.s3.sa-east-1.amazonaws.com";
+const CSP = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
@@ -19,10 +24,14 @@ const CSP_REPORT_ONLY = [
   "form-action 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com",
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
+  `img-src 'self' data: blob: ${S3_MEDICO_DOCS}`,
   "font-src 'self' data:",
-  "connect-src 'self' https://viacep.com.br",
+  `connect-src 'self' https://viacep.com.br ${S3_MEDICO_DOCS} ${S3_AUDIO_MSGS}`,
+  `media-src 'self' ${S3_AUDIO_MSGS}`,
   "frame-src https://challenges.cloudflare.com",
+  "worker-src 'self'",
+  "manifest-src 'self'",
+  "upgrade-insecure-requests",
 ].join("; ");
 
 /** @type {import('next').NextConfig} */
@@ -101,6 +110,22 @@ const nextConfig = {
           { key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" },
         ],
       },
+      /* X-Robots-Tag: noindex nas áreas privadas. Substitui a enumeração que antes
+         vivia no robots.txt (público → revelava topologia sensível). Mesmo efeito de
+         não-indexação, sem mapa pra atacante. `:path*` casa o prefixo e a base. */
+      ...[
+        "/admin",
+        "/dashboard",
+        "/p",
+        "/paciente",
+        "/ativar-conta",
+        "/api",
+        "/login",
+        "/medicos/cadastro",
+      ].map((prefix) => ({
+        source: `${prefix}/:path*`,
+        headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      })),
       {
         source: "/:path*",
         headers: [
@@ -130,11 +155,12 @@ const nextConfig = {
             value: "camera=(self), microphone=(self), geolocation=(), interest-cohort=()",
           },
           {
-            /* CSP em Report-Only: mede violações sem bloquear (ver CSP_REPORT_ONLY acima).
-               Não usar a versão enforcing aqui sem antes fechar o inventário de inline/eval
-               do dashboard — caso contrário quebra React Compiler + bootstrap do Next. */
-            key: "Content-Security-Policy-Report-Only",
-            value: CSP_REPORT_ONLY,
+            /* CSP ENFORCING (ver CSP acima). Inventário de recursos client-side fechado em
+               2026-06-29 (foto/áudio S3 nas diretivas img/connect/media). Gate de deploy:
+               smoke do avatar do médico + playback de áudio em prod (CSP bloqueia silencioso
+               se o host S3 divergir do default). */
+            key: "Content-Security-Policy",
+            value: CSP,
           },
         ],
       },

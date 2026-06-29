@@ -44,7 +44,11 @@ const nextConfig: NextConfig = {
 
   // Headers de segurança em todas as rotas (P1 hardening — checkup não tinha nenhum).
   async headers() {
-    return [{ source: "/:path*", headers: SECURITY_HEADERS }];
+    return [
+      // noindex na superfície de API (saiu do robots.txt público; mesmo efeito, sem reveal).
+      { source: "/api/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }] },
+      { source: "/:path*", headers: SECURITY_HEADERS },
+    ];
   },
   // LCP/FCP: inline do CSS crítico no <head> (sem <link> render-blocking). Tira
   // um RTT do critical path — sob throttle slow-4G (Lantern) o CSS deixa de
