@@ -155,6 +155,24 @@ const nextConfig = {
             value: "camera=(self), microphone=(self), geolocation=(), interest-cohort=()",
           },
           {
+            /* COOP: corta o vínculo com janelas/openers cross-origin (vetor Spectre
+               cross-window). `allow-popups` preserva popups que NÓS abrimos (ex.: checkout
+               Asaas) — isola sem quebrar fluxo. Não ativa crossOriginIsolated (não
+               precisamos de SharedArrayBuffer). */
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin-allow-popups",
+          },
+          {
+            /* CORP: impede que outras origens carreguem nossas respostas como recurso
+               no-cors (side-channel). App é privado, não serve recurso cross-origin. */
+            key: "Cross-Origin-Resource-Policy",
+            value: "same-origin",
+          },
+          /* COEP (require-corp/credentialless) DEIXADO DE FORA de propósito: quebraria o
+             iframe do Turnstile (ADR-055) e imagens/áudio em S3 cross-origin (não mandam
+             CORP). COOP+CORP já cobrem o grosso do side-channel sem crossOriginIsolated.
+             Reavaliar só se precisar de SharedArrayBuffer. */
+          {
             /* CSP ENFORCING (ver CSP acima). Inventário de recursos client-side fechado em
                2026-06-29 (foto/áudio S3 nas diretivas img/connect/media). Gate de deploy:
                smoke do avatar do médico + playback de áudio em prod (CSP bloqueia silencioso
