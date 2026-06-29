@@ -5,6 +5,7 @@
  */
 
 import { cookies } from "next/headers"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { NextResponse } from "next/server"
 import { decodeJwtRole } from "@/lib/jwt"
 
@@ -35,7 +36,7 @@ async function request<T>(
     throw new GatewayError(401, { error: "sessao_invalida" })
   }
 
-  const res = await fetch(`${GATEWAY}${path}`, {
+  const res = await gatewayFetch(`${GATEWAY}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",

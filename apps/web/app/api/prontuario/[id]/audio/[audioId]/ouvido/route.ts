@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -16,7 +17,7 @@ export async function PATCH(
   const { id, audioId } = await params
   const token = (await cookies()).get("auth_token")?.value
   if (!token) return NextResponse.json({ error: "não autorizado" }, { status: 401 })
-  const res = await fetch(
+  const res = await gatewayFetch(
     `${GATEWAY}/api/v1/prontuario/${id}/mensagens-audio/${audioId}/ouvido`,
     { method: "PATCH", headers: { Authorization: `Bearer ${token}` } }
   )

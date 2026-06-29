@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 
 const GATEWAY = process.env.API_GATEWAY_URL ?? "http://localhost:5050"
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
   const data = req.nextUrl.searchParams.get("data")
   if (!data) return NextResponse.json({ erro: "data obrigatória" }, { status: 400 })
-  const res = await fetch(
+  const res = await gatewayFetch(
     `${GATEWAY}/api/v1/portal/paciente/agenda/disponibilidade?data=${encodeURIComponent(data)}`,
     { headers: { Authorization: `Bearer ${token}` }, cache: "no-store" },
   )

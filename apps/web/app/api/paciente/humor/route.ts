@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -13,7 +14,7 @@ export async function GET(req: NextRequest) {
   const token = await tok()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
   const dias = req.nextUrl.searchParams.get("dias") ?? "30"
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/humor/historico?dias=${dias}`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/humor/historico?dias=${dias}`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   })
@@ -35,7 +36,7 @@ export async function POST(req: NextRequest) {
   if (typeof b?.humor !== "number") {
     return NextResponse.json({ erro: "humor (1-10) obrigatório" }, { status: 400 })
   }
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/humor`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/humor`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({

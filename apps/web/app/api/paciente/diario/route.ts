@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -13,7 +14,7 @@ export async function GET() {
   const token = await getToken()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
 
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/diario/?pageSize=30`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/diario/?pageSize=30`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   })
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ erro: "conteudo obrigatório" }, { status: 400 })
   }
 
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/diario/`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/diario/`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${token}`,

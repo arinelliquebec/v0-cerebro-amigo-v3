@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -12,7 +13,7 @@ async function tok() {
 export async function GET() {
   const token = await tok()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/agenda`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/agenda`, {
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
   })
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
   const b = await req.json().catch(() => null)
   if (!b?.iniciaEm) return NextResponse.json({ erro: "iniciaEm obrigatório" }, { status: 400 })
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/agenda`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/agenda`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ iniciaEm: b.iniciaEm, modalidade: b.modalidade ?? "teleconsulta" }),

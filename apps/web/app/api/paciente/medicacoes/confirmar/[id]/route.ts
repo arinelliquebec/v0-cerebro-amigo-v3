@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -18,7 +19,7 @@ export async function POST(
   const { id } = await params
   const body = await req.json().catch(() => ({}))
 
-  const res = await fetch(
+  const res = await gatewayFetch(
     `${GATEWAY}/api/v1/portal/paciente/medicacoes/confirmar/${id}`,
     {
       method: "POST",

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest) {
 
   let res: Response
   try {
-    res = await fetch(`${GATEWAY}/api/v1/portal/paciente/diario/audio/transcrever`, {
+    res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/diario/audio/transcrever`, {
       method: "POST",
       headers: { Authorization: `Bearer ${token}` },
       body: gatewayForm,

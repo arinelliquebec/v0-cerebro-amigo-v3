@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
+import { gatewayFetch } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const token = (await cookies()).get("paciente_token")?.value
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
 
-  const res = await fetch(`${GATEWAY}/api/v1/portal/paciente/agenda/${id}/video/entrar`, {
+  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/agenda/${id}/video/entrar`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },
     cache: "no-store",
