@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { gatewayFetch } from "@/lib/gateway-fetch"
+import { gatewayProxy } from "@/lib/gateway-fetch"
 import { cookies } from "next/headers"
 import { isSameOrigin } from "@/lib/same-origin"
 
@@ -13,10 +13,9 @@ async function tok() {
 export async function GET() {
   const token = await tok()
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
-  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio`, {
+  return gatewayProxy(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  return new NextResponse(await res.text(), { status: res.status })
 }
 
 // POST /api/paciente/audio — registrar após upload
@@ -29,10 +28,9 @@ export async function POST(req: NextRequest) {
   if (!token) return NextResponse.json({ erro: "não autenticado" }, { status: 401 })
   const body = await req.json().catch(() => null)
   if (!body?.s3Key) return NextResponse.json({ erro: "s3Key obrigatório" }, { status: 400 })
-  const res = await gatewayFetch(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio`, {
+  return gatewayProxy(`${GATEWAY}/api/v1/portal/paciente/mensagens-audio`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ s3Key: body.s3Key, duracaoS: body.duracaoS ?? 0 }),
   })
-  return new NextResponse(await res.text(), { status: res.status })
 }
