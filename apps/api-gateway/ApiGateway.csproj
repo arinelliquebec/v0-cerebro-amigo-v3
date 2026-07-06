@@ -19,6 +19,9 @@
     <!-- ASP.NET Core OpenAPI 3.1 nativo do .NET 10 -->
     <PackageReference Include="AWSSDK.S3" Version="4.0.24" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.0" />
+    <!-- Pin direto: a transitiva Microsoft.OpenApi 2.0.0 tem advisory NU1903
+         (GHSA-v5pm-xwqc-g5wc) e o restore trata como erro — 2.7.5 é a corrigida. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.7.5" />
 
     <!-- EF Core 10 + Postgres com JSONB nativo -->
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.1" />

@@ -55,13 +55,18 @@ construtor prevalece). **Fix commitado nesta branch:** host RFC1918 → TLS com
 hosts RDS mantêm verify-full. `tsc` PASS. Evolução registrada: cert com SAN
 (IP/`db.cerebro.internal`) + CA própria via env → verify-full também no caminho interno.
 
-## Pendências para fechar o Gate 0
+## Fechamento do Gate 0 — 2026-07-06T22:29Z ✅
 
-1. **Deploy do fix** (merge da branch → CI build do checkup → bump image-tag → instance
-   refresh — fluxo normal de deploy; decisão de merge é do operador).
-2. Re-executar o E2E deste doc e **provar persistência no local** (sessão gravada em
-   `test_results`/`funnel_events` + RDS congelado).
-3. **Só então inicia o relógio de 48h do checkup** exigido pelo gate de delete do RDS.
+1. **Deploy do fix:** PR #167 mergeado 22:20Z → CI build checkup → instance refresh
+   **Successful 100%** (~22:28Z), imagem `fba6fb7…`. (O build **clínico** do mesmo run
+   falhou por NU1903 pré-existente em `Microsoft.OpenApi` 2.0.0 — advisory
+   GHSA-v5pm-xwqc-g5wc; pin 2.7.5 em PR próprio. Stack clínico seguiu saudável na
+   imagem anterior; box re-sincronizado com o main do merge via SSM.)
+2. **E2E de persistência PROVADO (22:29Z):** local `funnel_events` 42→45 e
+   `test_results` 1→2 com a sessão do E2E presente; **RDS congelado** (contagens
+   idênticas às do audit, sessão ausente, 0 conexões `checkup_app`); PDF real gerado.
+3. **Relógio de 48h do checkup: iniciado 2026-07-06T22:29Z → fecha 2026-07-08T22:29Z.**
+   Gate de delete do RDS abre em 2026-07-09T20:25Z (72h do stack, o mais tardio).
 
 Perda aceita no interím: telemetria de funil/resultados consentidos do checkup não
 persistem (tráfego test mode ~zero; nada clínico; rate-limit degrada para fail-open).
