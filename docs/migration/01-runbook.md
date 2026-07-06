@@ -24,12 +24,13 @@ Gotcha permanente: containers **não releem** `.env` em `restart` — todo flip 
 
 1. ADR-077 aprovado; janela da Fase 1/2 agendada (madrugada/fim de semana — a janela
    pausa o caminho de crise; avisar a médica antes, ver Fase 1).
-2. **Volume EBS:** criar 20 GB gp3 **cifrado (KMS)** na AZ do box (`sa-east-1a` — conferir a AZ
-   real da instância), attachar em `i-057860cd97edafefb`, formatar ext4, montar em
-   `/var/lib/cerebro-pgdata` (+ entrada no fstab por UUID).
+2. **Volume EBS:** `infra/scripts/setup-data-volume.sh` (idempotente) — cria/anexa 20 GB gp3
+   **cifrado** na AZ do box, formata xfs (guarda blkid), monta em `/data/postgres` (fstab por
+   UUID, `nofail`, owner 999:999). Swap 4 GB + `vm.swappiness=10`: `infra/scripts/setup-swap.sh`.
+   ✅ Executados em 2026-07-06 (volume `vol-038c4a52dcf572109`).
 3. **Compose:** adicionar serviço `postgres` (branch própria; deploy normal via CI):
    - `image: pgvector/pgvector:0.8.4-pg16`
-   - volume `/var/lib/cerebro-pgdata:/var/lib/postgresql/data`
+   - volume `/data/postgres:/var/lib/postgresql/data`
    - bind `172.31.4.97:5432:5432` (IP privado do box — estável em stop/start; **nunca** `0.0.0.0`)
    - TLS ligado: gerar cert self-signed no volume, `-c ssl=on` (os DSNs atuais usam
      `sslmode=require`/`Trust Server Certificate=true` — funcionam sem CA pública)

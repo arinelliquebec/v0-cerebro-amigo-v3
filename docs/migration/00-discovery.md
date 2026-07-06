@@ -210,7 +210,7 @@ Manter a assimetria do ADR-009 (interativo sem teto; OOM killer come o batch pri
 ### 7.3 Volume EBS de dados
 
 - Dados atuais: 352 MB lógicos / ~1,95 GB no filesystem do RDS (com WAL/overhead).
-- Regra do pedido (atuais + 50%, mínimo 20 GB) → **novo volume gp3 de 20 GB, dedicado e cifrado (KMS)**, montado p.ex. em `/var/lib/cerebro-pgdata`, com o bind-mount do container apontando para ele.
+- Regra do pedido (atuais + 50%, mínimo 20 GB) → **novo volume gp3 de 20 GB, dedicado e cifrado (KMS)**, montado em `/data/postgres`, com o bind-mount do container apontando para ele.
 - Motivo do volume dedicado (e não a raiz): snapshot/restore independente do root, DLM por volume, sem competir com build-cache do Docker (histórico de disco a 83%).
 - Custo: ~US$ 3/mês (~R$ 16) a preço gp3 EC2 sa-east-1 (~US$ 0,152/GB-mês).
 - **Cifragem é inegociável** (LGPD categoria especial; o RDS hoje é encrypted) — criar o volume já com KMS; a cifragem de coluna (ADR-018) segue intacta por cima.
