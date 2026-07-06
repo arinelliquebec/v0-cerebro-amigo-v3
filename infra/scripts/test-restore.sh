@@ -49,7 +49,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-pg() { docker exec -i "$NAME" "$@"; }
+# pg: SEM -i (chamado dentro de while-read; -i consumiria o stream do loop).
+# pg_in: COM -i, só para comandos que recebem dados por stdin (pg_restore < dump).
+pg() { docker exec "$NAME" "$@" </dev/null; }
+pg_in() { docker exec -i "$NAME" "$@"; }
 
 LATEST=$(aws s3 ls "$S3_PREFIX/daily/" | awk '{print $2}' | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}/$' | sort | tail -1 | tr -d '/')
 [ -n "$LATEST" ] || { result "FAIL: nenhum backup em $S3_PREFIX/daily/"; exit 1; }
@@ -77,7 +80,7 @@ for dump in "$WORKDIR"/*.dump; do
   target="restore_$db"
   log "restaurando $db → $target"
   pg psql -U postgres -q -c "CREATE DATABASE \"$target\""
-  pg pg_restore -U postgres -d "$target" --no-owner < "$dump" \
+  pg_in pg_restore -U postgres -d "$target" --no-owner < "$dump" \
     || { log "FALHA no pg_restore de $db"; FAILURES=$((FAILURES + 1)); continue; }
 
   manifest="$WORKDIR/$db.manifest.tsv"
