@@ -31,6 +31,13 @@ DSN="${1:?uso: backup-postgres.sh <DSN-url> <s3-prefix>}"
 S3_PREFIX="${2:?uso: backup-postgres.sh <DSN-url> <s3-prefix>}"
 S3_PREFIX="${S3_PREFIX%/}"
 PG_CONTAINER="${PG_CONTAINER:-cerebro-amigo-v3-postgres-1}"
+# PG_DUMP_EXTRA_FLAGS: flags extras pro pg_dump (ex.: migração RDS usa
+#   "--no-owner --no-acl --exclude-schema=checkup"). Default vazio = backup
+#   diário completo com owners/ACLs.
+PG_DUMP_EXTRA_FLAGS="${PG_DUMP_EXTRA_FLAGS:-}"
+# BACKUP_ONLY_DBS: lista explícita de databases (separados por espaço); vazio =
+#   autodescoberta. Necessário quando a role não lê algum db visível (ex.: V2).
+BACKUP_ONLY_DBS="${BACKUP_ONLY_DBS:-}"
 STATE_DIR="/var/lib/cerebro-backup"
 STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 DAY=$(date -u +%F)
@@ -56,7 +63,9 @@ on_exit() {
 }
 trap on_exit EXIT
 
-psql_c() { docker exec -i "$PG_CONTAINER" psql "$1" -tA -v ON_ERROR_STOP=1 -c "$2"; }
+# SEM -i: psql -c não lê stdin, e um exec interativo dentro de while-read
+# consome o stream do loop (bug real: manifesto truncado na 1ª tabela).
+psql_c() { docker exec "$PG_CONTAINER" psql "$1" -tA -v ON_ERROR_STOP=1 -c "$2" </dev/null; }
 
 # troca o database da DSN (URL: path; keyword: token dbname=)
 dsn_for() {
@@ -70,16 +79,22 @@ dsn_for() {
   fi
 }
 
-DBS=$(psql_c "$DSN" "SELECT datname FROM pg_database WHERE NOT datistemplate AND datname <> 'rdsadmin' AND has_database_privilege(current_user, datname, 'CONNECT') ORDER BY 1") \
-  || { fail_marker "não conectou na origem"; exit 1; }
+if [ -n "$BACKUP_ONLY_DBS" ]; then
+  DBS="$BACKUP_ONLY_DBS"
+  psql_c "$DSN" "SELECT 1" >/dev/null || { fail_marker "não conectou na origem"; exit 1; }
+else
+  DBS=$(psql_c "$DSN" "SELECT datname FROM pg_database WHERE NOT datistemplate AND datname <> 'rdsadmin' AND has_database_privilege(current_user, datname, 'CONNECT') ORDER BY 1") \
+    || { fail_marker "não conectou na origem"; exit 1; }
+fi
 [ -n "$DBS" ] || { fail_marker "nenhum database visível na origem"; exit 1; }
 log "databases: $(echo $DBS | tr '\n' ' ')"
 
 for db in $DBS; do
   d=$(dsn_for "$db")
 
-  log "pg_dump -Fc $db"
-  docker exec -i "$PG_CONTAINER" pg_dump -Fc --no-password "$d" > "$WORKDIR/$db.dump"
+  log "pg_dump -Fc $db ${PG_DUMP_EXTRA_FLAGS:+($PG_DUMP_EXTRA_FLAGS)}"
+  # shellcheck disable=SC2086 — flags extras são para expandir por palavra
+  docker exec "$PG_CONTAINER" pg_dump -Fc --no-password $PG_DUMP_EXTRA_FLAGS "$d" </dev/null > "$WORKDIR/$db.dump"
 
   # Manifesto: top 20 tabelas por tamanho + count exato (base da validação do
   # test-restore). Gerado logo APÓS o dump — em banco vivo insert-only o
