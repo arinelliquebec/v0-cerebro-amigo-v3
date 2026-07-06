@@ -24,6 +24,16 @@ systemctl enable --now cerebro-db-backup.timer cerebro-db-restore-test.timer
 |---|---|---|
 | `cerebro-db-backup.timer` | diário 03:30 (America/Sao_Paulo) | `backup-postgres.sh` → `s3://cerebro-amigo-db-backups/postgres/daily/` (dom. também `weekly/`) |
 | `cerebro-db-restore-test.timer` | domingo 05:00 (America/Sao_Paulo) | `test-restore.sh` — restaura o último backup em container efêmero e valida |
+| `cerebro-pg-metrics.timer` | a cada 1 min | `pg-metrics.sh` — 12 métricas → CloudWatch `Cerebro/Postgres` (role `cerebro_monitor`/pg_monitor). Instalar também `install -m 0755 infra/scripts/pg-metrics.sh /usr/local/sbin/` + as units `cerebro-pg-metrics.*` |
+
+## Alarmes CloudWatch (SNS `cerebro-amigo-piloto-alertas`)
+
+`cerebro-pg-down` (PgUp<1, 2×60s, missing=breaching — pega coletor morto) ·
+`cerebro-pg-data-disk-80` · `cerebro-pg-backup-stale` (>26h) ·
+`cerebro-pg-restore-test-fail` · `cerebro-pg-oom-kills` · `cerebro-ec2-cpu-credits-low`
+(<100). Dashboard: `cerebro-postgres` (fonte: `infra/aws/cw-dashboard-postgres.json`).
+Simulação de falha validada em 2026-07-06 (stop → ALARM ~3 min → start → OK).
+DR: `docs/runbooks/dr-postgres-selfhosted.md` (DLM `policy-01097c211c589bac5`, retenção 7).
 
 ## Observabilidade (pluga no alerta P7)
 
