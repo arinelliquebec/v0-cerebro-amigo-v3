@@ -10,22 +10,80 @@
 #   do ECR; build é 100% no CI (build-clinical/bake). Ver docs/runbooks/ec2-disk-hygiene.md.
 # IMAGE_TAG não setado em dev → usa tag "latest" (construa local antes: docker compose build).
 #
-# ─── Isolamento de recurso (ADR-009 PR 1) ────────────────────────────────────
+# ─── Isolamento de recurso (ADR-009, revisado pelo ADR-077) ──────────────────
 #
-# Plano interativo (orchestrator-py, api-gateway, web): sem mem_limit — caminho de
-# crise nunca é OOM-killed por pressão do batch. mem_reservation = piso suave que
-# o OOM killer respeita ao escolher vítima.
+# Com o Postgres self-hosted no box (ADR-077), TODOS os serviços têm mem_limit:
+# um vazamento em qualquer vizinho não pode derrubar o banco (que agora serve o
+# caminho de crise). A assimetria do ADR-009 vive nos valores: interativo/crise
+# (postgres, orchestrator, api-gateway, web) tem teto folgado (≥4× o uso medido)
+# e cpu_shares 1024; batch (agents-py, notifier-py) tem teto justo e cpu_shares 256.
 #
-# Plano batch (agents-py, notifier-py): mem_limit = teto duro; cpu_shares baixo =
-# menor prioridade de CPU quando há contenção. Se agents-py explodir em RAM,
-# o kernel mata o cgroup do batch, não o do orchestrator.
-#
-# Calibrar após medir: docker stats --no-stream
-# Valores calibrados para t3.xlarge (4 vCPU / 16 GB RAM) — ver ADR-053.
-# (Histórico: t3.small 2 vCPU/2 GB exigia tetos apertados; o upgrade deu folga
-#  ao plano interativo/crise e ao batch sem mudar a assimetria do ADR-009.)
+# Calibrado para t3.medium (2 vCPU / 3,7 GiB + swap 4G) — orçamento em
+# docs/migration/00-discovery.md §7.2 (cenário A); uso medido 2026-07-06:
+# soma dos 5 serviços ≈ 553 MiB. Soma dos tetos (5,05 GiB) excede a RAM de
+# propósito: teto = contenção de vazamento, não alocação. Recalibrar após
+# medir: docker stats --no-stream.
 
 services:
+  # Postgres self-hosted (ADR-077) — substitui o RDS após o cutover
+  # (docs/migration/01-runbook.md). Até lá as apps seguem apontando pro RDS;
+  # nenhum serviço tem depends_on dele ainda. TLS (cert self-signed) entra
+  # antes do cutover — Fase 0 item 3 do runbook.
+  # Porta publicada SÓ em loopback (admin via SSM no host); apps usarão o nome
+  # `postgres` na rede do compose; checkup ASG entrará via SG restrito (Fase 0).
+  postgres:
+    image: pgvector/pgvector:0.8.4-pg16
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: sa-east-1
+        awslogs-group: /cerebro/postgres
+        awslogs-stream: postgres
+        awslogs-create-group: "false"
+    restart: unless-stopped
+    shm_size: 512mb
+    # Plano interativo — banco atende o caminho de crise.
+    mem_reservation: 512m
+    mem_limit: 1g
+    cpu_shares: 1024
+    ports:
+      # Dev: loopback. Prod (box): POSTGRES_BIND=<IP privado> no .env — o checkup
+      # ASG conecta pela VPC; o SG só permite 5432 do SG do checkup (nunca público).
+      - "${POSTGRES_BIND:-127.0.0.1}:5432:5432"
+    environment:
+      # Gerar com: openssl rand -base64 24 (no .env do host; NUNCA comitar)
+      POSTGRES_PASSWORD: ${POSTGRES_LOCAL_PASSWORD:?defina POSTGRES_LOCAL_PASSWORD no .env}
+    volumes:
+      # Volume EBS dedicado, cifrado (infra/scripts/setup-data-volume.sh)
+      - /data/postgres:/var/lib/postgresql/data
+    # Tuning p/ t3.medium (discovery §7.2-A). Em t3.large (cenário B):
+    # shared_buffers=1536MB, effective_cache_size=3GB.
+    # ssl=on: cert self-signed em $PGDATA/server.{crt,key} (gerado no cutover);
+    # DSNs seguem sslmode=require / Trust Server Certificate=true.
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - work_mem=16MB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - max_connections=100
+      - -c
+      - wal_compression=on
+      - -c
+      - log_min_duration_statement=1000
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
   web:
     image: 004177894935.dkr.ecr.sa-east-1.amazonaws.com/cerebro-amigo/web:${IMAGE_TAG:-latest}
     logging:
@@ -39,8 +97,9 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
-    # Plano interativo — sem teto de RAM.
-    mem_reservation: 1g
+    # Plano interativo — teto folgado (uso medido ~76 MiB).
+    mem_reservation: 256m
+    mem_limit: 512m
     cpu_shares: 1024
     ports:
       - "3000:3000"
@@ -77,8 +136,9 @@ services:
     restart: unless-stopped
     build:
       context: ./apps/api-gateway
-    # Plano interativo — sem teto de RAM.
-    mem_reservation: 1g
+    # Plano interativo — teto folgado (uso medido ~117 MiB).
+    mem_reservation: 256m
+    mem_limit: 768m
     cpu_shares: 1024
     ports:
       - "5050:5000"
@@ -91,6 +151,9 @@ services:
       ORCHESTRATOR_PY_URL: http://orchestrator-py:8081
       AGENTS_PY_URL: http://agents-py:8082
       NOTIFIER_PY_URL: http://notifier-py:8083
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-sf", "http://localhost:5000/health"]
       interval: 10s
@@ -116,14 +179,18 @@ services:
     restart: unless-stopped
     build:
       context: ./apps/orchestrator-py
-    # Caminho de crise — sem mem_limit intencional (ADR-009).
-    # LangGraph checkpoint (psycopg3 pool 10) + asyncpg pool 20 + Bedrock Haiku/Sonnet.
-    # mem_reservation = piso suave; OOM killer prioriza agents-py/notifier-py como vítimas.
-    mem_reservation: 2g
+    # Caminho de crise — teto folgado 8× o uso medido (~127 MiB); ADR-077 fecha
+    # o teto de todos p/ proteger o postgres co-localizado de vazamento.
+    # LangGraph checkpoint (psycopg3 pool 10) + asyncpg pool 20.
+    mem_reservation: 512m
+    mem_limit: 1g
     cpu_shares: 1024
     ports:
       - "8081:8081"
     env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8081/health')"]
       interval: 10s
@@ -143,19 +210,20 @@ services:
     restart: unless-stopped
     build:
       context: ./apps/agents-py
-    # Plano batch — teto duro. scipy/numpy (padroes) + langchain-aws + asyncpg pool 10.
-    # mem_limit: OOM killer mata este cgroup antes do orchestrator.
-    # cpus: at most 2 vCPU para agents; com notifier (cpus 1.0), o batch chega a 3 vCPU
-    # numa box de 4 vCPU (≈1 vCPU livre pro interativo/crise); cpu_shares ainda favorece o interativo.
-    # cpu_shares: prioridade baixa quando CPU contendida (orchestrator=1024 vs batch=256).
+    # Plano batch — teto duro. scipy/numpy (padroes) + asyncpg pool 10.
+    # mem_limit 1g (era 4g na era t3.xlarge): OOM killer mata este cgroup primeiro.
+    # cpu_shares: prioridade baixa quando CPU contendida (interativo=1024 vs batch=256).
     # Evolução para disparo externo: ver infra/aws/eventbridge-agents-trigger.md
-    mem_limit: 4g
-    mem_reservation: 1g
+    mem_limit: 1g
+    mem_reservation: 512m
     cpus: "2.0"
     cpu_shares: 256
     ports:
       - "8082:8082"
     env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8082/health')"]
       interval: 10s
@@ -175,14 +243,17 @@ services:
     restart: unless-stopped
     build:
       context: ./apps/notifier-py
-    # Plano batch leve — sem LLM, sem scipy. Teto conservador.
-    mem_limit: 1g
+    # Plano batch leve — sem LLM, sem scipy. Teto conservador (uso ~71 MiB).
+    mem_limit: 512m
     mem_reservation: 256m
     cpus: "1.0"
     cpu_shares: 256
     ports:
       - "8083:8083"
     env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8083/health')"]
       interval: 10s
@@ -203,6 +274,7 @@ services:
     image: coturn/coturn:4.6
     profiles: ["turn"]
     network_mode: host
+    mem_limit: 256m
     restart: unless-stopped
     command: >
       -n --log-file=stdout --no-cli --no-tls --no-dtls
