@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { Activity, ArrowRight, Cigarette, CloudRain, Heart, Lock, Pill, ShieldCheck, Timer, Wind, Wine, Zap } from "lucide-react";
 import { ComoFunciona } from "@/components/landing-blocks";
+import { InstagramCta } from "@/components/instagram-cta";
 import { Logo } from "@/components/logo";
 import { NeuralField } from "@/components/neural-field";
 
@@ -114,6 +115,9 @@ export default function HomePage() {
       >
         <NeuralField />
       </div>
+
+      {/* CTA Instagram no topo (home não é superfície de crise — /crise é isolada). */}
+      <InstagramCta className="reveal mb-8" />
 
       {/* Hero */}
       <div className="mb-12 text-center">
