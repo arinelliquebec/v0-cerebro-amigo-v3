@@ -11,6 +11,7 @@ const EVENT_TYPES = [
   "email_report_sent",
   "qr_scanned",
   "doctor_signup_started",
+  "instagram_follow_click",
 ] as const;
 
 // Lado paciente manda sessionId (UUID); lado médico (qr_scanned/doctor_signup_started

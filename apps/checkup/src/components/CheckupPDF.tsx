@@ -343,6 +343,13 @@ export function CheckupPDF({ scale, score, band, label, crisis, rid, qrDataUrl, 
             <Link src="https://checkup.cerebroamigo.com.br" style={styles.aboutLink}>checkup.cerebroamigo.com.br</Link>
             ), serviço gratuito do <Text style={{ fontFamily: "Helvetica-Bold" }}>Cérebro Amigo</Text> — plataforma que ajuda psiquiatras a acompanhar seus pacientes entre as consultas, com check-ins, lembretes e organização de condutas. Conheça em{" "}
             <Link src="https://www.cerebroamigo.com.br" style={styles.aboutLink}>www.cerebroamigo.com.br</Link>.
+            {/* Versão crise fica sem CTA de marketing (clinical-safety). */}
+            {!crisis && (
+              <Text>
+                {" "}Siga no Instagram:{" "}
+                <Link src="https://www.instagram.com/cerebroamigooficial/" style={styles.aboutLink}>@cerebroamigooficial</Link>.
+              </Text>
+            )}
           </Text>
         </View>
 
