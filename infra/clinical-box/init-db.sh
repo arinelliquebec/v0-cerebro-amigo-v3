@@ -100,7 +100,9 @@ psql_db <<'SQL'
 DO $do$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'cerebroadmin') THEN
-    CREATE ROLE cerebroadmin NOLOGIN;
+    CREATE ROLE cerebroadmin NOLOGIN CREATEROLE; -- 0036 cria roles (master do RDS tinha CREATEROLE)
+  ELSE
+    ALTER ROLE cerebroadmin CREATEROLE;
   END IF;
 END
 $do$;
