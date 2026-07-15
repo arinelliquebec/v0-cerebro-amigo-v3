@@ -78,7 +78,7 @@ class RascunhoFactualOutput(BaseModel):
 
 
 _RASCUNHO_SYSTEM = """\
-Você é um ESCRIBA clínico. Recebe a transcrição de uma teleconsulta de psiquiatria entre um \
+Você é um ESCRIBA clínico. Recebe a transcrição de uma consulta de psiquiatria entre um \
 médico e um paciente (rotulados Locutor 1 e Locutor 2) e organiza o que foi DITO num rascunho \
 factual para o MÉDICO revisar e completar.
 
@@ -102,15 +102,42 @@ async def gerar_rascunho_consulta(
     content_type: str,
     paciente_id: uuid.UUID,
 ) -> EscribaResult:
-    """upload → transcribe (diarizado) → delete → rascunho factual."""
+    """Caminho da TELECONSULTA: o áudio chega em bytes (base64) e nós fazemos o
+    upload efêmero. upload → transcribe (diarizado) → delete → rascunho factual.
+    (O presencial usa gerar_rascunho_consulta_s3 — o browser já subiu via presigned.)"""
     settings = get_settings()
-    log = logger.bind(service="escriba", paciente_id=str(paciente_id))
+    log = logger.bind(service="escriba", paciente_id=str(paciente_id), origem="teleconsulta")
 
     s3_key = await asyncio.to_thread(
         _upload_s3, audio_bytes, content_type, paciente_id, settings
     )
     log.info("escriba.s3_uploaded", s3_key=s3_key, size_bytes=len(audio_bytes))
+    return await _rascunho_de_s3_key(s3_key, settings, log)
 
+
+async def gerar_rascunho_consulta_s3(
+    s3_key: str,
+    content_type: str,
+    paciente_id: uuid.UUID,
+) -> EscribaResult:
+    """Caminho da consulta PRESENCIAL (ADR-075): o browser já subiu o áudio para o
+    bucket efêmero via presigned PUT. Aqui só transcrevemos a chave e apagamos — o
+    áudio NUNCA persiste (delete garantido no finally, LGPD)."""
+    settings = get_settings()
+    log = logger.bind(
+        service="escriba",
+        paciente_id=str(paciente_id),
+        s3_key=s3_key,
+        content_type=content_type,
+        origem="presencial",
+    )
+    log.info("escriba.s3_key_recebida")
+    return await _rascunho_de_s3_key(s3_key, settings, log)
+
+
+async def _rascunho_de_s3_key(s3_key: str, settings, log) -> EscribaResult:
+    """Miolo comum aos dois caminhos: transcreve (diarizado) → delete efêmero →
+    rascunho factual. O delete é garantido mesmo se a transcrição falhar (LGPD)."""
     try:
         transcricao = await asyncio.to_thread(_transcrever_consulta_s3, s3_key, settings)
         log.info("escriba.transcrito", chars=len(transcricao))
@@ -126,7 +153,7 @@ async def gerar_rascunho_consulta(
         RascunhoFactualOutput,
         [
             SystemMessage(content=_RASCUNHO_SYSTEM),
-            HumanMessage(content=f"Transcrição da teleconsulta:\n\n{transcricao}"),
+            HumanMessage(content=f"Transcrição da consulta:\n\n{transcricao}"),
         ],
     )
     rascunho: RascunhoFactualOutput = call.parsed  # type: ignore[assignment]

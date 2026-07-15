@@ -18,6 +18,7 @@ import {
   Check,
   Video,
   Link2,
+  Mic,
 } from "lucide-react"
 import { useMe } from "@/lib/use-me"
 import { iniciais } from "@/lib/iniciais"
@@ -263,6 +264,22 @@ export default function BriefingPage({ params }: { params: Promise<{ id: string 
               <Button size="sm" variant="outline" onClick={copiarLink} className="gap-1.5">
                 {linkCopiado ? <Check className="h-4 w-4" /> : <Link2 className="h-4 w-4" />}
                 {linkCopiado ? "Link copiado" : "Copiar link do paciente"}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Escriba presencial (ADR-075): grava o áudio da consulta na sala. Só Master. */}
+        {consulta.modalidade === "presencial" && consulta.status !== "cancelada"
+          && temFeature(me?.features, FEATURE.escriba) && (
+          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 p-4">
+            <Mic className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-primary">Escriba — nota assistida por IA</span>
+            <div className="ml-auto">
+              <Button size="sm" asChild className="gap-1.5">
+                <Link href={`/dashboard/consultas/${id}/escriba/gravar`}>
+                  <Mic className="h-4 w-4" /> Gravar nota
+                </Link>
               </Button>
             </div>
           </div>

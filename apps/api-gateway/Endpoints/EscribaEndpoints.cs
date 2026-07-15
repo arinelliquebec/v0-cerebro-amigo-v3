@@ -1,6 +1,8 @@
 using ApiGateway.Auth;
 using ApiGateway.Data;
 using ApiGateway.Services;
+using Amazon.S3;
+using Amazon.S3.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Net.Http.Headers;
@@ -11,14 +13,20 @@ using System.Text.Json;
 namespace ApiGateway.Endpoints;
 
 /// <summary>
-/// Escriba clínico (Ambient Scribe, ADR-040). Áudio da teleconsulta → transcrição
+/// Escriba clínico (Ambient Scribe, ADR-040 + ADR-075). Áudio da consulta → transcrição
 /// (agents-py) → rascunho FACTUAL → médico revisa/aprova → evolução append-only.
+///
+/// Dois caminhos de captura:
+///   • Teleconsulta (ADR-040): áudio da videochamada chega em base64 → transcrição SÍNCRONA.
+///   • Presencial   (ADR-075): médico atesta consentimento verbal → grava mic da sala →
+///     upload presigned direto no S3 → transcrição ASSÍNCRONA (fila + worker; consulta
+///     longa não cabe numa request HTTP). O front faz polling do status na página de revisão.
 ///
 /// Guardrails (clinical-safety):
 ///   • Regra #1: rascunho é factual; a IA não decide nada clínico (feito no prompt do agents-py).
 ///   • Regra #2: doctor-facing; não aciona protocolo de crise patient-facing — só flag mencao_risco.
 ///   • Regra #3: nada vira evolução sem aprovação do médico.
-///   • Regra #4: gravação só com consentimento do paciente; transcrição/rascunho cifrados (ADR-018).
+///   • Regra #4: gravação só com consentimento; transcrição/rascunho cifrados (ADR-018); áudio efêmero.
 ///   • Regra #5: evolucoes_clinicas é append-only.
 /// Tenant: médico via JOIN pacientes.medico_responsavel_id; paciente via GetPacienteId.
 /// </summary>
@@ -26,7 +34,10 @@ public static class EscribaEndpoints
 {
     public static void Map(WebApplication app)
     {
-        // ─── Paciente: consentir / revogar gravação ───────────────────────────
+        // Bucket efêmero do áudio do escriba — MESMO que o agents-py lê (s3_bucket_audio).
+        var bucketAudio = app.Configuration["S3_BUCKET_AUDIO"] ?? "cerebro-amigo-audio-sa-east-1";
+
+        // ─── Paciente: consentir / revogar gravação (teleconsulta) ────────────
         app.MapPost("/api/v1/portal/paciente/agenda/{id:guid}/escriba/consentir", async (
             Guid id, AppDbContext db, ClaimsPrincipal user) =>
         {
@@ -36,6 +47,7 @@ public static class EscribaEndpoints
             var afetadas = await db.Database.ExecuteSqlRawAsync(@"
                 UPDATE consultas
                 SET escriba_consentido_em = NOW(),
+                    escriba_consentido_metodo = 'teleconsulta',
                     escriba_status = CASE WHEN escriba_status = 'idle' THEN 'consentido' ELSE escriba_status END
                 WHERE id = {0} AND paciente_id = {1} AND modalidade = 'teleconsulta'",
                 id, pid.Value);
@@ -51,7 +63,7 @@ public static class EscribaEndpoints
 
             var afetadas = await db.Database.ExecuteSqlRawAsync(@"
                 UPDATE consultas
-                SET escriba_consentido_em = NULL, escriba_status = 'idle'
+                SET escriba_consentido_em = NULL, escriba_consentido_metodo = NULL, escriba_status = 'idle'
                 WHERE id = {0} AND paciente_id = {1} AND escriba_status <> 'aprovado'",
                 id, pid.Value);
             return afetadas == 0 ? Results.NotFound() : Results.NoContent();
@@ -71,30 +83,111 @@ public static class EscribaEndpoints
             {
                 consentido = info.EscribaConsentidoEm is not null,
                 status = info.EscribaStatus,
+                modalidade = info.Modalidade,
             });
         }).WithTags("escriba-medico").RequireAuthorization().RequireFeature(FeatureKeys.Escriba);
 
-        // ─── Médico: upload do áudio → agents-py → grava cifrado ──────────────
-        app.MapPost("/api/v1/consultas/{id:guid}/escriba", async (
-            Guid id, [FromBody] EscribaUploadRequest req, AppDbContext db, ClaimsPrincipal user,
-            CryptoService crypto, IHttpClientFactory httpFactory, IConfiguration cfg) =>
+        // ─── Médico: consentimento PRESENCIAL atestado (verbal) — ADR-075 ─────
+        // O paciente não tem sessão no device; o médico atesta o consentimento verbal.
+        // Registrado com metodo='verbal_atestado' + timestamp (responsabilidade do médico).
+        app.MapPost("/api/v1/consultas/{id:guid}/escriba/consentir-presencial", async (
+            Guid id, JsonElement body, AppDbContext db, ClaimsPrincipal user) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            var atestado = body.TryGetProperty("atestado", out var a) && a.ValueKind == JsonValueKind.True;
+            if (!atestado) return Results.BadRequest(new { erro = "atestacao_obrigatoria" });
+
+            var info = await ConsultaInfoAsync(db, id, medicoId.Value);
+            if (info is null) return Results.NotFound();
+            if (info.Modalidade != "presencial") return Results.BadRequest(new { erro = "nao_e_presencial" });
+
+            await db.Database.ExecuteSqlRawAsync(@"
+                UPDATE consultas
+                SET escriba_consentido_em = NOW(),
+                    escriba_consentido_metodo = 'verbal_atestado',
+                    escriba_status = CASE WHEN escriba_status = 'idle' THEN 'consentido' ELSE escriba_status END
+                WHERE id = {0}", id);
+            return Results.NoContent();
+        }).WithTags("escriba-medico").RequireAuthorization().RequireFeature(FeatureKeys.Escriba);
+
+        // ─── Médico: URL de upload presigned (presencial) ─────────────────────
+        // Browser sobe o áudio direto pro S3 (dodge do cap 25MB base64 / TC-3).
+        app.MapPost("/api/v1/consultas/{id:guid}/escriba/upload-url", async (
+            Guid id, JsonElement body, AppDbContext db, ClaimsPrincipal user, IAmazonS3 s3) =>
         {
             var medicoId = await GetMedicoIdAsync(db, user);
             if (medicoId is null) return Results.Forbid();
 
             var info = await ConsultaInfoAsync(db, id, medicoId.Value);
             if (info is null) return Results.NotFound();
-            if (info.Modalidade != "teleconsulta")
-                return Results.BadRequest(new { erro = "nao_e_teleconsulta" });
+            if (info.EscribaConsentidoEm is null) return Results.Conflict(new { erro = "sem_consentimento" });
+
+            var contentType = body.TryGetProperty("contentType", out var ctEl) ? ctEl.GetString() : null;
+            var ext = !string.IsNullOrEmpty(contentType) && contentType.Contains("mp4") ? "mp4" : "webm";
+            // Key namespaceada por paciente → o POST /escriba valida o prefixo (anti-forja).
+            var key = $"escriba/{info.PacienteId}/{Guid.NewGuid()}.{ext}";
+
+            var url = s3.GetPreSignedURL(new GetPreSignedUrlRequest
+            {
+                BucketName  = bucketAudio,
+                Key         = key,
+                Verb        = HttpVerb.PUT,
+                Expires     = DateTime.UtcNow.AddMinutes(15),
+                ContentType = string.IsNullOrEmpty(contentType) ? "audio/webm" : contentType,
+            });
+            return Results.Ok(new { uploadUrl = url, s3Key = key });
+        }).WithTags("escriba-medico").RequireAuthorization().RequireFeature(FeatureKeys.Escriba);
+
+        // ─── Médico: upload/registro do áudio → transcrição → grava cifrado ───
+        app.MapPost("/api/v1/consultas/{id:guid}/escriba", async (
+            Guid id, [FromBody] EscribaUploadRequest req, AppDbContext db, ClaimsPrincipal user,
+            CryptoService crypto, IHttpClientFactory httpFactory, IConfiguration cfg,
+            EscribaJobQueue jobQueue) =>
+        {
+            var medicoId = await GetMedicoIdAsync(db, user);
+            if (medicoId is null) return Results.Forbid();
+
+            var info = await ConsultaInfoAsync(db, id, medicoId.Value);
+            if (info is null) return Results.NotFound();
+            if (info.Modalidade != "teleconsulta" && info.Modalidade != "presencial")
+                return Results.BadRequest(new { erro = "modalidade_invalida" });
             if (info.EscribaConsentidoEm is null)
                 return Results.Conflict(new { erro = "sem_consentimento" });
+
+            // ── Caminho PRESENCIAL: áudio já no S3 (presigned). Transcrição ASSÍNCRONA. ──
+            if (!string.IsNullOrWhiteSpace(req.S3Key))
+            {
+                // Valida ownership da key por prefixo exato (padrão anti-forja, MensagensAudio).
+                if (!req.S3Key.StartsWith($"escriba/{info.PacienteId}/", StringComparison.Ordinal))
+                    return Results.Forbid();
+
+                var transId = Guid.NewGuid();
+                await db.Database.ExecuteSqlRawAsync(@"
+                    INSERT INTO consulta_transcricoes
+                      (id, consulta_id, paciente_id, medico_id, mencao_risco, status)
+                    VALUES ({0}, {1}, {2}, {3}, FALSE, 'processando')",
+                    transId, id, info.PacienteId, medicoId.Value);
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE consultas SET escriba_status = 'processando' WHERE id = {0}", id);
+
+                await jobQueue.EnqueueAsync(new EscribaJob(
+                    transId, id, info.PacienteId, medicoId.Value, req.S3Key,
+                    string.IsNullOrWhiteSpace(req.ContentType) ? "audio/webm" : req.ContentType!));
+
+                return Results.Accepted(
+                    $"/api/v1/consultas/{id}/escriba", new { id = transId, status = "processando" });
+            }
+
+            // ── Caminho TELECONSULTA: áudio inline (base64), transcrição SÍNCRONA. ──
             if (string.IsNullOrWhiteSpace(req.AudioBase64))
                 return Results.BadRequest(new { erro = "audio_vazio" });
 
             var internalToken = cfg["INTERNAL_API_TOKEN"]
                 ?? throw new InvalidOperationException("INTERNAL_API_TOKEN ausente");
 
-            // LLM/Transcribe vivem só no Python (ADR-008). Gateway só orquestra + persiste.
+            // LLM/Transcribe vivem só no Python (ADR-044). Gateway só orquestra + persiste.
             string transcricao; string rascunhoJson; bool mencaoRisco;
             try
             {
@@ -153,7 +246,7 @@ public static class EscribaEndpoints
             if (medicoId is null) return Results.Forbid();
 
             var row = await db.Database.SqlQueryRaw<TranscricaoRow>(@"
-                SELECT ct.transcricao, ct.rascunho, ct.mencao_risco, ct.status
+                SELECT ct.id, ct.transcricao, ct.rascunho, ct.mencao_risco, ct.status, ct.criado_em
                 FROM consulta_transcricoes ct
                 JOIN pacientes p ON p.cliente_id = ct.paciente_id
                 WHERE ct.consulta_id = {0} AND p.medico_responsavel_id = {1}
@@ -161,12 +254,24 @@ public static class EscribaEndpoints
                 LIMIT 1", id, medicoId.Value).FirstOrDefaultAsync();
             if (row is null) return Results.NotFound();
 
+            var status = row.Status;
+            // Sweep: a fila de transcrição é in-process e não sobrevive a restart do
+            // gateway. Após 15min preso em 'processando', marca 'erro' p/ o médico regravar.
+            if (status == "processando" && row.CriadoEm < DateTime.UtcNow.AddMinutes(-15))
+            {
+                await db.Database.ExecuteSqlRawAsync(
+                    "UPDATE consulta_transcricoes SET status = 'erro' WHERE id = {0} AND status = 'processando'",
+                    row.Id);
+                status = "erro";
+            }
+
+            var pronto = status is "rascunho" or "aprovado";
             return Results.Ok(new
             {
-                transcricao = crypto.Decrypt(row.Transcricao),
-                rascunho = ParseJson(crypto.Decrypt(row.Rascunho)),
+                transcricao = pronto && row.Transcricao is not null ? crypto.Decrypt(row.Transcricao) : null,
+                rascunho = pronto && row.Rascunho is not null ? ParseJson(crypto.Decrypt(row.Rascunho)) : null,
                 mencaoRisco = row.MencaoRisco,
-                status = row.Status,
+                status,
             });
         }).WithTags("escriba-medico").RequireAuthorization().RequireFeature(FeatureKeys.Escriba);
 
@@ -248,9 +353,10 @@ public static class EscribaEndpoints
     }
 }
 
-public record EscribaUploadRequest(string AudioBase64, string ContentType);
+public record EscribaUploadRequest(string? AudioBase64, string? ContentType, string? S3Key);
 
 public record EscribaConsultaInfo(
     Guid PacienteId, string Modalidade, string EscribaStatus, DateTime? EscribaConsentidoEm);
 
-public record TranscricaoRow(string? Transcricao, string? Rascunho, bool MencaoRisco, string Status);
+public record TranscricaoRow(
+    Guid Id, string? Transcricao, string? Rascunho, bool MencaoRisco, string Status, DateTime CriadoEm);

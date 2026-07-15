@@ -32,7 +32,7 @@ from app.services.crisis import (
     detectar_crise,
 )
 from app.services.crisis_copy import CRISIS_COPY
-from app.services.escriba import gerar_rascunho_consulta
+from app.services.escriba import gerar_rascunho_consulta, gerar_rascunho_consulta_s3
 from app.services.retrieval import buscar as rag_buscar_service
 from app.services.transcricao import transcrever_audio
 
@@ -245,9 +245,13 @@ async def transcrever_diario(req: TranscreverAudioRequest) -> dict:
 
 
 class EscribaRequest(BaseModel):
-    audio_base64: str   # áudio da teleconsulta (WebM/MP4), base64
-    content_type: str   # "audio/webm" | "audio/mp4"
+    # Teleconsulta: áudio pequeno via base64. Presencial (ADR-075): s3_key de um
+    # objeto que o browser já subiu via presigned PUT no bucket efêmero.
+    # Exatamente um dos dois é enviado.
+    content_type: str                    # "audio/webm" | "audio/mp4"
     paciente_id: UUID
+    audio_base64: str | None = None      # caminho teleconsulta
+    s3_key: str | None = None            # caminho presencial
 
 
 @app.post(
@@ -255,17 +259,30 @@ class EscribaRequest(BaseModel):
     dependencies=[Depends(_check_internal_token)],
 )
 async def transcrever_escriba(req: EscribaRequest) -> dict:
-    """Transcreve o áudio de uma teleconsulta (diarizado) e gera um rascunho FACTUAL
-    para o médico (ADR-040). NÃO gera diagnóstico/conduta (regra #1). Doctor-facing:
-    não aciona protocolo de crise patient-facing (regra #2) — só marca mencao_risco.
-    Áudio deletado do S3 logo após a transcrição (LGPD)."""
+    """Transcreve o áudio de uma consulta (diarizado) e gera um rascunho FACTUAL
+    para o médico (ADR-040/ADR-075). NÃO gera diagnóstico/conduta (regra #1).
+    Doctor-facing: não aciona protocolo de crise patient-facing (regra #2) — só marca
+    mencao_risco. Áudio deletado do S3 logo após a transcrição (LGPD).
+
+    Dois caminhos, exatamente um por request:
+      • s3_key  → presencial: o browser já subiu o áudio (presigned); só transcreve a chave.
+      • audio_base64 → teleconsulta: áudio pequeno inline (cap 25 MB)."""
     import base64
 
-    audio_bytes = base64.b64decode(req.audio_base64)
-    if len(audio_bytes) > 25 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="áudio maior que 25 MB")
+    if req.s3_key:
+        result = await gerar_rascunho_consulta_s3(
+            req.s3_key, req.content_type, req.paciente_id
+        )
+    elif req.audio_base64:
+        audio_bytes = base64.b64decode(req.audio_base64)
+        if len(audio_bytes) > 25 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="áudio maior que 25 MB")
+        result = await gerar_rascunho_consulta(
+            audio_bytes, req.content_type, req.paciente_id
+        )
+    else:
+        raise HTTPException(status_code=400, detail="informe s3_key ou audio_base64")
 
-    result = await gerar_rascunho_consulta(audio_bytes, req.content_type, req.paciente_id)
     return {
         "transcricao": result.transcricao,
         "rascunho": result.rascunho,

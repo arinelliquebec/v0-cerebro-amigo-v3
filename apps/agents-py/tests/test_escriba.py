@@ -25,6 +25,7 @@ from app.services.escriba import (
     _rotulo,
     _transcrever_consulta_s3,
     gerar_rascunho_consulta,
+    gerar_rascunho_consulta_s3,
 )
 
 PACIENTE_ID = uuid.uuid4()
@@ -186,6 +187,39 @@ async def test_transcricao_vazia_nao_chama_llm(pipeline_mocks):
     assert result == EscribaResult(transcricao="", rascunho={}, mencao_risco=False)
     assert pipeline_mocks.llm_calls == []
     pipeline_mocks.delete.assert_called_once()
+
+
+# ─── gerar_rascunho_consulta_s3 (presencial, ADR-075) ────────────────────────
+
+S3_KEY = "escriba/paciente/consulta.webm"
+
+
+@pytest.mark.asyncio
+async def test_s3_key_nao_faz_upload_e_usa_a_chave(pipeline_mocks):
+    # Presencial: o browser já subiu o áudio via presigned; NÃO fazemos upload aqui.
+    # Transcreve a chave recebida e deleta (áudio efêmero, LGPD).
+    result = await gerar_rascunho_consulta_s3(S3_KEY, "audio/webm", PACIENTE_ID)
+
+    assert isinstance(result, EscribaResult)
+    assert result.rascunho["medicacoes_mencionadas"] == ["Escitalopram"]
+    assert result.mencao_risco is True
+    pipeline_mocks.upload.assert_not_called()
+    pipeline_mocks.transcrever.assert_called_once_with(S3_KEY, escriba.get_settings())
+    pipeline_mocks.delete.assert_called_once_with(S3_KEY, escriba.get_settings())
+    assert len(pipeline_mocks.llm_calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_s3_key_deleta_mesmo_se_transcricao_falhar(pipeline_mocks):
+    # Invariante LGPD vale também no caminho presencial: delete no finally.
+    pipeline_mocks.transcrever.side_effect = RuntimeError("Transcribe job falhou")
+
+    with pytest.raises(RuntimeError):
+        await gerar_rascunho_consulta_s3(S3_KEY, "audio/webm", PACIENTE_ID)
+
+    pipeline_mocks.upload.assert_not_called()
+    pipeline_mocks.delete.assert_called_once_with(S3_KEY, escriba.get_settings())
+    assert pipeline_mocks.llm_calls == []
 
 
 # ─── _transcrever_consulta_s3 (boto3 mockado) ────────────────────────────────

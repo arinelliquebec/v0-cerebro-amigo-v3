@@ -202,7 +202,7 @@ class Settings(BaseSettings):
     # Lifecycle rule de 24h no bucket como segurança extra.
     s3_bucket_audio: str = "cerebro-amigo-audio-sa-east-1"
     transcribe_poll_interval_s: float = 2.0
-    transcribe_timeout_s: float = 120.0
+    transcribe_timeout_s: float = 600.0  # consulta presencial é longa (ADR-075); teleconsulta cabe folgado
 
     @model_validator(mode="after")
     def _validate_llm_provider(self) -> "Settings":

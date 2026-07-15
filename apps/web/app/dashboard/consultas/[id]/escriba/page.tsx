@@ -61,26 +61,37 @@ export default function EscribaRevisaoPage() {
   const [avaliacao, setAvaliacao] = useState("")
 
   useEffect(() => {
-    fetch(`/api/consultas/${id}/escriba`)
-      .then(async (r) => {
-        { const gate = await readFeatureGate(r); if (gate) { setErro("bloqueado"); showUpsell(gate.feature); return null } }
-        if (r.status === 404) { setErro("sem_rascunho"); return null }
-        if (!r.ok) { setErro("erro"); return null }
-        return r.json()
-      })
-      .then((d: EscribaData | null) => {
-        if (!d) return
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | null = null
+
+    async function carregar() {
+      try {
+        const r = await fetch(`/api/consultas/${id}/escriba`)
+        const gate = await readFeatureGate(r)
+        if (gate) { if (!cancelled) { setErro("bloqueado"); showUpsell(gate.feature) } return }
+        if (r.status === 404) { if (!cancelled) setErro("sem_rascunho"); return }
+        if (!r.ok) { if (!cancelled) setErro("erro"); return }
+        const d: EscribaData = await r.json()
+        if (cancelled) return
         setData(d)
-        const r = d.rascunho ?? {}
-        setResumo(r.resumo_factual ?? "")
-        setQueixas(linhas(r.queixas_relatadas))
-        setFatos(linhas(r.fatos_relatados))
-        setTemas(linhas(r.temas_abordados))
-        setMedicacoes(linhas(r.medicacoes_mencionadas))
+        const rr = d.rascunho ?? {}
+        setResumo(rr.resumo_factual ?? "")
+        setQueixas(linhas(rr.queixas_relatadas))
+        setFatos(linhas(rr.fatos_relatados))
+        setTemas(linhas(rr.temas_abordados))
+        setMedicacoes(linhas(rr.medicacoes_mencionadas))
         if (d.status === "aprovado") setAprovado(true)
-      })
-      .catch(() => setErro("erro"))
-      .finally(() => setLoading(false))
+        // Presencial (ADR-075): transcrição é assíncrona — faz polling até ficar pronta.
+        if (d.status === "processando") timer = setTimeout(carregar, 5000)
+      } catch {
+        if (!cancelled) setErro("erro")
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    carregar()
+    return () => { cancelled = true; if (timer) clearTimeout(timer) }
   }, [id])
 
   const rascunhoAtual = (): Rascunho => ({
@@ -172,6 +183,18 @@ export default function EscribaRevisaoPage() {
           <ShieldAlert className="mx-auto h-8 w-8 text-coral" />
           <p className="text-sm text-muted-foreground">Não foi possível carregar a nota desta consulta agora. Atualize a página ou tente novamente em instantes.</p>
           <Button variant="outline" onClick={() => window.location.reload()}>Tentar novamente</Button>
+        </CardContent></Card>
+      ) : data?.status === "processando" ? (
+        <Card><CardContent className="py-16 flex flex-col items-center gap-3 text-center">
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
+          <p className="text-sm font-medium text-foreground">Gerando a nota clínica…</p>
+          <p className="text-xs text-muted-foreground">A transcrição da consulta está sendo processada — numa consulta longa isso pode levar alguns minutos. A página atualiza sozinha.</p>
+        </CardContent></Card>
+      ) : data?.status === "erro" ? (
+        <Card><CardContent className="py-12 text-center space-y-3">
+          <ShieldAlert className="mx-auto h-8 w-8 text-coral" />
+          <p className="text-sm text-muted-foreground">Não foi possível gerar a nota desta gravação. Você pode gravar a consulta novamente.</p>
+          <Button asChild variant="outline"><Link href={`/dashboard/consultas/${id}/escriba/gravar`}>Regravar</Link></Button>
         </CardContent></Card>
       ) : aprovado ? (
         <Card className="border-success/40 bg-success/5"><CardContent className="py-12 text-center space-y-3">

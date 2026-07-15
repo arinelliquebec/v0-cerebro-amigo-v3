@@ -282,6 +282,20 @@ builder.Services.AddHttpClient("agents-py", client =>
     client.Timeout = TimeSpan.FromSeconds(150);
 });
 
+// HttpClient dedicado ao worker do Escriba presencial (ADR-075): transcrição
+// assíncrona de consulta longa pode levar minutos → timeout folgado. Roda em
+// background (não segura request de usuário), por isso é separado do "agents-py".
+builder.Services.AddHttpClient("agents-py-escriba", client =>
+{
+    var url = builder.Configuration["AGENTS_PY_URL"] ?? "http://agents-py:8082";
+    client.BaseAddress = new Uri(url);
+    client.Timeout = TimeSpan.FromSeconds(600);
+});
+
+// Fila in-process + worker da transcrição assíncrona do Escriba presencial (ADR-075).
+builder.Services.AddSingleton<EscribaJobQueue>();
+builder.Services.AddHostedService<EscribaJobWorker>();
+
 // -----------------------------------------------------------------------------
 // OpenAPI 3.1 (nativo no .NET 10)
 // -----------------------------------------------------------------------------
