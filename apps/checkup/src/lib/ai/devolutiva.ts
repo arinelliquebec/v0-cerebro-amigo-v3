@@ -73,11 +73,10 @@ export async function generateDevolutiva(input: DevolutivaInput): Promise<Devolu
     });
 
     const raw = response.content[0];
-    if (raw.type !== "text") return getFallback(input);
+    let devolutiva = raw?.type === "text" ? parseDevolutiva(raw.text) : null;
 
-    const parsed = DevolutivaSchema.safeParse(JSON.parse(raw.text));
-    if (!parsed.success) {
-      // retry once
+    if (!devolutiva) {
+      // retry 1x em parse/estrutura inválida (desenho: parse falhou → retry → fallback)
       const retry = await client.messages.create({
         model: HAIKU_MODEL,
         max_tokens: 700,
@@ -86,16 +85,34 @@ export async function generateDevolutiva(input: DevolutivaInput): Promise<Devolu
         messages: [{ role: "user", content: buildUserMessage(input) }],
       });
       const raw2 = retry.content[0];
-      if (raw2.type !== "text") return getFallback(input);
-      const parsed2 = DevolutivaSchema.safeParse(JSON.parse(raw2.text));
-      if (!parsed2.success) return getFallback(input);
-      if (devolutivaHasProhibitedContent(parsed2.data)) return getFallback(input);
-      return parsed2.data;
+      devolutiva = raw2?.type === "text" ? parseDevolutiva(raw2.text) : null;
     }
 
-    if (devolutivaHasProhibitedContent(parsed.data)) return getFallback(input);
-    return parsed.data;
+    if (!devolutiva) return getFallback(input);
+    if (devolutivaHasProhibitedContent(devolutiva)) return getFallback(input);
+    return devolutiva;
   } catch {
     return getFallback(input);
   }
+}
+
+// O modelo às vezes embrulha o JSON em cerca markdown (```json ... ```) mesmo com a
+// instrução "sem markdown" no system prompt — observado no claude-haiku-4-5 em
+// 2026-07-15, quando TODA devolutiva LLM degradava para o fallback. Strip é
+// transport-level apenas; conteúdo continua validado por Zod + prohibited-content.
+export function extractJsonPayload(text: string): string {
+  const trimmed = text.trim();
+  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/);
+  return fenced ? fenced[1] : trimmed;
+}
+
+function parseDevolutiva(text: string): Devolutiva | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(extractJsonPayload(text));
+  } catch {
+    return null;
+  }
+  const parsed = DevolutivaSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
 }
