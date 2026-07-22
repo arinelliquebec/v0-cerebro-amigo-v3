@@ -7,8 +7,8 @@ import { FileText, Loader2, AlertTriangle } from "lucide-react"
 // Globais do SDK MEMED (tipados soltos — o SDK é injetado por <script>).
 declare global {
   interface Window {
-    MdSinapsePrescricao?: any
-    MdHub?: any
+    MdSinapsePrescricao?: unknown
+    MdHub?: unknown
   }
 }
 
@@ -127,56 +127,90 @@ export function BotaoReceitaMemed({
       }
 
       // 3. espelho ao concluir a prescrição
-      Md.event?.add?.("prescricaoImpressa", (data: any) => {
-        const memedPrescricaoId = String(data?.prescricao?.id ?? data?.id ?? "")
-        if (!memedPrescricaoId) return
-        const brutos = data?.prescricao?.medicamentos ?? data?.medicamentos ?? []
-        const medicamentos = (Array.isArray(brutos) ? brutos : []).map((m: any) => ({
-          nome: m?.nome ?? m?.medicamento ?? m?.descricao ?? "",
-          posologia: m?.posologia ?? m?.descricao ?? null,
-        }))
-        void espelhar(memedPrescricaoId, medicamentos)
+    Md.event?.add?.("prescricaoImpressa", (data: unknown) => {
+      if (typeof data !== "object" || data === null) {
+        return
+      }
+      const d = data as { prescricao?: Record<string, unknown>; id?: string | number; medicamentos?: unknown[] }
+      const rawPrescricao = typeof d.prescricao === "object" && d.prescricao !== null ? d.prescricao : {}
+      const prescId = rawPrescricao.id
+      const memedPrescricaoId = String(
+        typeof prescId === "string" || typeof prescId === "number"
+          ? prescId
+          : typeof d.id === "string" || typeof d.id === "number"
+          ? d.id
+          : ""
+      )
+      if (!memedPrescricaoId) return
+      const brutos = Array.isArray(rawPrescricao.medicamentos)
+        ? rawPrescricao.medicamentos
+        : Array.isArray(d.medicamentos)
+        ? d.medicamentos
+        : []
+      const medicamentos = brutos.map((elem) => {
+        if (typeof elem !== "object" || elem === null) {
+          return { nome: "", posologia: null }
+        }
+        const m = elem as Record<string, unknown>
+        const nome =
+          typeof m.nome === "string"
+            ? m.nome
+            : typeof m.medicamento === "string"
+            ? m.medicamento
+            : typeof m.descricao === "string"
+            ? m.descricao
+            : ""
+        const posologia =
+          typeof m.posologia === "string"
+            ? m.posologia
+            : typeof m.descricao === "string"
+            ? m.descricao
+            : null
+        return { nome, posologia }
       })
+      void espelhar(memedPrescricaoId, medicamentos)
+    })
 
-      // 4. abre o módulo
-      const abrirModulo = async () => {
-        await Hub.command.send("plataforma.prescricao", "setPaciente", paciente)
-        await Hub.module.show("plataforma.prescricao")
-      }
-
-      if (eraCarregado) {
-        // SDK já estava na página → módulo já inicializado, abre direto
-        await abrirModulo()
-      } else {
-        // 1ª carga → espera o módulo inicializar
-        Md.event?.add?.("core:moduleInit", async (module: any) => {
-          if (module?.name && module.name !== "plataforma.prescricao") return
-          await abrirModulo()
-        })
-      }
-    } catch (e: any) {
-      // Detalhe técnico só no console (pode ser texto cru/em inglês do SDK do MEMED) — nunca na tela do médico.
-      console.error("[BotaoReceitaMemed] falha ao abrir o MEMED:", e)
-      setErro("Não foi possível abrir o MEMED para emitir a receita. Verifique sua conexão e tente novamente.")
-    } finally {
-      setCarregando(false)
+    // 4. abre o módulo
+    const abrirModulo = async () => {
+      await Hub.command.send("plataforma.prescricao", "setPaciente", paciente)
+      await Hub.module.show("plataforma.prescricao")
     }
-  }, [pacienteId, pacienteNome, espelhar])
 
-  return (
-    <div className="space-y-2">
-      <Button onClick={abrir} disabled={carregando} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-        {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
-        Emitir receita (MEMED)
-      </Button>
-      {erro && (
-        <p className="flex items-start gap-1.5 text-sm text-destructive">
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {erro}
-        </p>
-      )}
-      {aviso && !erro && (
-        <p className="text-sm text-muted-foreground">{aviso}</p>
-      )}
-    </div>
-  )
-}
+    if (eraCarregado) {
+      // SDK já estava na página → módulo já inicializado, abre direto
+      await abrirModulo()
+    } else {
+      // 1ª carga → espera o módulo inicializar
+      Md.event?.add?.("core:moduleInit", async (module: unknown) => {
+        if (typeof module !== "object" || module === null) return
+        const m = module as unknown as { name?: unknown }
+        if (typeof m.name === "string" && m.name !== "plataforma.prescricao") return
+        await abrirModulo()
+      })
+    }
+  } catch (e: unknown) {
+    // Detalhe técnico só no console (pode ser texto cru/em inglês do SDK do MEMED) — nunca na tela do médico.
+    console.error("[BotaoReceitaMemed] falha ao abrir o MEMED:", e)
+    setErro("Não foi possível abrir o MEMED para emitir a receita. Verifique sua conexão e tente novamente.")
+  } finally {
+    setCarregando(false)
+  }
+}, [pacienteId, pacienteNome, espelhar])
+
+return (
+  <div className="space-y-2">
+    <Button onClick={abrir} disabled={carregando} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+      {carregando ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+      Emitir receita (MEMED)
+    </Button>
+    {erro && (
+      <p className="flex items-start gap-1.5 text-sm text-destructive">
+        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /> {erro}
+      </p>
+    )}
+    {aviso && !erro && (
+      <p className="text-sm text-muted-foreground">{aviso}</p>
+    )}
+  </div>
+)

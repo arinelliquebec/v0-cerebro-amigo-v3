@@ -204,7 +204,7 @@ function PagamentoDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: () => voi
           </div>
           <div className="space-y-1.5">
             <Label>Método</Label>
-            <Select value={metodo} onValueChange={(v) => setValue("metodo", v as any)}>
+            <Select value={metodo} onValueChange={(v: string) => setValue("metodo", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="pix">Pix</SelectItem>
@@ -242,9 +242,9 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
   } = useForm<EditarAssinaturaFormData>({
     resolver: zodResolver(editarAssinaturaSchema),
     defaultValues: {
-      plano: asn.plano as any,
+      plano: asn.plano,
       valor: valorParaMask(asn.valorMensal ?? 0),
-      status: asn.status as any,
+      status: asn.status,
       notas: asn.notas ?? "",
       cpf: asn.cpf ? cpfMask(asn.cpf) : "",
     },
@@ -294,7 +294,7 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label>Plano</Label>
-              <Select value={plano} onValueChange={(v) => setValue("plano", v as any)}>
+              <Select value={plano} onValueChange={(v) => setValue("plano", v as string)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {["pendente", "trial", "starter", "pro", "master", "enterprise"].map((p) => (
@@ -306,7 +306,7 @@ function EditarAssinaturaDialog({ asn, onSalvo }: { asn: Assinatura; onSalvo: ()
             </div>
             <div className="space-y-1.5">
               <Label>Status</Label>
-              <Select value={status} onValueChange={(v) => setValue("status", v as any)}>
+              <Select value={status} onValueChange={(v: string) => setValue("status", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {["trial", "pendente", "ativa", "suspensa", "cancelada"].map((s) => (
@@ -528,7 +528,7 @@ function NovaAssinaturaDialog({ onCriado }: { onCriado: () => void }) {
             </div>
             <div className="space-y-1.5">
               <Label>Plano</Label>
-              <Select value={planoValue} onValueChange={(v) => setValue("plano", v as any)}>
+              <Select value={planoValue} onValueChange={(v: string) => setValue("plano", v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>{["pendente","trial","starter","pro","master","enterprise"].map((p) => <SelectItem key={p} value={p}>{planoLabel(p)}</SelectItem>)}</SelectContent>
               </Select>
