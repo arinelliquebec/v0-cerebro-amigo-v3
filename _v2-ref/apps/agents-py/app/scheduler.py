@@ -11,8 +11,6 @@ diariamente, etc).
 
 from __future__ import annotations
 
-import asyncio
-
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger

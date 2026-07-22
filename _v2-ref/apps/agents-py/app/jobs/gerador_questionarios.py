@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, time, timedelta
 from typing import Any, ClassVar
-from uuid import UUID
 
 import structlog
 
