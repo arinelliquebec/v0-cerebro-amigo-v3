@@ -1,6 +1,8 @@
 # Cérebro Amigo V3
 
-Plataforma demonstrativa de acompanhamento psiquiátrico entre consultas, desenhada para conectar a rotina do paciente à tomada de decisão do médico com segurança, contexto e rastreabilidade.
+A demonstration platform for psychiatric care between appointments, designed to connect the patient's daily routine to the physician's decision-making with safety, context, and traceability.
+
+**🇧🇷 [Versão em português](./README.pt-br.md)**
 
 [![CI](https://img.shields.io/badge/CI-GitHub_Actions-2088FF?logo=githubactions&logoColor=white)](./.github/workflows/ci.yml)
 ![Next.js](https://img.shields.io/badge/Next.js-16-111111?logo=nextdotjs)
@@ -9,83 +11,86 @@ Plataforma demonstrativa de acompanhamento psiquiátrico entre consultas, desenh
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-pgvector-4169E1?logo=postgresql&logoColor=white)
 
 <p align="center">
-  <img src="./docs/assets/portfolio/cerebro-amigo-hero.png" alt="Visão conceitual do ecossistema Cérebro Amigo, com dashboard médico, núcleo de IA e experiência mobile" width="100%" />
+  <img src="./docs/assets/portfolio/cerebro-amigo-hero.png" alt="Conceptual overview of the Cérebro Amigo ecosystem, with the physician dashboard, AI core, and mobile experience" width="100%" />
 </p>
 
 > [!IMPORTANT]
-> Este é um **projeto de portfólio e uma simulação realista de engenharia**. Não é um serviço médico ativo, não contém pacientes reais e não deve ser usado para diagnóstico, prescrição ou atendimento de emergência. Integrações externas dependem de credenciais próprias e ambientes de teste.
+> This is a **portfolio project and a realistic engineering simulation**. It is not an active medical service, contains no real patients, and must not be used for diagnosis, prescription, or emergency care. External integrations require your own credentials and test environments.
 
-## O case em 90 segundos
+## The case in 90 seconds
 
 | | |
 |---|---|
-| **Problema** | Entre consultas, informações importantes ficam dispersas: humor, adesão, sintomas, dúvidas e sinais de risco. |
-| **Produto** | Dashboard médico, PWA do paciente e uma experiência pública de triagem anônima. |
-| **Desafio técnico** | Isolar dados sensíveis por tenant, coordenar serviços em três stacks e aplicar IA sem retirar o médico do processo. |
-| **Solução** | Next.js no produto e no BFF, .NET no núcleo transacional, Python nos fluxos de IA e PostgreSQL com RLS como última linha de isolamento. |
-| **O que o repositório demonstra** | Arquitetura de sistemas, desenvolvimento full-stack, segurança por design, UX de produto, testes de integração e CI/CD. |
+| **Problem** | Between appointments, critical information gets scattered: mood, adherence, symptoms, questions, and risk signals. |
+| **Product** | A physician dashboard, a patient PWA, and a public anonymous screening experience. |
+| **Technical challenge** | Isolate sensitive data per tenant, coordinate services across three stacks, and apply AI without removing the physician from the loop. |
+| **Solution** | Next.js for the product and BFF, .NET for the transactional core, Python for the AI flows, and PostgreSQL with Row-Level Security as the last line of isolation. |
+| **What this repository demonstrates** | Systems architecture, full-stack development, security by design, product UX, integration testing, and CI/CD. |
 
-O objetivo não é apenas simular telas. O monorepo implementa fronteiras de serviço, autenticação, auditoria, migrações, notificações, processamento assíncrono, salvaguardas clínicas e uma arquitetura de referência para AWS na região de São Paulo.
+The goal is not just to simulate screens. The monorepo implements service boundaries, authentication, auditing, migrations, notifications, asynchronous processing, clinical safeguards, and a reference architecture for AWS in the São Paulo region.
 
-## Produto
+> [!NOTE]
+> Product copy and internal documentation (ADRs, runbooks) are written in Brazilian Portuguese — the product targets the Brazilian market and its data-protection law (LGPD). This README summarizes the key engineering decisions in English.
+
+## Product
 
 <p align="center">
-  <img src="./docs/assets/portfolio/entrada-medico-paciente.png" alt="Entrada do Cérebro Amigo com jornadas separadas para médico e paciente" width="92%" />
+  <img src="./docs/assets/portfolio/entrada-medico-paciente.png" alt="Cérebro Amigo entry point with separate journeys for physician and patient" width="92%" />
 </p>
 
-<p align="center"><sub>Uma porta de entrada, duas jornadas e permissões diferentes desde o primeiro contato.</sub></p>
+<p align="center"><sub>One front door, two journeys, and distinct permissions from the very first interaction.</sub></p>
 
 <table>
   <tr>
     <td width="50%">
-      <img src="./docs/assets/portfolio/plataforma-medico.png" alt="Página da plataforma para médicos com exemplo de briefing pré-consulta" />
+      <img src="./docs/assets/portfolio/plataforma-medico.png" alt="Physician platform page with a pre-appointment briefing example" />
       <br />
-      <sub><strong>Experiência médica:</strong> briefing pré-consulta, agenda, prontuário, evolução e alertas.</sub>
+      <sub><strong>Physician experience:</strong> pre-appointment briefing, schedule, medical records, progress notes, and alerts.</sub>
     </td>
     <td width="50%">
-      <img src="./docs/assets/portfolio/portal-paciente.png" alt="Portal do paciente com humor, medicação e diário por voz" />
+      <img src="./docs/assets/portfolio/portal-paciente.png" alt="Patient portal with mood tracking, medication, and voice journaling" />
       <br />
-      <sub><strong>Experiência do paciente:</strong> humor, lembretes, diário, check-ins e conversa assistida.</sub>
+      <sub><strong>Patient experience:</strong> mood tracking, reminders, journaling, check-ins, and assisted conversation.</sub>
     </td>
   </tr>
 </table>
 
 <p align="center">
-  <img src="./docs/assets/portfolio/checkup-mental.png" alt="Check-up Mental com triagens anônimas baseadas em instrumentos validados" width="92%" />
+  <img src="./docs/assets/portfolio/checkup-mental.png" alt="Mental Check-up with anonymous screenings based on validated instruments" width="92%" />
 </p>
 
-<p align="center"><sub><strong>Check-up Mental:</strong> produto-satélite anônimo e isolado do prontuário clínico. As telas usam conteúdo demonstrativo.</sub></p>
+<p align="center"><sub><strong>Mental Check-up:</strong> an anonymous satellite product, fully isolated from the clinical records. All screens use demo content.</sub></p>
 
-## Capacidades implementadas
+## Implemented capabilities
 
-### Para o médico
+### For the physician
 
-- Dashboard com agenda, pacientes, mensagens, check-ins e visão de evolução.
-- Prontuário longitudinal com condutas, medicações, escalas, exames e timeline.
-- Briefing pré-consulta e escriba assistido, mantendo o médico como decisor.
-- Alertas de risco com confirmação, retentativa e trilha de auditoria.
-- Visões operacionais de uso, custos, aquisição e conformidade.
+- Dashboard with schedule, patients, messages, check-ins, and progress overview.
+- Longitudinal medical record with treatment plans, medications, clinical scales, exams, and a timeline.
+- Pre-appointment briefing and an assisted scribe, keeping the physician as the decision-maker.
+- Risk alerts with acknowledgment, retry, and a full audit trail.
+- Operational views for usage, costs, acquisition, and compliance.
 
-### Para o paciente
+### For the patient
 
-- PWA responsiva com sessão própria e navegação orientada à rotina.
-- Registro de humor, diário por texto ou voz, agenda e lembretes de medicação.
-- Check-ins e comunicação entre consultas com supervisão e auditoria.
-- Fluxo de crise determinístico, com mensagem estática pré-aprovada.
+- Responsive PWA with its own session and routine-oriented navigation.
+- Mood logging, text or voice journaling, schedule, and medication reminders.
+- Check-ins and communication between appointments, supervised and audited.
+- Deterministic crisis flow with a static, pre-approved message.
 
-### Check-up Mental
+### Mental Check-up
 
-- Triagens públicas e anônimas com instrumentos clínicos validados.
-- Resultado imediato, sem misturar os dados com o prontuário.
-- Arquitetura, schema e ciclo de deploy independentes do produto clínico.
-- Conteúdo estruturado e minimizado nos pontos que usam LLM.
+- Public, anonymous screenings based on validated clinical instruments (PHQ-9, GAD-7, ASRS-18).
+- Immediate results, never mixed with the clinical records.
+- Independent architecture, database schema, and deploy cycle from the clinical product.
+- Structured, minimized content at every point that touches an LLM.
 
-## Arquitetura
+## Architecture
 
 ```mermaid
 flowchart LR
-    M["Médico · Web"] --> BFF["Next.js · BFF"]
-    P["Paciente · PWA"] --> BFF
+    M["Physician · Web"] --> BFF["Next.js · BFF"]
+    P["Patient · PWA"] --> BFF
     BFF --> API[".NET 10 · API Gateway"]
     API --> DB[("PostgreSQL · RLS")]
     API --> ORC["Python · Orchestrator"]
@@ -93,122 +98,122 @@ flowchart LR
     API --> NOT["Python · Notifier"]
     ORC --> LLM["Anthropic API"]
     AGT --> EMB["Bedrock · embeddings"]
-    C["Check-up anônimo"] --> CDB[("Schema isolado")]
+    C["Anonymous Check-up"] --> CDB[("Isolated schema")]
 ```
 
-As fronteiras foram escolhidas por responsabilidade, não por preferência de linguagem:
+Boundaries were drawn by responsibility, not by language preference:
 
-| Camada | Tecnologia | Responsabilidade |
+| Layer | Technology | Responsibility |
 |---|---|---|
-| Produto e BFF | Next.js 16, React 19, TypeScript, Tailwind 4 | UI, sessão httpOnly, Route Handlers e PWA. |
-| Núcleo transacional | ASP.NET Core / .NET 10 | REST, JWT, regras de acesso, EF Core e proxy de eventos. |
-| IA e automações | Python 3.12, FastAPI, LangGraph | Orquestração, classificação, RAG, jobs e integrações. |
-| Dados | PostgreSQL, pgvector, pgcrypto | Modelo relacional, busca vetorial, cifragem e RLS multi-tenant. |
-| Entrega | Docker, GitHub Actions, AWS | Builds reproduzíveis, gates de qualidade e arquitetura regionalizada. |
+| Product & BFF | Next.js 16, React 19, TypeScript, Tailwind 4 | UI, httpOnly sessions, Route Handlers, and PWA. |
+| Transactional core | ASP.NET Core / .NET 10 | REST, JWT, access rules, EF Core, and event proxying. |
+| AI & automation | Python 3.12, FastAPI, LangGraph | Orchestration, classification, RAG, jobs, and integrations. |
+| Data | PostgreSQL, pgvector, pgcrypto | Relational model, vector search, encryption, and multi-tenant RLS. |
+| Delivery | Docker, GitHub Actions, AWS | Reproducible builds, quality gates, and a regionalized architecture. |
 
-Para o mapa completo, consulte [docs/CONTEXT.md](./docs/CONTEXT.md). As decisões arquiteturais são registradas em [docs/adrs](./docs/adrs).
+For the full map, see [docs/CONTEXT.md](./docs/CONTEXT.md). Architectural decisions are recorded in [docs/adrs](./docs/adrs).
 
-## Decisões que rendem uma boa conversa técnica
+## Decisions worth a technical conversation
 
-1. **Tenant isolado em duas camadas.** Toda consulta clínica mantém filtro explícito e o PostgreSQL reforça o limite com Row-Level Security. Testes com Postgres real tentam atravessar tenants e provar a defesa. Veja [ADR-042](./docs/adrs/ADR-042-rls-isolamento-tenant.md).
+1. **Tenant isolation in two layers.** Every clinical query keeps an explicit tenant filter, and PostgreSQL enforces the boundary with Row-Level Security. Integration tests against a real Postgres actively try to cross tenants to prove the defense. See [ADR-042](./docs/adrs/ADR-042-rls-isolamento-tenant.md).
 
-2. **IA separada do domínio transacional.** O gateway .NET não chama modelos diretamente. Fluxos de IA vivem nos serviços Python e podem trocar de provedor sem contaminar a API principal. Veja [ADR-044](./docs/adrs/ADR-044-llm-anthropic-api-direta.md) e [ADR-071](./docs/adrs/ADR-071-manter-dotnet-remover-scala.md).
+2. **AI kept apart from the transactional domain.** The .NET gateway never calls models directly. AI flows live in the Python services and can swap providers without contaminating the main API. See [ADR-044](./docs/adrs/ADR-044-llm-anthropic-api-direta.md) and [ADR-071](./docs/adrs/ADR-071-manter-dotnet-remover-scala.md).
 
-3. **Crise é caminho determinístico e fail-safe.** A LLM nunca redige a mensagem de crise. O texto é estático, verificado por hash em dois serviços, e uma falha de classificação é tratada como risco — nunca ignorada. Veja [ADR-035](./docs/adrs/ADR-035-trava-server-side-prompt-crise.md), [ADR-041](./docs/adrs/ADR-041-entrega-garantida-alerta-crise.md) e [ADR-063](./docs/adrs/ADR-063-resiliencia-deteccao-crise-failsafe.md).
+3. **Crisis handling is deterministic and fail-safe.** The LLM never writes the crisis message. The text is static, hash-verified across two services, and a classification failure is treated as risk — never ignored. See [ADR-035](./docs/adrs/ADR-035-trava-server-side-prompt-crise.md), [ADR-041](./docs/adrs/ADR-041-entrega-garantida-alerta-crise.md), and [ADR-063](./docs/adrs/ADR-063-resiliencia-deteccao-crise-failsafe.md).
 
-4. **Privacidade orienta o desenho.** Conteúdo sensível é cifrado, PII é redatada antes dos traces e identificadores diretos não viajam com conteúdo clínico para APIs externas. Veja [ADR-018](./docs/adrs/ADR-018-cifragem-em-repouso.md).
+4. **Privacy drives the design.** Sensitive content is encrypted at rest, PII is redacted before traces, and direct identifiers never travel alongside clinical content to external APIs. See [ADR-018](./docs/adrs/ADR-018-cifragem-em-repouso.md).
 
-5. **O funil público não vira prontuário.** O Check-up Mental usa schema separado, não cria chaves estrangeiras para o domínio clínico e expõe apenas métricas agregadas quando necessário.
+5. **The public funnel never becomes a medical record.** The Mental Check-up uses a separate schema, creates no foreign keys into the clinical domain, and exposes only aggregate metrics when needed.
 
-## Segurança e responsabilidade clínica
+## Security and clinical responsibility
 
-- IA organiza, classifica e rascunha; **não diagnostica, prescreve ou ajusta dose**.
-- Toda resposta ao paciente é auditável e pode ser escalada para uma pessoa.
-- O protocolo de crise usa conteúdo fixo e entrega com retentativa.
-- Registros críticos de auditoria são imutáveis por regra de domínio.
-- Cookies de sessão são `httpOnly`; serviços internos usam token dedicado.
-- Segredos entram por variáveis de ambiente e não pertencem ao código, às imagens ou aos logs.
-- O pipeline executa scan de vulnerabilidades e bloqueia achados críticos corrigíveis.
+- AI organizes, classifies, and drafts; it **never diagnoses, prescribes, or adjusts dosage**.
+- Every response to a patient is auditable and can be escalated to a human.
+- The crisis protocol uses fixed content with guaranteed, retried delivery.
+- Critical audit records are immutable by domain rule.
+- Session cookies are `httpOnly`; internal services authenticate with a dedicated token.
+- Secrets come from environment variables and never belong in code, images, or logs.
+- The pipeline runs vulnerability scans and blocks fixable critical findings.
 
-Essa seção descreve decisões implementadas no case; não representa certificação regulatória nem validação para uso clínico real.
+This section describes decisions implemented in the case study; it does not represent regulatory certification or validation for real clinical use.
 
-## Qualidade verificável
+## Verifiable quality
 
-| Área | Gate principal | O que protege |
+| Area | Main gate | What it protects |
 |---|---|---|
-| Web | `pnpm build` | TypeScript strict, React e renderização do Next.js. |
-| Check-up | `pnpm test` + `pnpm build` | Motor das escalas e experiência pública. |
-| Gateway | `dotnet build` + `dotnet test` | Contratos, autorização, RLS e integração com Postgres real via Testcontainers. |
-| Serviços Python | `ruff`, `mypy`, `pytest` | Fluxos de IA, crise, redaction e jobs. |
-| Repositório | Trivy + smoke tests | Dependências críticas e integração entre serviços. |
+| Web | `pnpm build` | Strict TypeScript, React, and Next.js rendering. |
+| Check-up | `pnpm test` + `pnpm build` | The scale engine and the public experience. |
+| Gateway | `dotnet build` + `dotnet test` | Contracts, authorization, RLS, and integration with a real Postgres via Testcontainers. |
+| Python services | `ruff`, `mypy`, `pytest` | AI flows, crisis handling, redaction, and jobs. |
+| Repository | Trivy + smoke tests | Critical dependencies and cross-service integration. |
 
-O repositório mantém migrações SQL versionadas como fonte da verdade do schema e uma suíte de CI em [`.github/workflows/ci.yml`](./.github/workflows/ci.yml).
+The repository keeps versioned SQL migrations as the single source of truth for the schema, plus a CI suite in [`.github/workflows/ci.yml`](./.github/workflows/ci.yml).
 
-## Estrutura do monorepo
+## Monorepo structure
 
 ```text
 apps/
-├── web/                 Next.js — landing, dashboard, PWA e BFF
-├── checkup/             Next.js — triagem pública anônima
-├── api-gateway/         .NET 10 — API transacional e autorização
+├── web/                 Next.js — landing, dashboard, PWA, and BFF
+├── checkup/             Next.js — public anonymous screening
+├── api-gateway/         .NET 10 — transactional API and authorization
 ├── api-gateway-tests/   xUnit + Testcontainers
-├── orchestrator-py/     FastAPI + LangGraph — conversa e crise
-├── agents-py/           FastAPI — agentes analíticos e RAG
-└── notifier-py/         FastAPI — push, e-mail e retentativas
+├── orchestrator-py/     FastAPI + LangGraph — conversation and crisis
+├── agents-py/           FastAPI — analytical agents and RAG
+└── notifier-py/         FastAPI — push, e-mail, and retries
 
 infra/
-├── migrations/          DDL versionado do PostgreSQL
-├── aws/                 Arquitetura de referência e automações
-└── ci/                  Scripts de integração e smoke tests
+├── migrations/          Versioned PostgreSQL DDL
+├── aws/                 Reference architecture and automation
+└── ci/                  Integration scripts and smoke tests
 
 docs/
-├── CONTEXT.md           Mapa técnico do sistema
-├── DEBT.md              Dívida técnica explícita
-├── adrs/                Registro das decisões arquiteturais
-└── runbooks/            Procedimentos operacionais simulados
+├── CONTEXT.md           Technical map of the system
+├── DEBT.md              Explicit technical debt
+├── adrs/                Architectural decision records
+└── runbooks/            Simulated operational procedures
 ```
 
-`apps/api-gateway-scala` é código descomissionado preservado apenas como registro histórico; o gateway ativo é .NET 10.
+`apps/api-gateway-scala` is decommissioned code preserved purely as historical record; the active gateway is .NET 10.
 
-## Rodando localmente
+## Running locally
 
-### Pré-requisitos
+### Prerequisites
 
-- Node.js 24 e pnpm 10.33.3 via Corepack
+- Node.js 24 and pnpm 10.33.3 via Corepack
 - .NET 10 SDK
 - Python 3.12+
-- Docker com Compose
+- Docker with Compose
 
-### Visão rápida da interface
+### Quick look at the interface
 
 ```bash
 corepack pnpm@10.33.3 install --frozen-lockfile
 corepack pnpm@10.33.3 --filter @cerebro-amigo/web dev
 ```
 
-A aplicação web abre em `http://localhost:3000`. Em outro terminal, o Check-up Mental pode ser iniciado em `http://localhost:3001`:
+The web app opens at `http://localhost:3000`. In another terminal, the Mental Check-up can be started at `http://localhost:3001`:
 
 ```bash
 corepack pnpm@10.33.3 --filter @cerebro-amigo/checkup dev
 ```
 
-### Stack completa
+### Full stack
 
 ```bash
 cp .env.example .env
 docker compose up -d --build
 ```
 
-O `.env.example` documenta todas as variáveis. Use somente credenciais próprias de sandbox/desenvolvimento e dados fictícios. Alguns fluxos dependem de provedores externos e permanecerão indisponíveis sem essas configurações.
+`.env.example` documents every variable. Use only your own sandbox/development credentials and fictional data. Some flows depend on external providers and will remain unavailable without that configuration.
 
-## Limites intencionais do case
+## Intentional limits of the case study
 
-- Nenhum dado real de paciente deve ser inserido.
-- As telas e cenários apresentados usam informações fictícias.
-- A infraestrutura AWS representa uma topologia plausível, não uma declaração de ambiente clínico ativo.
-- Escalas e salvaguardas foram tratadas como artefatos controlados, mas uso real exigiria validação jurídica, clínica, de segurança e privacidade independente.
-- Débitos e decisões ainda abertas são mantidos de forma explícita em [docs/DEBT.md](./docs/DEBT.md).
+- No real patient data should ever be entered.
+- All screens and scenarios shown use fictional information.
+- The AWS infrastructure represents a plausible topology, not a statement of an active clinical environment.
+- Clinical scales and safeguards were treated as controlled artifacts, but real-world use would require independent legal, clinical, security, and privacy validation.
+- Open debts and pending decisions are kept explicit in [docs/DEBT.md](./docs/DEBT.md).
 
 ---
 
-Construído como um case de engenharia de produto para demonstrar decisões reais — inclusive os limites, os riscos e os trade-offs que normalmente ficam fora de uma demo de interface.
+Built as a product-engineering case study to demonstrate real decisions — including the limits, the risks, and the trade-offs that usually stay out of a UI demo.
