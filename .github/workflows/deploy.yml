@@ -3,6 +3,8 @@ name: Deploy to EC2
 on:
   push:
     branches: [main]
+  # Redeploy manual completo (ignora o gate de path): Actions → Deploy to EC2 → Run workflow
+  workflow_dispatch:
 
 concurrency:
   group: deploy-production
@@ -38,14 +40,17 @@ jobs:
     name: Detect changes
     runs-on: ubuntu-latest
     outputs:
-      clinical: ${{ steps.filter.outputs.clinical }}
-      checkup: ${{ steps.filter.outputs.checkup }}
-      web: ${{ steps.filter.outputs.web }}
+      # workflow_dispatch = redeploy total: força os três alvos sem depender do diff
+      clinical: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.clinical }}
+      checkup: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.checkup }}
+      web: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.web }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
         id: filter
+        # paths-filter precisa de base de comparação (event.before) — só existe no push
+        if: github.event_name == 'push'
         with:
           filters: |
             clinical:
